@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0",
+  "datasets": [
+    {
+      "id": "hm-categories",
+      "display_name": "H&M Categories",
+      "task": "multiclass_node_classification",
+      "metric": "accuracy",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "pokec-regions",
+      "display_name": "Pokec Regions",
+      "task": "multiclass_node_classification",
+      "metric": "accuracy",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "web-topics",
+      "display_name": "Web Topics",
+      "task": "multiclass_node_classification",
+      "metric": "accuracy",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "tolokers-2",
+      "display_name": "Tolokers 2",
+      "task": "binary_node_classification",
+      "metric": "average_precision",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "city-reviews",
+      "display_name": "City Reviews",
+      "task": "binary_node_classification",
+      "metric": "average_precision",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "artnet-exp",
+      "display_name": "Artnet Exposure",
+      "task": "binary_node_classification",
+      "metric": "average_precision",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "web-fraud",
+      "display_name": "Web Fraud",
+      "task": "binary_node_classification",
+      "metric": "average_precision",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "percentage", "decimals": 2},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "hm-prices",
+      "display_name": "H&M Prices",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "avazu-ctr",
+      "display_name": "Avazu CTR",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "city-roads-M",
+      "display_name": "City Roads M",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "city-roads-L",
+      "display_name": "City Roads L",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "twitch-views",
+      "display_name": "Twitch Views",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "artnet-views",
+      "display_name": "Artnet Views",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH", "TH", "THI"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "web-traffic",
+      "display_name": "Web Traffic",
+      "task": "node_regression",
+      "metric": "r2",
+      "higher_is_better": true,
+      "available_settings": ["RL", "RH"],
+      "display": {"style": "number", "decimals": 3},
+      "source": {"name": "GraphLand v1 on Zenodo", "url": "https://doi.org/10.5281/zenodo.16895532"},
+      "release_version": "v1",
+      "license": "Apache-2.0"
+    }
+  ]
+}

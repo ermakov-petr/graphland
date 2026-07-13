@@ -6,6 +6,10 @@ This is the official repository for the paper [GraphLand: Evaluating Graph Machi
 
 > **Update**: GraphLand datasets (with the necessary preprocessing code) are now available in [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html), which is likely the easiest way to access them.
 
+## Leaderboard
+
+The public [GraphLand Leaderboard](https://ermakov-petr.github.io/graphland/) compares submitted results across the official datasets and experimental settings. See the [leaderboard documentation](leaderboard/README.md) for the protocol, submission process, and local build instructions.
+
 ## How to use this repository
 
 ### If you want to use the GraphLand datasets

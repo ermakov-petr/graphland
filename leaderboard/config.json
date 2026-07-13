@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "site": {
+    "title": "GraphLand Leaderboard",
+    "base_path": "/graphland/",
+    "repository_url": "https://github.com/ermakov-petr/graphland",
+    "submission_url": "https://github.com/ermakov-petr/graphland/issues/new?template=leaderboard-submission.yml&title=%5BLeaderboard%20submission%5D%20",
+    "release": "v1",
+    "license": "Apache-2.0"
+  },
+  "default_filters": {
+    "only_models_with_code": false
+  },
+  "task_families": [
+    {
+      "id": "multiclass_node_classification",
+      "label": "Multiclass node classification",
+      "metric": "accuracy",
+      "metric_label": "Accuracy"
+    },
+    {
+      "id": "binary_node_classification",
+      "label": "Binary node classification",
+      "metric": "average_precision",
+      "metric_label": "AP"
+    },
+    {
+      "id": "node_regression",
+      "label": "Node regression",
+      "metric": "r2",
+      "metric_label": "R²"
+    }
+  ],
+  "settings": [
+    {
+      "id": "RL",
+      "name": "Random Low",
+      "split_file": "split_masks_RL.csv",
+      "information_access": "transductive",
+      "train_percent": 10,
+      "validation_percent": 10,
+      "test_percent": 80,
+      "description": "Random stratified 10% / 10% / 80% train, validation, and test split. Training and evaluation use the full graph in the transductive setting."
+    },
+    {
+      "id": "RH",
+      "name": "Random High",
+      "split_file": "split_masks_RH.csv",
+      "information_access": "transductive",
+      "train_percent": 50,
+      "validation_percent": 25,
+      "test_percent": 25,
+      "description": "Random stratified 50% / 25% / 25% train, validation, and test split. Training and evaluation use the full graph in the transductive setting."
+    },
+    {
+      "id": "TH",
+      "name": "Temporal High",
+      "split_file": "split_masks_TH.csv",
+      "information_access": "transductive",
+      "train_percent": 50,
+      "validation_percent": 25,
+      "test_percent": 25,
+      "description": "Temporal 50% / 25% / 25% train, validation, and test split. Training and evaluation use the full graph in the transductive setting."
+    },
+    {
+      "id": "THI",
+      "name": "Temporal High, inductive",
+      "split_file": "split_masks_TH.csv",
+      "information_access": "inductive",
+      "train_percent": 50,
+      "validation_percent": 25,
+      "test_percent": 25,
+      "description": "The TH temporal split with inductive information access: training sees the subgraph induced by train nodes, validation sees the subgraph induced by train and validation nodes, and test uses the full graph. Validation and test nodes are unseen during training; test nodes are unseen during validation."
+    }
+  ]
+}
