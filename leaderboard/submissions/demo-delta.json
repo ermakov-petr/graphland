@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "demo-delta",
+  "model_name": "Demo Delta Ensemble",
+  "model_variant": "SYNTHETIC CLOSED-CODE PUBLIC DEMO — not a benchmark result",
+  "paper_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/README.md",
+  "code_availability": "unavailable",
+  "training_code_url": null,
+  "submitter_github": "ermakov-petr",
+  "provenance": "maintainer_seeded",
+  "source_issue": 3,
+  "graphland_ref": "v1-demo-fixture",
+  "method_type": "trained",
+  "hparam_trials": 6,
+  "tuning_protocol": "Synthetic QA fixture: a fictional closed ensemble selected from six validation trials.",
+  "num_runs": 4,
+  "external_data_pretraining": "Synthetic fixture metadata; no real training or evaluation was performed.",
+  "submitted_at": "2026-07-13",
+  "verification": "self_reported",
+  "review": {
+    "status": "approved",
+    "reviewer_github": "ermakov-petr",
+    "reviewed_at": "2026-07-13",
+    "notes": "Approved for public UI demonstration only; fully synthetic and not a benchmark claim."
+  },
+  "notes": "PUBLIC DEMO DATA ONLY. Fully synthetic values for UI testing; no model was evaluated and nothing in this record is a GraphLand benchmark claim. Delete this file to remove the demo submission.",
+  "results": [
+    {"setting": "RL", "dataset": "hm-categories", "value": 0.812, "std": 0.004},
+    {"setting": "RL", "dataset": "artnet-exp", "value": 0.594, "std": 0.008},
+    {"setting": "RL", "dataset": "city-roads-M", "value": 0.044, "std": 0.017},
+    {"setting": "RL", "dataset": "city-roads-L", "value": -0.019},
+    {"setting": "RH", "dataset": "web-topics", "value": 0.755, "std": 0.006},
+    {"setting": "RH", "dataset": "web-fraud", "value": 0.641, "std": 0.009},
+    {"setting": "RH", "dataset": "avazu-ctr", "value": 0.208, "std": 0.012},
+    {"setting": "TH", "dataset": "pokec-regions", "value": 0.611, "std": 0.011},
+    {"setting": "TH", "dataset": "tolokers-2", "value": 0.572},
+    {"setting": "TH", "dataset": "artnet-views", "value": -0.041, "std": 0.019},
+    {"setting": "THI", "dataset": "artnet-exp", "value": 0.529, "std": 0.014},
+    {"setting": "THI", "dataset": "twitch-views", "value": -0.203, "std": 0.033}
+  ]
+}

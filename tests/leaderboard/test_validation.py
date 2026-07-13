@@ -311,8 +311,34 @@ class SubmissionValidationTests(unittest.TestCase):
                 for result in results
             )
         )
-        for submission in submissions:
-            self.assertFalse((ROOT / "leaderboard" / "submissions" / f"{submission['id']}.json").exists())
+        fixture_by_id = {item["id"]: item for item in submissions}
+        production_validated = self.validation.validate_repository(root=ROOT)
+        production_demo_by_id = {
+            item["id"]: item
+            for item in production_validated["submissions"]
+            if item["id"].startswith("demo-")
+        }
+        self.assertTrue(set(production_demo_by_id).issubset(fixture_by_id))
+        for submission_id, published in production_demo_by_id.items():
+            self.assertEqual(published["results"], fixture_by_id[submission_id]["results"])
+            self.assertEqual(published["review"]["status"], "approved")
+            self.assertEqual(published["submitter_github"], "ermakov-petr")
+            self.assertEqual(published["review"]["reviewer_github"], "ermakov-petr")
+            self.assertTrue(
+                published["paper_url"].startswith(
+                    "https://github.com/ermakov-petr/graphland/"
+                )
+            )
+            if published["training_code_url"] is not None:
+                self.assertTrue(
+                    published["training_code_url"].startswith(
+                        "https://github.com/ermakov-petr/graphland/"
+                    )
+                )
+            self.assertTrue(published["model_name"].startswith("Demo "))
+            published_notes = str(published["notes"]).lower()
+            self.assertIn("synthetic", published_notes)
+            self.assertIn("benchmark claim", published_notes)
 
 
 if __name__ == "__main__":

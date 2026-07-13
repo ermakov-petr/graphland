@@ -84,6 +84,15 @@
       </div>
     </section>
 
+    <section class="shell demo-notice" id="demo-data-notice" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="demo-data-notice-title" hidden>
+      <div class="demo-notice-mark" aria-hidden="true">Demo</div>
+      <div>
+        <h2 id="demo-data-notice-title">Synthetic demo data is currently displayed</h2>
+        <p>Entries with submission IDs beginning with <code>demo-</code> exist only to demonstrate the leaderboard interface. They are synthetic examples, not benchmark claims.</p>
+        <p class="demo-notice-removal">To remove every demo entry, delete <code>leaderboard/submissions/demo-*.json</code>, then rebuild and deploy the site.</p>
+      </div>
+    </section>
+
     <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
       <div class="shell">
         <div class="section-heading section-heading-wide">

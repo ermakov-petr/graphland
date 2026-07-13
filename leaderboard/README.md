@@ -4,7 +4,11 @@ The GraphLand Leaderboard is a fully static, version-controlled leaderboard for 
 
 Review verifies the submitted format and declared protocol. It is not an independent reproduction unless the entry is explicitly marked `reproduced`. GraphLand has no hidden test set: targets and fixed split masks are part of the public dataset release. Issues, draft pull requests, and their discussions are public, so submissions must not contain secrets or confidential data.
 
-The production data directory intentionally starts empty. Test numbers live only under `tests/leaderboard/fixtures/`; they are not published benchmark results.
+The production data directory may temporarily contain clearly labelled `demo-*.json`
+entries for public UI QA. Their numbers are synthetic, are not benchmark claims, and
+are derived from the canonical fixtures under `tests/leaderboard/fixtures/`. They are
+ordinary data files rather than a site mode or configuration flag, so removing them
+restores an empty leaderboard without changing application code or configuration.
 
 ## Architecture
 
@@ -53,12 +57,13 @@ Build the deterministic Pages artifact:
 python3 scripts/leaderboard/build.py --output _site
 ```
 
-### Demo submission preview
+### Demo submissions and public QA
 
 The repository includes four explicitly synthetic submissions for local UI and
 Browser QA. They exercise all settings and task families, missing and unavailable
 cells, negative R², code filtering, and the main provenance and verification
-badges. They are not benchmark claims and are never read by the production build.
+badges. They are not benchmark claims. The fixture directory remains the canonical
+test source and is read only when passed explicitly to the build command below.
 
 Build the opt-in demo artifact:
 
@@ -69,8 +74,22 @@ python3 scripts/leaderboard/build.py \
   --submissions-dir tests/leaderboard/fixtures/demo_submissions
 ```
 
-Run the ordinary build without `--submissions-dir` before preparing a production
-artifact. Never copy demo JSON files into `leaderboard/submissions/`.
+For temporary public QA, reviewed derivatives can be committed as
+`leaderboard/submissions/demo-*.json`. Because the ordinary production build reads
+that directory, those files then appear on GitHub Pages. Keep the `demo-` IDs and
+the explicit synthetic/non-benchmark notices so they cannot be confused with real
+results.
+
+To end the public demo, remove only those tracked data files:
+
+```bash
+git rm -- 'leaderboard/submissions/demo-*.json'
+```
+
+Then run validation, tests, and the ordinary build before committing and pushing
+the removal. No code, workflow, fixture, schema, or configuration edit is needed;
+the next Pages deployment will publish an empty leaderboard if no real submissions
+have been added.
 
 For a quick local preview, serve `_site/` directly and open `http://localhost:8000/`:
 
