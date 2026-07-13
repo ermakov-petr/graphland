@@ -4,7 +4,7 @@
     "title": "GraphLand Leaderboard",
     "base_path": "/graphland/",
     "repository_url": "https://github.com/ermakov-petr/graphland",
-    "submission_url": "https://github.com/ermakov-petr/graphland/issues/new?template=leaderboard-submission.yml&title=%5BLeaderboard%20submission%5D%20",
+    "submission_url": "https://github.com/ermakov-petr/graphland/issues/new/choose",
     "release": "v1",
     "license": "Apache-2.0"
   },
