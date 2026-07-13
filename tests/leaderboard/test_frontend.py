@@ -46,6 +46,7 @@ class FrontendContractTests(unittest.TestCase):
             "leaderboard-body",
             "empty-state",
             "load-error",
+            "demo-data-notice",
             "model-dialog",
             "dialog-content",
         }
@@ -138,6 +139,33 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn('event.key === "Escape"', self.javascript)
         self.assertIn("state.dialogTrigger.focus()", self.javascript)
         self.assertIn("@media (prefers-reduced-motion: reduce)", self.css)
+
+    def test_demo_notice_is_accessible_and_driven_by_demo_submission_ids(self) -> None:
+        tag, attrs = self.document.by_id["demo-data-notice"]
+        self.assertEqual(tag, "section")
+        self.assertIn("hidden", attrs)
+        self.assertEqual(attrs.get("role"), "status")
+        self.assertEqual(attrs.get("aria-live"), "polite")
+        self.assertEqual(attrs.get("aria-atomic"), "true")
+        self.assertEqual(attrs.get("aria-labelledby"), "demo-data-notice-title")
+
+        normalized_html = " ".join(self.html.lower().split())
+        self.assertIn("synthetic demo data", normalized_html)
+        self.assertIn("not benchmark claims", normalized_html)
+        self.assertIn("leaderboard/submissions/demo-*.json", normalized_html)
+
+        self.assertIn('submission.id.startsWith("demo-")', self.javascript)
+        self.assertIn('demo ? "Demo documentation" : "Paper"', self.javascript)
+        self.assertIn('demo ? "Not applicable (synthetic demo)"', self.javascript)
+        self.assertIn("demo ? null : issueUrl(submission)", self.javascript)
+        self.assertIn(
+            "elements.demoNotice.hidden = !hasDemoSubmissions(state.payload)",
+            self.javascript,
+        )
+        self.assertRegex(
+            self.css,
+            r"\.demo-notice\[hidden\]\s*\{[^}]*display:\s*none",
+        )
 
     def test_only_submit_results_uses_a_chromatic_accent(self) -> None:
         artifacts = self.css + self.html + self.favicon

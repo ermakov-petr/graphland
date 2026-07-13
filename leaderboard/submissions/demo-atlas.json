@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "demo-atlas",
+  "model_name": "Demo Atlas GNN",
+  "model_variant": "SYNTHETIC PUBLIC DEMO — not a benchmark result",
+  "paper_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/README.md",
+  "code_availability": "available",
+  "training_code_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/demo-atlas.json",
+  "submitter_github": "ermakov-petr",
+  "provenance": "maintainer_seeded",
+  "source_issue": 99001,
+  "graphland_ref": "v1-demo-fixture",
+  "method_type": "trained",
+  "hparam_trials": 16,
+  "tuning_protocol": "Synthetic QA fixture: a fixed demo search budget selected by validation performance.",
+  "num_runs": 5,
+  "external_data_pretraining": "Synthetic fixture metadata; no real training or evaluation was performed.",
+  "submitted_at": "2026-07-10",
+  "verification": "reproduced",
+  "review": {
+    "status": "approved",
+    "reviewer_github": "ermakov-petr",
+    "reviewed_at": "2026-07-13",
+    "notes": "Approved for public UI demonstration only; fully synthetic and not a benchmark claim."
+  },
+  "notes": "PUBLIC DEMO DATA ONLY. Fully synthetic values for UI testing; no model was evaluated and nothing in this record is a GraphLand benchmark claim. Delete this file to remove the demo submission.",
+  "results": [
+    {"setting": "RL", "dataset": "hm-categories", "value": 0.781, "std": 0.006},
+    {"setting": "RL", "dataset": "pokec-regions", "value": 0.634, "std": 0.009},
+    {"setting": "RL", "dataset": "tolokers-2", "value": 0.522, "std": 0.012},
+    {"setting": "RL", "dataset": "city-reviews", "value": 0.681},
+    {"setting": "RL", "dataset": "hm-prices", "value": 0.214, "std": 0.018},
+    {"setting": "RL", "dataset": "city-roads-M", "value": -0.084, "std": 0.025},
+    {"setting": "RH", "dataset": "hm-categories", "value": 0.846, "std": 0.004},
+    {"setting": "RH", "dataset": "web-topics", "value": 0.712},
+    {"setting": "RH", "dataset": "web-fraud", "value": 0.603, "std": 0.007},
+    {"setting": "RH", "dataset": "avazu-ctr", "value": 0.137, "std": 0.011},
+    {"setting": "TH", "dataset": "pokec-regions", "value": 0.577, "std": 0.01},
+    {"setting": "THI", "dataset": "artnet-exp", "value": 0.491, "std": 0.013}
+  ]
+}

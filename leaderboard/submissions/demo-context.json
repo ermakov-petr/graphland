@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "demo-context",
+  "model_name": "Demo Context Model",
+  "model_variant": "SYNTHETIC IN-CONTEXT PUBLIC DEMO — not a benchmark result",
+  "paper_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/README.md",
+  "code_availability": "unavailable",
+  "training_code_url": null,
+  "submitter_github": "ermakov-petr",
+  "provenance": "maintainer_seeded",
+  "source_issue": 99003,
+  "graphland_ref": "v1-demo-fixture",
+  "method_type": "in_context",
+  "hparam_trials": 0,
+  "tuning_protocol": "Synthetic QA fixture: fictional in-context inference with no tuning or model execution.",
+  "num_runs": 1,
+  "external_data_pretraining": "Synthetic fixture metadata; no real training or evaluation was performed.",
+  "submitted_at": "2026-07-12",
+  "verification": "self_reported",
+  "review": {
+    "status": "approved",
+    "reviewer_github": "ermakov-petr",
+    "reviewed_at": "2026-07-13",
+    "notes": "Approved for public UI demonstration only; fully synthetic and not a benchmark claim."
+  },
+  "notes": "PUBLIC DEMO DATA ONLY. Fully synthetic values for UI testing; no model was evaluated and nothing in this record is a GraphLand benchmark claim. Delete this file to remove the demo submission.",
+  "results": [
+    {"setting": "RL", "dataset": "pokec-regions", "value": 0.591},
+    {"setting": "RL", "dataset": "city-reviews", "value": 0.623, "std": 0.014},
+    {"setting": "RL", "dataset": "hm-prices", "value": -0.231, "std": 0.041},
+    {"setting": "RH", "dataset": "hm-categories", "value": 0.803, "std": 0.005},
+    {"setting": "RH", "dataset": "artnet-exp", "value": 0.553, "std": 0.01},
+    {"setting": "RH", "dataset": "city-roads-L", "value": -0.052, "std": 0.022},
+    {"setting": "RH", "dataset": "web-traffic", "value": 0.021},
+    {"setting": "TH", "dataset": "web-topics", "value": 0.612, "std": 0.009},
+    {"setting": "TH", "dataset": "web-fraud", "value": 0.501},
+    {"setting": "TH", "dataset": "twitch-views", "value": -0.118, "std": 0.028},
+    {"setting": "THI", "dataset": "hm-categories", "value": 0.579, "std": 0.013},
+    {"setting": "THI", "dataset": "artnet-views", "value": -0.337, "std": 0.054}
+  ]
+}

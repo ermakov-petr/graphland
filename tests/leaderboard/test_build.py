@@ -171,40 +171,79 @@ class BuildTests(unittest.TestCase):
             self.assertEqual(rows, [])
             self.assertIn("No results yet", (output / "index.html").read_text(encoding="utf-8"))
 
-    def test_demo_submissions_are_opt_in_and_never_leak_into_default_build(self) -> None:
+    def test_temporary_demo_data_is_removable_without_build_or_config_changes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             temp = Path(directory)
-            demo_output = temp / "demo"
-            default_output = temp / "default"
+            fixture_output = temp / "fixture-preview"
+            production_submissions = temp / "production-submissions"
+            production_submissions.mkdir()
+            published_output = temp / "published"
+            removed_output = temp / "removed"
 
-            demo_validated = self.build.build_site(
-                demo_output,
+            fixture_validated = self.build.build_site(
+                fixture_output,
                 root=ROOT,
                 submissions_dir=DEMO_SUBMISSIONS,
                 allow_pending=True,
             )
-            self.build.build_site(default_output, root=ROOT)
-
-            demo_ids = {item["id"] for item in demo_validated["submissions"]}
+            demo_ids = {item["id"] for item in fixture_validated["submissions"]}
             self.assertEqual(
                 demo_ids,
                 {"demo-atlas", "demo-beacon", "demo-context", "demo-delta"},
             )
             self.assertTrue(all(submission_id.startswith("demo-") for submission_id in demo_ids))
 
-            demo_payload = load_json(demo_output / "data" / "leaderboard.json")
-            default_payload = load_json(default_output / "data" / "leaderboard.json")
+            for source in sorted(DEMO_SUBMISSIONS.glob("demo-*.json")):
+                submission = load_json(source)
+                submission["review"] = {
+                    "status": "approved",
+                    "reviewer_github": "demo-reviewer",
+                    "reviewed_at": "2026-07-13",
+                    "notes": "Synthetic fixture approved only for temporary public UI QA.",
+                }
+                (production_submissions / source.name).write_text(
+                    json.dumps(submission, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+
+            published_validated = self.build.build_site(
+                published_output,
+                root=ROOT,
+                submissions_dir=production_submissions,
+            )
+            published_payload = load_json(published_output / "data" / "leaderboard.json")
             self.assertEqual(
-                {item["id"] for item in demo_payload["submissions"]},
+                {item["id"] for item in published_validated["submissions"]},
                 demo_ids,
             )
-            self.assertTrue(
-                demo_ids.isdisjoint(item["id"] for item in default_payload["submissions"])
+            self.assertEqual(
+                {item["id"] for item in published_payload["submissions"]},
+                demo_ids,
             )
-            with (demo_output / "leaderboard.csv").open(
+            with (published_output / "leaderboard.csv").open(
                 "r", encoding="utf-8", newline=""
             ) as handle:
                 self.assertEqual(len(list(csv.DictReader(handle))), 48)
+
+            for path in production_submissions.glob("demo-*.json"):
+                path.unlink()
+
+            removed_validated = self.build.build_site(
+                removed_output,
+                root=ROOT,
+                submissions_dir=production_submissions,
+            )
+            removed_payload = load_json(removed_output / "data" / "leaderboard.json")
+            self.assertEqual(removed_validated["submissions"], [])
+            self.assertEqual(removed_payload["submissions"], [])
+            with (removed_output / "leaderboard.csv").open(
+                "r", encoding="utf-8", newline=""
+            ) as handle:
+                self.assertEqual(list(csv.DictReader(handle)), [])
+            self.assertIn(
+                "No results yet",
+                (removed_output / "index.html").read_text(encoding="utf-8"),
+            )
 
     def test_site_sources_pass_project_pages_asset_check(self) -> None:
         self.build._check_relative_asset_paths(ROOT / "site")

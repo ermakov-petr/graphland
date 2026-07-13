@@ -46,6 +46,7 @@
     elements.emptyCopy = elements.emptyState.querySelector("p");
     elements.emptyLink = elements.emptyState.querySelector("a");
     elements.loadError = document.getElementById("load-error");
+    elements.demoNotice = document.getElementById("demo-data-notice");
     elements.dialog = document.getElementById("model-dialog");
     elements.dialogTitle = document.getElementById("dialog-title");
     elements.dialogContent = document.getElementById("dialog-content");
@@ -115,6 +116,22 @@
 
   function submissionName(submission) {
     return `${submission.model_name || ""} ${submission.model_variant || ""}`.trim();
+  }
+
+  function isDemoSubmission(submission) {
+    return Boolean(
+      submission
+      && typeof submission.id === "string"
+      && submission.id.startsWith("demo-"),
+    );
+  }
+
+  function hasDemoSubmissions(payload) {
+    return Boolean(
+      payload
+      && Array.isArray(payload.submissions)
+      && payload.submissions.some(isDemoSubmission),
+    );
   }
 
   function compareModelNames(left, right) {
@@ -559,6 +576,7 @@
   }
 
   function openDialog(submission, trigger) {
+    const demo = isDemoSubmission(submission);
     state.dialogTrigger = trigger;
     elements.dialogTitle.textContent = submission.model_name;
     elements.dialogContent.replaceChildren();
@@ -582,7 +600,12 @@
     const lead = createElement("p", "dialog-lead", submission.model_variant);
     const details = createElement("dl", "detail-list");
     appendDetail(details, "Submission ID", submission.id);
-    appendDetail(details, "Paper", submission.paper_url, submission.paper_url);
+    appendDetail(
+      details,
+      demo ? "Demo documentation" : "Paper",
+      submission.paper_url,
+      submission.paper_url,
+    );
     appendDetail(
       details,
       "Code availability",
@@ -600,7 +623,12 @@
       `@${submission.submitter_github}`,
       `https://github.com/${encodeURIComponent(submission.submitter_github)}`,
     );
-    appendDetail(details, "Source issue", `#${submission.source_issue}`, issueUrl(submission));
+    appendDetail(
+      details,
+      "Source issue",
+      demo ? "Not applicable (synthetic demo)" : `#${submission.source_issue}`,
+      demo ? null : issueUrl(submission),
+    );
     appendDetail(details, "GraphLand version", submission.graphland_ref);
     appendDetail(details, "Method type", methodLabel(submission.method_type));
     appendDetail(details, "Tuning protocol", submission.tuning_protocol);
@@ -726,6 +754,7 @@
       );
       elements.codeFilter.checked = state.codeOnly;
       applyConfiguredLinks();
+      elements.demoNotice.hidden = !hasDemoSubmissions(state.payload);
       elements.loadError.hidden = true;
       render();
     } catch (error) {
