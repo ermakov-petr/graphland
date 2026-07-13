@@ -8,7 +8,7 @@
   "training_code_url": null,
   "submitter_github": "ermakov-petr",
   "provenance": "maintainer_seeded",
-  "source_issue": 99004,
+  "source_issue": 3,
   "graphland_ref": "v1-demo-fixture",
   "method_type": "trained",
   "hparam_trials": 6,

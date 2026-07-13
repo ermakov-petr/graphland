@@ -8,7 +8,7 @@
   "training_code_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/demo-beacon.json",
   "submitter_github": "ermakov-petr",
   "provenance": "maintainer_seeded",
-  "source_issue": 99002,
+  "source_issue": 3,
   "graphland_ref": "v1-demo-fixture",
   "method_type": "trained",
   "hparam_trials": 8,
