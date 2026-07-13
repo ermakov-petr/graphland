@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "demo-beacon",
+  "model_name": "Demo Beacon Transformer",
+  "model_variant": "Synthetic demo — not a benchmark result",
+  "paper_url": "https://example.test/graphland/demo-beacon/paper",
+  "code_availability": "available",
+  "training_code_url": "https://example.test/graphland/demo-beacon/code",
+  "submitter_github": "demo-author",
+  "provenance": "author_submission",
+  "source_issue": 99002,
+  "graphland_ref": "v1-demo-fixture",
+  "method_type": "trained",
+  "hparam_trials": 8,
+  "tuning_protocol": "Synthetic QA fixture: eight fictional validation trials with no real model execution.",
+  "num_runs": 3,
+  "external_data_pretraining": "Synthetic fixture metadata; no real training or evaluation was performed.",
+  "submitted_at": "2026-07-11",
+  "verification": "self_reported",
+  "review": {
+    "status": "pending",
+    "reviewer_github": null,
+    "reviewed_at": null,
+    "notes": null
+  },
+  "notes": "Synthetic UI/QA fixture. These values are not benchmark claims and must never be published as GraphLand results.",
+  "results": [
+    {"setting": "RL", "dataset": "hm-categories", "value": 0.744, "std": 0.008},
+    {"setting": "RL", "dataset": "web-topics", "value": 0.692},
+    {"setting": "RL", "dataset": "web-fraud", "value": 0.574, "std": 0.009},
+    {"setting": "RL", "dataset": "avazu-ctr", "value": 0.102, "std": 0.016},
+    {"setting": "RL", "dataset": "web-traffic", "value": -0.143, "std": 0.03},
+    {"setting": "RH", "dataset": "pokec-regions", "value": 0.701, "std": 0.006},
+    {"setting": "RH", "dataset": "tolokers-2", "value": 0.636, "std": 0.011},
+    {"setting": "RH", "dataset": "city-reviews", "value": 0.729},
+    {"setting": "RH", "dataset": "hm-prices", "value": 0.281, "std": 0.014},
+    {"setting": "TH", "dataset": "hm-categories", "value": 0.658, "std": 0.012},
+    {"setting": "TH", "dataset": "tolokers-2", "value": 0.547, "std": 0.015},
+    {"setting": "THI", "dataset": "web-topics", "value": 0.602}
+  ]
+}

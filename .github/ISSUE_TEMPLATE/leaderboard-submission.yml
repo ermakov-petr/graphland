@@ -1,0 +1,162 @@
+name: GraphLand leaderboard submission
+description: Submit model results for public GraphML review and inclusion in the GraphLand leaderboard.
+title: "[Leaderboard submission] "
+labels:
+  - leaderboard-submission
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for submitting GraphLand results. This Issue, its discussion, and the resulting draft pull request are public. Review checks format and protocol compliance; it does not mean that the result was independently reproduced. Please do not include secrets or confidential information.
+
+        The `leaderboard-submission` label must already exist in this repository. After manual review, a maintainer adds `leaderboard-ready` to start the draft-PR automation.
+
+  - type: input
+    id: model_name
+    attributes:
+      label: Model name
+      description: Public name of the evaluated model.
+      placeholder: ExampleModel
+    validations:
+      required: true
+
+  - type: input
+    id: model_variant
+    attributes:
+      label: Model variant or version
+      description: Variant, checkpoint, size, or release that distinguishes this result.
+      placeholder: base-v1
+    validations:
+      required: true
+
+  - type: input
+    id: github_username
+    attributes:
+      label: GitHub username
+      description: Must match the account opening this Issue.
+      placeholder: "@octocat"
+    validations:
+      required: true
+
+  - type: input
+    id: paper_url
+    attributes:
+      label: Paper URL
+      description: HTTPS link to the paper or public method description.
+      placeholder: https://arxiv.org/abs/0000.00000
+    validations:
+      required: true
+
+  - type: dropdown
+    id: code_availability
+    attributes:
+      label: Code availability
+      description: Whether the model's training code is publicly available.
+      options:
+        - available
+        - unavailable
+    validations:
+      required: true
+
+  - type: input
+    id: training_code_url
+    attributes:
+      label: Training code URL
+      description: Required when code availability is `available`; otherwise leave this empty. Use HTTPS.
+      placeholder: https://github.com/example/model
+
+  - type: input
+    id: graphland_ref
+    attributes:
+      label: GraphLand release, tag, or commit
+      description: GraphLand dataset/code version used for the reported results.
+      placeholder: v1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: method_type
+    attributes:
+      label: Method type
+      description: In-context methods must report zero hyperparameter trials.
+      options:
+        - trained
+        - in_context
+    validations:
+      required: true
+
+  - type: input
+    id: hparam_trials
+    attributes:
+      label: Hyperparameter trials
+      description: Non-negative integer. Enter `0` for in-context learning.
+      placeholder: "20"
+    validations:
+      required: true
+
+  - type: textarea
+    id: tuning_protocol
+    attributes:
+      label: Tuning protocol
+      description: Describe search space, validation selection, stopping rules, and any model-selection choices. Do not add Markdown headings.
+      placeholder: Hyperparameters were selected by validation AP from a fixed grid...
+    validations:
+      required: true
+
+  - type: input
+    id: num_runs
+    attributes:
+      label: Number of runs or seeds
+      description: Positive integer used to compute each reported mean and standard deviation.
+      placeholder: "10"
+    validations:
+      required: true
+
+  - type: textarea
+    id: external_data_pretraining
+    attributes:
+      label: External data or pretraining
+      description: Describe external data or pretraining, or enter `None`. Do not add Markdown headings.
+      placeholder: None
+    validations:
+      required: true
+
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: |
+        Enter canonical-scale results as `setting,dataset,value,std`. Allowed settings are RL, RH, TH, and THI. Accuracy and Average Precision use [0, 1]; R² is unscaled and may be negative. Metric and task are derived from the dataset. `city-reviews`, `city-roads-M`, `city-roads-L`, and `web-traffic` do not support TH or THI. Leave `std` empty when unavailable.
+      placeholder: |
+        setting,dataset,value,std
+        RL,hm-categories,0.8123,0.0041
+        RH,web-fraud,0.5942,0.0060
+        THI,web-topics,0.7740,
+      render: csv
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Optional public context for reviewers. Do not include secrets, confidential data, or Markdown headings.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      description: All confirmations are required. The Issue and draft PR are public.
+      options:
+        - label: I used only the official GraphLand datasets and splits.
+          required: true
+        - label: I did not use test labels for training or hyperparameter tuning.
+          required: true
+        - label: I followed the information-access protocol for every reported setting.
+          required: true
+        - label: I confirm that these submission details and results may be published.
+          required: true
+        - label: I understand that the results will be marked as self-reported unless independently reproduced.
+          required: true
+        - label: I have not included secrets or confidential data in this public issue.
+          required: true

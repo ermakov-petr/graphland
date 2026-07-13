@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "fixture-model",
+  "model_name": "Fixture Model",
+  "model_variant": "test-only",
+  "paper_url": "https://example.test/paper",
+  "code_availability": "available",
+  "training_code_url": "https://example.test/code",
+  "submitter_github": "fixture-user",
+  "provenance": "author_submission",
+  "source_issue": 321,
+  "graphland_ref": "v1",
+  "method_type": "trained",
+  "hparam_trials": 4,
+  "tuning_protocol": "Test fixture only: select hyperparameters using validation data.",
+  "num_runs": 3,
+  "external_data_pretraining": "None. This is synthetic test metadata.",
+  "submitted_at": "2026-07-13",
+  "verification": "self_reported",
+  "review": {
+    "status": "pending",
+    "reviewer_github": null,
+    "reviewed_at": null,
+    "notes": null
+  },
+  "notes": "Synthetic fixture; never publish as a benchmark result.",
+  "results": [
+    {
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "value": 0.8123,
+      "std": 0.0041
+    },
+    {
+      "setting": "RH",
+      "dataset": "web-fraud",
+      "value": 0.5942,
+      "std": 0.006
+    },
+    {
+      "setting": "THI",
+      "dataset": "web-topics",
+      "value": 0.774
+    },
+    {
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "value": -0.125,
+      "std": 0.02
+    }
+  ]
+}

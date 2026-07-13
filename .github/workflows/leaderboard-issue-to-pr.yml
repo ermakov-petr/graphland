@@ -1,0 +1,244 @@
+name: Leaderboard issue to draft PR
+
+"on":
+  issues:
+    types: [labeled, edited]
+
+permissions: {}
+
+concurrency:
+  group: leaderboard-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  issue-to-pr:
+    if: ${{ github.event.issue.pull_request == null && contains(github.event.issue.labels.*.name, 'leaderboard-ready') && (github.event.action == 'edited' || github.event.label.name == 'leaderboard-ready') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    env:
+      BASE_BRANCH: main
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      BRANCH_NAME: leaderboard/issue-${{ github.event.issue.number }}
+      OUTPUT_FILE: leaderboard/submissions/issue-${{ github.event.issue.number }}.json
+
+    steps:
+      - name: Checkout trusted main branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install leaderboard dependencies
+        run: "python -m pip install --disable-pip-version-check --only-binary=:all: -r requirements-leaderboard.txt"
+
+      - name: Fetch current issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            > "${RUNNER_TEMP}/issue.json"
+
+      - name: Parse issue into a fixed submission path
+        run: |
+          set -euo pipefail
+          python scripts/leaderboard/issue_to_submission.py \
+            --issue-json "${RUNNER_TEMP}/issue.json" \
+            --submissions-dir leaderboard/submissions
+
+      - name: Run trusted leaderboard unit tests
+        run: python -m unittest discover -s tests/leaderboard -v
+
+      - name: Validate repository data
+        run: python scripts/leaderboard/validate.py --allow-pending --submissions-dir leaderboard/submissions
+
+      - name: Build the complete site before mutation
+        run: |
+          set -euo pipefail
+          python scripts/leaderboard/build.py \
+            --allow-pending \
+            --submissions-dir leaderboard/submissions \
+            --output "${RUNNER_TEMP}/candidate-site"
+
+      - name: Recheck current issue and existing pull request
+        id: preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            > "${RUNNER_TEMP}/issue-current.json"
+          python - "${RUNNER_TEMP}/issue.json" "${RUNNER_TEMP}/issue-current.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              before = json.load(handle)
+          with open(sys.argv[2], encoding="utf-8") as handle:
+              current = json.load(handle)
+
+          def labels(issue):
+              return sorted(label["name"] if isinstance(label, dict) else label for label in issue["labels"])
+
+          comparable = ("number", "state", "title", "body", "created_at")
+          if any(before.get(key) != current.get(key) for key in comparable):
+              raise SystemExit("Issue changed while validation was running; a newer event will regenerate it")
+          if before.get("user", {}).get("login") != current.get("user", {}).get("login"):
+              raise SystemExit("Issue author changed while validation was running")
+          current_labels = set(labels(current))
+          if not {"leaderboard-submission", "leaderboard-ready"}.issubset(current_labels):
+              raise SystemExit("A required submission label was removed while validation was running")
+          PY
+
+          gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --head "${BRANCH_NAME}" \
+            --base "${BASE_BRANCH}" \
+            --state all \
+            --limit 100 \
+            --json number,state,isDraft,url,headRefName,isCrossRepository,headRepositoryOwner \
+            > "${RUNNER_TEMP}/matching-prs.json"
+          python - "${RUNNER_TEMP}/matching-prs.json" "${GITHUB_REPOSITORY_OWNER}" "${BRANCH_NAME}" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              candidates = json.load(handle)
+          owner = sys.argv[2]
+          branch = sys.argv[3]
+          pulls = [
+              pull
+              for pull in candidates
+              if pull.get("headRefName") == branch
+              and pull.get("isCrossRepository") is False
+              and pull.get("headRepositoryOwner", {}).get("login") == owner
+          ]
+          if len(pulls) > 1:
+              raise SystemExit("More than one pull request uses the stable submission branch")
+          if pulls and pulls[0]["state"] != "OPEN":
+              raise SystemExit("The stable submission branch already belongs to a closed pull request")
+          PY
+
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk 'NR == 1 {print $1}')"
+          if [[ -n "${remote_sha}" ]]; then
+            git fetch --no-tags origin "refs/heads/${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}"
+            merge_base="$(git merge-base HEAD "refs/remotes/origin/${BRANCH_NAME}")"
+            mapfile -t changed_paths < <(git diff --name-only "${merge_base}" "refs/remotes/origin/${BRANCH_NAME}")
+            for changed_path in "${changed_paths[@]}"; do
+              if [[ "${changed_path}" != "${OUTPUT_FILE}" ]]; then
+                echo "Refusing to overwrite unexpected branch path: ${changed_path}" >&2
+                exit 1
+              fi
+            done
+          fi
+          echo "remote_sha=${remote_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Commit and push validated submission
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_SHA: ${{ steps.preflight.outputs.remote_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t workspace_changes < <(git status --porcelain=v1 --untracked-files=all)
+          for change in "${workspace_changes[@]}"; do
+            path="${change:3}"
+            if [[ "${path}" != "${OUTPUT_FILE}" ]]; then
+              echo "Refusing to commit unexpected workspace path: ${path}" >&2
+              exit 1
+            fi
+          done
+          git switch --create "${BRANCH_NAME}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${OUTPUT_FILE}"
+          if git diff --cached --quiet; then
+            echo "Submission does not differ from main" >&2
+            exit 1
+          fi
+          git commit -m "Update leaderboard submission for issue #${ISSUE_NUMBER}"
+          push_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if [[ -n "${REMOTE_SHA}" ]]; then
+            git push \
+              --force-with-lease="refs/heads/${BRANCH_NAME}:${REMOTE_SHA}" \
+              "${push_url}" "HEAD:refs/heads/${BRANCH_NAME}"
+          else
+            git push "${push_url}" "HEAD:refs/heads/${BRANCH_NAME}"
+          fi
+
+      - name: Create or retain the draft pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh pr list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --head "${BRANCH_NAME}" \
+            --base "${BASE_BRANCH}" \
+            --state open \
+            --limit 100 \
+            --json number,headRefName,isCrossRepository,headRepositoryOwner \
+            > "${RUNNER_TEMP}/open-matching-prs.json"
+          existing_number="$(python - "${RUNNER_TEMP}/open-matching-prs.json" "${GITHUB_REPOSITORY_OWNER}" "${BRANCH_NAME}" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              candidates = json.load(handle)
+          owner = sys.argv[2]
+          branch = sys.argv[3]
+          matches = [
+              pull
+              for pull in candidates
+              if pull.get("headRefName") == branch
+              and pull.get("isCrossRepository") is False
+              and pull.get("headRepositoryOwner", {}).get("login") == owner
+          ]
+          if len(matches) > 1:
+              raise SystemExit("More than one open pull request uses the stable submission branch")
+          print(matches[0]["number"] if matches else "")
+          PY
+          )"
+          if [[ -z "${existing_number}" ]]; then
+            printf -v pull_body '%s\n\n%s\n\n%s' \
+              "Generated from the reviewed public leaderboard submission issue #${ISSUE_NUMBER}." \
+              "Closes #${ISSUE_NUMBER}" \
+              "Edit the source Issue while leaderboard-ready is present to regenerate ${OUTPUT_FILE}."
+            gh pr create \
+              --repo "${GITHUB_REPOSITORY}" \
+              --base "${BASE_BRANCH}" \
+              --head "${BRANCH_NAME}" \
+              --draft \
+              --title "[Leaderboard] Submission from issue #${ISSUE_NUMBER}" \
+              --body "${pull_body}"
+          else
+            echo "Updated existing pull request #${existing_number}."
+          fi
+
+      - name: Comment on automation failure
+        if: ${{ failure() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh issue comment "${ISSUE_NUMBER}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --body "Leaderboard automation failed and did not complete the draft PR update. Review the validation error at https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}, edit this Issue if needed, and keep leaderboard-ready only when it is ready for another review."

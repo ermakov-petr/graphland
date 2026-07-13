@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The public leaderboard for GraphLand, a benchmark of 14 industrial graph machine learning datasets.">
+  <meta name="theme-color" content="#fff">
+  <title>GraphLand Leaderboard · Yandex Research</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" data-site-header>
+    <div class="shell header-inner">
+      <a class="wordmark" href="https://research.yandex.com/" aria-label="Yandex Research home">
+        <span class="wordmark-yandex">Yandex</span>
+        <span class="wordmark-research">Research</span>
+      </a>
+
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation">
+        <span class="visually-hidden">Toggle navigation</span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
+
+      <nav class="primary-navigation" id="primary-navigation" aria-label="Primary navigation">
+        <a href="https://research.yandex.com/about">About</a>
+        <a href="https://research.yandex.com/research-areas">Research areas</a>
+        <a href="https://research.yandex.com/blog">Blog</a>
+        <a href="https://research.yandex.com/publications">Publications</a>
+        <a class="active" href="#leaderboard" aria-current="page">GraphLand</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero">
+      <div class="shell">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a href="https://research.yandex.com/">Home</a>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">GraphLand</span>
+        </nav>
+
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">Graph machine learning benchmark</p>
+            <h1>GraphLand<br>Leaderboard</h1>
+            <p class="hero-intro">Compare graph learning methods across 14 industrial datasets and four realistic experimental settings—without collapsing distinct tasks into a single score.</p>
+
+            <div class="hero-actions">
+              <a class="button" id="submit-results-link" href="https://github.com/ermakov-petr/graphland/issues/new?template=leaderboard-submission.yml&amp;title=%5BLeaderboard%20submission%5D%20" target="_blank" rel="noopener noreferrer">Submit results <span aria-hidden="true">↗</span></a>
+              <a class="button button-secondary" href="leaderboard.csv" download>Download CSV <span aria-hidden="true">↓</span></a>
+            </div>
+            <p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p>
+          </div>
+
+          <aside class="hero-aside" aria-label="Benchmark summary">
+            <div class="hero-stat">
+              <span class="hero-stat-value">14</span>
+              <span class="hero-stat-label">public datasets</span>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat-value">4</span>
+              <span class="hero-stat-label">evaluation settings</span>
+            </div>
+            <div class="hero-mark" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell disclosure" aria-labelledby="disclosure-title">
+      <div class="disclosure-mark" aria-hidden="true">i</div>
+      <div>
+        <h2 id="disclosure-title">How to read these results</h2>
+        <p>Results are submitted by authors or added by maintainers and reviewed for format and protocol compliance. GraphLand has no hidden test set. Unless marked “Reproduced”, results have not been independently reproduced.</p>
+      </div>
+    </section>
+
+    <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
+      <div class="shell">
+        <div class="section-heading section-heading-wide">
+          <div>
+            <p class="eyebrow">Benchmark results</p>
+            <h2 id="leaderboard-title">Leaderboard</h2>
+          </div>
+          <p>Choose one setting and one task family. Every dataset remains a separate comparison—there is no aggregate score or overall rank.</p>
+        </div>
+
+        <div class="leaderboard-controls" aria-label="Leaderboard filters">
+          <div class="control-block">
+            <span class="control-label" id="setting-tabs-label">Experimental setting</span>
+            <div class="tabs tabs-primary" id="setting-tabs" role="tablist" aria-labelledby="setting-tabs-label">
+              <button id="setting-tab-RL" type="button" role="tab" aria-selected="true" aria-controls="leaderboard-panel" tabindex="0" data-setting="RL">RL</button>
+              <button id="setting-tab-RH" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-setting="RH">RH</button>
+              <button id="setting-tab-TH" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-setting="TH">TH</button>
+              <button id="setting-tab-THI" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-setting="THI">THI</button>
+            </div>
+          </div>
+
+          <div class="setting-summary" id="setting-description" aria-live="polite">
+            <span class="setting-name">Random Low · Transductive</span>
+            <span>Random stratified 10% / 10% / 80% train, validation, and test split.</span>
+          </div>
+
+          <div class="control-block task-control">
+            <span class="control-label" id="task-tabs-label">Task family</span>
+            <div class="tabs tabs-secondary" id="task-tabs" role="tablist" aria-labelledby="task-tabs-label">
+              <button id="task-tab-multiclass_node_classification" type="button" role="tab" aria-selected="true" aria-controls="leaderboard-panel" tabindex="0" data-task="multiclass_node_classification">Multiclass node classification</button>
+              <button id="task-tab-binary_node_classification" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-task="binary_node_classification">Binary node classification</button>
+              <button id="task-tab-node_regression" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-task="node_regression">Node regression</button>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <label class="search-field" for="model-search">
+              <span class="visually-hidden">Search models</span>
+              <svg aria-hidden="true" viewBox="0 0 20 20" width="20" height="20"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+              <input id="model-search" type="search" autocomplete="off" placeholder="Search by model name">
+            </label>
+
+            <label class="toggle" for="code-filter">
+              <input id="code-filter" type="checkbox">
+              <span class="toggle-track" aria-hidden="true"><span></span></span>
+              <span>Only models with code</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="setting-tab-RL task-tab-multiclass_node_classification" tabindex="0">
+          <div class="table-meta">
+            <p id="result-summary" aria-live="polite">Loading leaderboard…</p>
+            <p class="metric-note" id="metric-note">Canonical metric: Accuracy · higher is better</p>
+          </div>
+
+          <div class="table-scroll" tabindex="0" aria-label="Scrollable leaderboard table">
+            <table id="leaderboard-table">
+              <caption class="visually-hidden">GraphLand leaderboard results</caption>
+              <thead id="leaderboard-head"></thead>
+              <tbody id="leaderboard-body"></tbody>
+            </table>
+          </div>
+
+          <div class="empty-state" id="empty-state" hidden>
+            <span class="empty-state-mark" aria-hidden="true">GL</span>
+            <h3>No results yet</h3>
+            <p>Be the first to submit results for GraphLand. Maintainers can add standard open baselines when authoritative results become available.</p>
+            <a class="text-link" href="https://github.com/ermakov-petr/graphland/issues/new?template=leaderboard-submission.yml&amp;title=%5BLeaderboard%20submission%5D%20" target="_blank" rel="noopener noreferrer">Submit the first result <span aria-hidden="true">↗</span></a>
+          </div>
+
+          <div class="load-error" id="load-error" role="alert" hidden>
+            <h3>The leaderboard data could not be loaded</h3>
+            <p>Refresh the page or run the site through a local web server. The static interface does not require a backend.</p>
+          </div>
+        </div>
+
+        <noscript>
+          <p class="noscript-note">JavaScript is required to filter and sort the leaderboard. You can still <a href="leaderboard.csv">download the complete CSV</a>.</p>
+        </noscript>
+      </div>
+    </section>
+
+    <section class="content-section legend-section" aria-labelledby="legend-title">
+      <div class="shell split-layout">
+        <div class="section-heading-compact">
+          <p class="eyebrow">Reading the table</p>
+          <h2 id="legend-title">Legend</h2>
+        </div>
+        <dl class="legend-list">
+          <div><dt>Mean ± std</dt><dd>Mean performance and reported standard deviation across runs.</dd></div>
+          <div><dt>—</dt><dd>The model submission does not include a result for this dataset.</dd></div>
+          <div><dt>N/A</dt><dd>The dataset does not support the selected experimental setting.</dd></div>
+          <div><dt>Reproduced</dt><dd>The result was independently reproduced, rather than only format-reviewed.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="content-section protocol-section" id="protocol" aria-labelledby="protocol-title">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Evaluation</p>
+            <h2 id="protocol-title">Benchmark protocol</h2>
+          </div>
+          <p>All tracks use public GraphLand splits. Validation performance selects the checkpoint; the corresponding public-test metric is reported.</p>
+        </div>
+
+        <div class="protocol-grid">
+          <article>
+            <span class="protocol-code">RL</span>
+            <h3>Random Low</h3>
+            <p>Random stratified split with 10% train, 10% validation, and 80% test nodes. The full graph is available transductively.</p>
+            <span class="protocol-file">split_masks_RL.csv</span>
+          </article>
+          <article>
+            <span class="protocol-code">RH</span>
+            <h3>Random High</h3>
+            <p>Random stratified split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
+            <span class="protocol-file">split_masks_RH.csv</span>
+          </article>
+          <article>
+            <span class="protocol-code">TH</span>
+            <h3>Temporal High</h3>
+            <p>Temporal split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
+            <span class="protocol-file">split_masks_TH.csv</span>
+          </article>
+          <article class="protocol-highlight">
+            <span class="protocol-code">THI</span>
+            <h3>Temporal High · Inductive</h3>
+            <p>Uses the TH temporal split. Train sees train nodes only; validation adds validation nodes; test uses the full graph snapshot.</p>
+            <span class="protocol-file">split_masks_TH.csv · no THI file</span>
+          </article>
+        </div>
+
+        <div class="protocol-callout">
+          <strong>TH and THI use the same temporal split.</strong>
+          <p>They differ only in information access. In THI, validation and test nodes and their incident edges are removed from the training graph, and test nodes and their incident edges are removed from the validation graph.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section submit-section" id="submit" aria-labelledby="submit-title">
+      <div class="shell split-layout">
+        <div class="section-heading-compact">
+          <p class="eyebrow">Contribute</p>
+          <h2 id="submit-title">How to submit</h2>
+          <p>Authors may submit their own models; maintainers may add standard open baselines.</p>
+        </div>
+        <div>
+          <ol class="steps-list">
+            <li><span>01</span><p>Open the public submission form.</p></li>
+            <li><span>02</span><p>Fill in model metadata and results.</p></li>
+            <li><span>03</span><p>A maintainer reviews the submission.</p></li>
+            <li><span>04</span><p>A draft pull request is created.</p></li>
+            <li><span>05</span><p>After approval and merge, the result appears on the site.</p></li>
+          </ol>
+          <p class="public-warning"><span aria-hidden="true">!</span> The GitHub Issue, draft pull request, and submission discussion are public. Format and protocol review is not independent reproduction.</p>
+          <a class="button button-inverse" href="https://github.com/ermakov-petr/graphland/issues/new?template=leaderboard-submission.yml&amp;title=%5BLeaderboard%20submission%5D%20" target="_blank" rel="noopener noreferrer">Open submission form <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section release-section" aria-labelledby="release-title">
+      <div class="shell">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Dataset release</p>
+            <h2 id="release-title">Open by design</h2>
+          </div>
+          <p>All features, targets, and split masks are published. GraphLand has no hidden test set and does not plan to add datasets to this release.</p>
+        </div>
+        <dl class="release-grid">
+          <div><dt>Release</dt><dd>v1</dd></div>
+          <div><dt>Datasets</dt><dd>14</dd></div>
+          <div><dt>License</dt><dd>Apache-2.0</dd></div>
+          <div><dt>DOI</dt><dd><a href="https://doi.org/10.5281/zenodo.16895532" target="_blank" rel="noopener noreferrer">10.5281/zenodo.16895532 <span aria-hidden="true">↗</span></a></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="content-section resources-section" aria-labelledby="resources-title">
+      <div class="shell">
+        <div class="section-heading-compact">
+          <p class="eyebrow">Explore further</p>
+          <h2 id="resources-title">Resources</h2>
+        </div>
+        <ul class="resource-list">
+          <li><a href="https://zenodo.org/records/16895532" target="_blank" rel="noopener noreferrer"><span>Dataset archive</span><strong>Zenodo</strong><span aria-hidden="true">↗</span></a></li>
+          <li><a href="https://www.kaggle.com/datasets/bazhenovgleb/graphland" target="_blank" rel="noopener noreferrer"><span>Dataset mirror</span><strong>Kaggle</strong><span aria-hidden="true">↗</span></a></li>
+          <li><a href="https://github.com/yandex-research/graphland" target="_blank" rel="noopener noreferrer"><span>Reference implementation</span><strong>GraphLand repository</strong><span aria-hidden="true">↗</span></a></li>
+          <li><a href="https://arxiv.org/abs/2409.14500" target="_blank" rel="noopener noreferrer"><span>Research paper</span><strong>GraphLand on arXiv</strong><span aria-hidden="true">↗</span></a></li>
+          <li><a href="https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html" target="_blank" rel="noopener noreferrer"><span>Dataset loader</span><strong>PyTorch Geometric</strong><span aria-hidden="true">↗</span></a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <div>
+        <span class="footer-wordmark">Yandex Research</span>
+        <p>GraphLand evaluates graph machine learning on diverse industrial data.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#protocol">Protocol</a>
+        <a href="#submit">Submit</a>
+        <a href="https://github.com/ermakov-petr/graphland" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+      <p class="footer-meta">GraphLand dataset release · Apache-2.0</p>
+    </div>
+  </footer>
+
+  <dialog class="model-dialog" id="model-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-shell">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Model details</p>
+          <h2 id="dialog-title">Submission</h2>
+        </div>
+        <button class="dialog-close" type="button" data-dialog-close aria-label="Close model details">
+          <span aria-hidden="true"></span><span aria-hidden="true"></span>
+        </button>
+      </div>
+      <div id="dialog-content"></div>
+    </div>
+  </dialog>
+</body>
+</html>

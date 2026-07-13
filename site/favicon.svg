@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="GraphLand">
+  <rect width="64" height="64" rx="14" fill="#000"/>
+  <g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round">
+    <path d="M18 19 33 14l14 11-5 19-20 4-9-15Z"/>
+    <path d="m18 19 24 25M33 14 22 48M13 33l34-8" opacity=".7"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="18" cy="19" r="5"/>
+    <circle cx="33" cy="14" r="5"/>
+    <circle cx="47" cy="25" r="5"/>
+    <circle cx="42" cy="44" r="5"/>
+    <circle cx="22" cy="48" r="5"/>
+    <circle cx="13" cy="33" r="5"/>
+  </g>
+</svg>
