@@ -677,7 +677,7 @@
     if (!submissionUrl) {
       return;
     }
-    document.querySelectorAll("a[href*='issues/new?template=leaderboard-submission']").forEach((link) => {
+    document.querySelectorAll("[data-submission-link]").forEach((link) => {
       link.href = submissionUrl;
     });
   }

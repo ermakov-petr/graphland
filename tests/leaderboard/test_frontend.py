@@ -4,7 +4,7 @@ import re
 import unittest
 from html.parser import HTMLParser
 
-from support import ROOT
+from support import ROOT, load_json
 
 
 class DocumentInventory(HTMLParser):
@@ -29,6 +29,7 @@ class FrontendContractTests(unittest.TestCase):
         cls.javascript = (ROOT / "site" / "assets" / "app.js").read_text(encoding="utf-8")
         cls.css = (ROOT / "site" / "assets" / "styles.css").read_text(encoding="utf-8")
         cls.favicon = (ROOT / "site" / "favicon.svg").read_text(encoding="utf-8")
+        cls.config = load_json(ROOT / "leaderboard" / "config.json")
         cls.document = DocumentInventory()
         cls.document.feed(cls.html)
 
@@ -88,6 +89,20 @@ class FrontendContractTests(unittest.TestCase):
         for link in external_links:
             if link.get("target") == "_blank":
                 self.assertEqual(set(str(link.get("rel", "")).split()), {"noopener", "noreferrer"})
+
+    def test_submission_links_use_the_auth_safe_issue_chooser(self) -> None:
+        expected = "https://github.com/ermakov-petr/graphland/issues/new/choose"
+        self.assertEqual(self.config["site"]["submission_url"], expected)
+        links = [
+            attrs
+            for tag, attrs in self.document.elements
+            if tag == "a" and "data-submission-link" in attrs
+        ]
+        self.assertEqual(len(links), 3)
+        self.assertTrue(all(link.get("href") == expected for link in links))
+        self.assertTrue(all(link.get("target") is None for link in links))
+        self.assertIn('querySelectorAll("[data-submission-link]")', self.javascript)
+        self.assertNotIn("issues/new?template=", self.html + self.javascript)
 
     def test_metric_formatting_preserves_canonical_data_scale(self) -> None:
         self.assertIn('display.style === "percentage" ? 100 : 1', self.javascript)
