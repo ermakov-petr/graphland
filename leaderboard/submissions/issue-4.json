@@ -1,0 +1,52 @@
+{
+  "code_availability": "available",
+  "external_data_pretraining": "None. Synthetic workflow fixture; no model was trained.",
+  "graphland_ref": "v1",
+  "hparam_trials": 4,
+  "id": "issue-4",
+  "method_type": "trained",
+  "model_name": "Workflow Fixture Model",
+  "model_variant": "synthetic-e2e-v1",
+  "notes": "SYNTHETIC END-TO-END WORKFLOW TEST ONLY. These values are not benchmark claims. Do not merge the generated pull request. Close the draft PR and this issue after verification.",
+  "num_runs": 3,
+  "paper_url": "https://github.com/ermakov-petr/graphland/blob/main/tests/leaderboard/fixtures/demo_submissions/README.md",
+  "provenance": "author_submission",
+  "results": [
+    {
+      "dataset": "hm-categories",
+      "setting": "RL",
+      "std": 0.0042,
+      "value": 0.8123
+    },
+    {
+      "dataset": "web-fraud",
+      "setting": "RH",
+      "std": 0.006,
+      "value": 0.5942
+    },
+    {
+      "dataset": "web-topics",
+      "setting": "THI",
+      "value": 0.774
+    },
+    {
+      "dataset": "hm-prices",
+      "setting": "RL",
+      "std": 0.02,
+      "value": -0.125
+    }
+  ],
+  "review": {
+    "notes": null,
+    "reviewed_at": null,
+    "reviewer_github": null,
+    "status": "pending"
+  },
+  "schema_version": "1.0",
+  "source_issue": 4,
+  "submitted_at": "2026-07-16",
+  "submitter_github": "ermakov-petr",
+  "training_code_url": "https://github.com/ermakov-petr/graphland/tree/main/tests/leaderboard/fixtures/demo_submissions",
+  "tuning_protocol": "Synthetic end-to-end workflow fixture. Four fictional hyperparameter trials and validation-only selection are declared solely to exercise the parser and GitHub Actions workflow. No model was trained.",
+  "verification": "self_reported"
+}
