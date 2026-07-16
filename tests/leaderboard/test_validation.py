@@ -312,7 +312,14 @@ class SubmissionValidationTests(unittest.TestCase):
             )
         )
         fixture_by_id = {item["id"]: item for item in submissions}
-        production_validated = self.validation.validate_repository(root=ROOT)
+        # The issue-to-PR workflow runs unit tests after writing its validated
+        # pending candidate into this directory. This demo-only comparison must
+        # tolerate that candidate; publication remains strict and is covered by
+        # test_repository_validation_rejects_pending_records_by_default.
+        production_validated = self.validation.validate_repository(
+            root=ROOT,
+            allow_pending=True,
+        )
         production_demo_by_id = {
             item["id"]: item
             for item in production_validated["submissions"]
