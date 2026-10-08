@@ -85,8 +85,9 @@ def _safe_output_path(output: Path, root: Path = ROOT, submissions_dir: Optional
 
 
 def _check_relative_asset_paths(site_source: Path) -> None:
-    # CSS url() permits whitespace and quotes; // remains a protocol-relative URL.
-    root_absolute_css_url = r"(?i:url)\(\s*[\"']?/(?!/)"
+    # URL parsing trims leading ASCII spaces/tabs inside CSS quotes, too.
+    # NBSP is URL content, not trim whitespace; // remains protocol-relative.
+    root_absolute_css_url = r"(?i:url)\(\s*(?:[\"'][ \t]*)?/(?!/)"
     checks = {
         "index.html": [r"(?:href|src)=[\"']/(?!/)", root_absolute_css_url],
         "assets/styles.css": [root_absolute_css_url],

@@ -280,12 +280,20 @@ class LeaderboardBrowserTests(unittest.TestCase):
         actual_names = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
         self.assertCountEqual(actual_names, expected_names)
         self.assertEqual(len(actual_names), 2)
-        self.assertRegex(status.inner_text(), r'(?i)code')
+        mixed_status = status.inner_text()
+        self.assertIn('2 of 3 matching models have code', mixed_status)
         self.page.locator('#model-search').fill('Atlas')
         self.assertIn('Atlas', status.inner_text())
         self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 1)
         self.brand_observations.append({'check': 'mixed_code_filter_feedback', 'models_after': actual_names,
-                                        'search_status': status.inner_text()})
+                                        'status': mixed_status, 'search_status': status.inner_text()})
+        unavailable_name = payload['submissions'][-1]['model_name']
+        self.page.locator('#model-search').fill(unavailable_name)
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 0)
+        self.assertIn(unavailable_name, status.inner_text())
+        self.assertIn('Code filter on · the matching model has no available code', status.inner_text())
+        self.brand_observations.append({'check': 'code_unavailable_singleton_feedback',
+                                        'query': unavailable_name, 'visible_models': 0, 'status': status.inner_text()})
 
     def test_keyboard_reset_filters_preserves_view_and_explicit_off_history(self):
         payload = copy.deepcopy(self.payload)
@@ -359,7 +367,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.locator('#model-search').fill('no-such-model')
         self.assertTrue(self.page.locator('#empty-state').is_visible())
         self.assertFalse(scroll.is_visible())
+        self.page.wait_for_function("document.getElementById('table-scroll-hint').hidden", timeout=5000)
         self.assertFalse(hint.is_visible())
+        self.assertNotIn('table-scroll-hint', (scroll.get_attribute('aria-describedby') or '').split())
         self.page.locator('#model-search').fill('')
         self.page.wait_for_function("!document.getElementById('table-scroll-hint').hidden")
         self.assertTrue(scroll.is_visible())

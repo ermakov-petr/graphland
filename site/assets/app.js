@@ -464,6 +464,8 @@
         parts.push(matchingSlice.length === 1
           ? "Code filter on · the matching model has code"
           : `Code filter on · all ${matchingSlice.length} matching models have code`);
+      } else if (matchingSlice.length === 1) {
+        parts.push("Code filter on · the matching model has no available code");
       } else if (matchingSlice.length) {
         parts.push(`Code filter on · ${visibleCount} of ${matchingSlice.length} matching models have code`);
       } else {

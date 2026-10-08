@@ -365,6 +365,9 @@ class BuildTests(unittest.TestCase):
             'url(  "/assets/brand/example.svg"  )',
             "url(\n\t'/fonts/example.woff2'\n)",
             "URL( '/fonts/example.woff2' )",
+            'url(" /fonts/example.woff2")',
+            "url(' \t /assets/brand/example.svg ')",
+            'url("\t/fonts/example.woff2")',
         )
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)
@@ -387,6 +390,9 @@ class BuildTests(unittest.TestCase):
             "url(//cdn.example.org/example.woff2)",
             'url( "//cdn.example.org/example.svg" )',
             "URL( '//cdn.example.org/example.woff2' )",
+            'url(" ./brand/research.svg")',
+            "url(' //cdn.example.org/example.woff2')",
+            'url("\u00a0/fonts/example.woff2")',
         )
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)
