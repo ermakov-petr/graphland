@@ -785,10 +785,16 @@
       }
     });
     elements.dialog.addEventListener("close", () => {
-      if (state.dialogTrigger && document.contains(state.dialogTrigger)) {
-        state.dialogTrigger.focus();
-      } else {
-        elements.panel.focus({ preventScroll: true });
+      if (elements.dialog.open) return;
+      const active = document.activeElement;
+      // A queued close event can arrive after navigation moved focus elsewhere.
+      // Preserve that focus, including when history has already reopened a dialog.
+      if (!active || active === document.body || elements.dialog.contains(active)) {
+        if (state.dialogTrigger && document.contains(state.dialogTrigger)) {
+          state.dialogTrigger.focus();
+        } else {
+          elements.panel.focus({ preventScroll: true });
+        }
       }
       state.dialogTrigger = null;
     });
