@@ -28,6 +28,22 @@ class SubmissionValidationTests(unittest.TestCase):
         submission["results"] = submission["results"][:1]
         self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
 
+    def test_classification_std_cannot_overflow_percentage_display(self) -> None:
+        for create in (valid_submission, valid_v2_submission):
+            for value in (1.01, 1e308):
+                submission = create()
+                submission["results"] = [submission["results"][0]]
+                submission["results"][0]["std"] = value
+                self.assert_invalid(submission, "classification std.*canonical")
+            submission = create()
+            submission["results"] = [submission["results"][0]]
+            submission["results"][0]["std"] = math.sqrt(0.5)
+            if submission["schema_version"] == "1.0":
+                submission["num_runs"] = 2
+            else:
+                submission["results"][0]["num_runs"] = 2
+            self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
     def test_v2_counts_and_unknown_budgets_are_valid(self) -> None:
         submission = valid_v2_submission()
         self.validation.validate_submission(submission, self.datasets_by_id, self.schema)

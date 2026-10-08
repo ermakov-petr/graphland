@@ -3,12 +3,6 @@ name: Deploy leaderboard to Pages
 "on":
   push:
     branches: [main]
-    paths:
-      - leaderboard/**
-      - site/**
-      - scripts/leaderboard/**
-      - requirements-leaderboard.txt
-      - .github/workflows/deploy-pages.yml
   workflow_dispatch:
     inputs:
       rollback:

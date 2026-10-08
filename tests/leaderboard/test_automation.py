@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from support import FIXTURES, ROOT, load_module
@@ -227,6 +229,31 @@ class AutomationLifecycleTests(unittest.TestCase):
             automation.mutate(self.client, event, artifact, self.runner())
         self.assertEqual(self.remote_head(), human_head[0])
 
+    def test_handover_during_push_discloses_committed_head_and_keeps_pending_marker(self):
+        original = self.generate()
+        self.client.issue["body"] = self.client.issue["body"].replace("### Additional notes\n\n", "### Additional notes\n\nA newly approved source note. ", 1)
+        event, artifact = self.candidate()
+        real_run = automation.run
+        def handover(args, *rest, **kwargs):
+            result = real_run(args, *rest, **kwargs)
+            if "push" in args:
+                self.client.pull_records[0]["draft"] = False
+            return result
+        with patch.object(automation, "run", side_effect=handover):
+            with self.assertRaisesRegex(automation.Skip, "Branch was already pushed") as failure:
+                automation.mutate(self.client, event, artifact, self.runner())
+        head = self.remote_head()
+        self.assertNotEqual(head, original["head_sha"])
+        self.assertIn(head, str(failure.exception))
+        marker, _ = automation.trusted_marker(self.client.comments, 321)
+        self.assertEqual(marker["state"], "prepared")
+        self.assertEqual(marker["head_sha"], head)
+        self.assertIn("leaderboard-ready", automation.labels(self.client.issue))
+        git(self.seed, "fetch", "origin", "refs/heads/leaderboard/issue-321")
+        record = json.loads(git(self.seed, "show", head + ":leaderboard/submissions/issue-321.json"))
+        self.assertEqual(record["review"]["status"], "pending")
+        self.assertEqual(record["verification"], "self_reported")
+
     def test_source_changes_before_push_skip_without_creating_branch(self):
         event, artifact = self.candidate()
         self.client.on_prepared = lambda: self.client.issue.update(body=self.client.issue["body"] + "\n")
@@ -319,6 +346,45 @@ class AutomationLifecycleTests(unittest.TestCase):
 
 
 class GateAndDeployPolicyTests(unittest.TestCase):
+    def command(self, args, current_sha, compare_status="ahead", output=None):
+        client = unittest.mock.Mock()
+        client.api.side_effect = lambda path: {"sha": current_sha} if path == "commits/main" else {"status": compare_status}
+        stream = io.StringIO()
+        with patch.object(automation, "GitHub", return_value=client), patch.object(automation.sys, "argv", ["automation.py", *args]), patch.object(automation.os, "environ", {"GITHUB_REPOSITORY": "fixture-owner/graphland"}), redirect_stdout(stream):
+            self.assertEqual(automation.main(), 0)
+        return json.loads(stream.getvalue())
+
+    def test_command_level_rollback_requires_current_main_ancestry(self):
+        old, new = "a" * 40, "b" * 40
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "build-info.json"
+            args = ["build-info", "--source-sha", old, "--event-name", "workflow_dispatch", "--rollback", "--rollback-sha", old, "--output", str(path)]
+            for status in ("behind", "diverged"):
+                with self.subTest(status=status):
+                    self.assertEqual(self.command(args, new, status)["outcome"], "skip")
+                    self.assertFalse(path.exists())
+            self.assertEqual(self.command(args, new, "ahead")["outcome"], "current")
+            self.assertEqual(json.loads(path.read_text())["commit_sha"], old)
+            self.assertTrue(json.loads(path.read_text())["rollback"])
+
+    def test_main_drift_between_selection_and_metadata_writes_nothing(self):
+        old, new = "a" * 40, "b" * 40
+        selection = self.command(["select-source"], old)
+        self.assertEqual(selection["source_sha"], old)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "build-info.json"
+            result = self.command(["build-info", "--source-sha", selection["source_sha"], "--output", str(path)], new)
+            self.assertEqual(result["outcome"], "skip")
+            self.assertFalse(path.exists())
+
+    def test_custom_role_name_alone_cannot_authorize_conversion(self):
+        issue = issue_fixture()
+        event = {"action": "labeled", "label": {"name": "leaderboard-ready"}, "issue": copy.deepcopy(issue), "sender": {"login": "fixture-maintainer", "type": "User"}}
+        for role in ("write", "maintain", "admin"):
+            with self.assertRaises(automation.Skip):
+                automation.authorize(event, issue, {"permission": "read", "role_name": role})
+        self.assertEqual(automation.authorize(event, issue, {"permission": "write", "role_name": "maintain"}), "fixture-maintainer")
+
     def test_edits_stale_snapshots_closed_issues_and_triage_cannot_generate(self):
         issue = issue_fixture()
         event = {"action": "labeled", "label": {"name": "leaderboard-ready"}, "issue": copy.deepcopy(issue),

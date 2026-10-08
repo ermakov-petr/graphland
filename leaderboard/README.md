@@ -45,6 +45,8 @@ python -m unittest discover -s tests/browser -v
 
 The browser suite builds fixture data and starts its own local server. It checks real Chromium interactions, keyboard focus, dialogs, URL/history, filters, loading recovery and viewport overflow. The CPU suite tests tiny fixtures; neither suite reproduces the full GPU benchmark.
 
+The separate Linux dgl-cpu CI job exercises all seven existing graph models with plain, PLR and PLR-lite features (21 forward/backward combinations), including an isolated node. It uses PyTorch 2.5.1 CPU and the official DGL 2.4.0 cp311 Linux wheel, pinned by SHA-256 89b4a58a17ffce37d35e81ea43c4cb975e22f91412f728f3ea31be0f06b0b734. This checks the real DGL model API; CUDA/AMP/compile and full-scale experiment reproduction require their own platform checks. The legacy CUDA experiment environment retains its existing versions.
+
 ## Files and contracts
 
 - config.json: site labels, task families and settings, validated against schema/config.schema.json.
@@ -85,6 +87,8 @@ TH/THI are unavailable for city-reviews, city-roads-M, city-roads-L and web-traf
 The dataset release is v1, [Zenodo DOI 10.5281/zenodo.16895532](https://doi.org/10.5281/zenodo.16895532), Apache-2.0. The repository code uses MIT.
 
 ## Submission schema v2
+
+Classification standard deviations use the canonical fraction scale and cannot exceed 1. This conservative bound tolerates rounded source values and prevents percentage-display overflow. It complements the finite-number and at-least-two-runs checks.
 
 The new Issue Form emits schema_version 2.0. Existing valid v1 records and legacy Issue bodies remain supported. v1 retains graphland_ref and global counts; the builder copies those effective counts into generated rows without rewriting source JSON. v2 separates data_release (currently v1) from evaluator_ref, an exact evaluator commit/tag or an honest attributable protocol reference when the original commit is unreported.
 

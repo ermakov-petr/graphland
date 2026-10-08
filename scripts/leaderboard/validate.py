@@ -289,6 +289,11 @@ def validate_submission(
             _require(finite_number(std), f"{submission_id}: std must be finite")
             _require(std >= 0, f"{submission_id}: std must be non-negative")
             _require(num_runs >= 2, f"{submission_id}: sample std requires at least two runs")
+            if dataset["metric"] in {"accuracy", "average_precision"}:
+                # Scores live in [0,1]; a sample deviation cannot exceed one.
+                # This conservative bound tolerates rounded source deviations
+                # and prevents percentage formatting from overflowing.
+                _require(std <= 1, f"{submission_id}: classification std must be on the canonical [0, 1] scale")
 
 
 def discover_submission_paths(submissions_dir: Path) -> List[Path]:

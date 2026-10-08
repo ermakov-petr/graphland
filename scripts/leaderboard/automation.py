@@ -73,7 +73,9 @@ def authorize(event: Mapping[str, Any], issue: Mapping[str, Any], permission: Ma
     login = actor.get("login", "")
     if actor.get("type") != "User" or not LOGIN.fullmatch(login):
         raise Skip("Conversion requires a human maintainer")
-    if permission.get("permission") not in {"write", "maintain", "admin"} and permission.get("role_name") not in {"write", "maintain", "admin"}:
+    # GitHub maps maintain to coarse write and triage to read. Role names are
+    # descriptive labels (including custom roles), never an authority signal.
+    if permission.get("permission") not in {"write", "admin"}:
         raise Skip("Gate actor does not have write-level repository permission")
     return login
 
@@ -269,6 +271,7 @@ def mutate(client: GitHub, event: dict[str, Any], directory: Path, root: Path = 
     authorize(event, client.api("issues/" + str(number)), client.permission(event.get("sender", {}).get("login", "")))
     if client.api("commits/main")["sha"] != source_sha:
         raise Skip("Source changed before mutation; no branch was pushed")
+    pushed = False
     if old_data == data and marker and marker["snapshot_sha256"] == manifest["snapshot_sha256"]:
         new_head = head
     else:
@@ -287,11 +290,17 @@ def mutate(client: GitHub, event: dict[str, Any], directory: Path, root: Path = 
         if client.api("commits/main")["sha"] != source_sha:
             raise Skip("Main changed before push; no branch was replaced")
         run(git_remote + ["push", "--force-with-lease=refs/heads/" + branch + ":" + (head or ""), "origin", "HEAD:refs/heads/" + branch], root)
+        pushed = True
     # Re-read PR state after the push; only draft PRs are ever retained.
-    latest = client.pulls(branch)
-    if len(latest) > 1 or (latest and (latest[0].get("state") != "open" or latest[0].get("draft") is not True)):
-        raise Skip("PR was handed over during generation; no review metadata will be carried forward")
-    authorize(event, client.api("issues/" + str(number)), client.permission(event.get("sender", {}).get("login", "")))
+    try:
+        latest = client.pulls(branch)
+        if len(latest) > 1 or (latest and (latest[0].get("state") != "open" or latest[0].get("draft") is not True)):
+            raise Skip("PR was handed over during generation")
+        authorize(event, client.api("issues/" + str(number)), client.permission(event.get("sender", {}).get("login", "")))
+    except Skip as exc:
+        if pushed:
+            raise Skip("Branch was already pushed as " + new_head + "; " + str(exc) + ". Data remain pending/self_reported. Inspect this head and request fresh review or close the PR.") from exc
+        raise
     pull = latest[0] if latest else client.api("pulls", "POST", {"base": "main", "head": branch, "draft": True, "title": "[Leaderboard] Submission from issue #" + str(number), "body": "Generated from a maintainer-approved Issue snapshot.\n\nCloses #" + str(number) + "\n\nSnapshot SHA256: `" + manifest["snapshot_sha256"] + "`.\n\nThe conversion label is consumed. Source edits require a new maintainer label. Human branch edits or marking ready for review freeze regeneration."})
     generated = {"version": 1, "issue": number, "state": "generated", "snapshot_sha256": manifest["snapshot_sha256"], "submission_sha256": digest(data), "head_sha": new_head, "prior_head_sha": None, "prior_submission_sha256": None, "source_sha": source_sha, "gate_actor": manifest["gate_actor"], "pr_number": pull["number"]}
     marker_write(client, number, generated, comment_id)

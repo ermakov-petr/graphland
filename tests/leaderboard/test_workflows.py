@@ -73,6 +73,24 @@ class WorkflowAndIssueFormTests(unittest.TestCase):
             if "automation.py mutate" in step.get("run", ""):
                 self.assertEqual(step["env"]["GH_TOKEN"], "${{ github.token }}")
 
+    def test_failed_job_rerun_reuses_the_same_candidate_artifact(self):
+        upload = next(step for step in self.issue["jobs"]["candidate"]["steps"] if step.get("uses", "").startswith("actions/upload-artifact@"))
+        download = next(step for step in self.issue["jobs"]["mutation"]["steps"] if step.get("uses", "").startswith("actions/download-artifact@"))
+        def resolve(template, attempt):
+            return template.replace("${{ github.run_id }}", "123").replace("${{ github.run_attempt }}", str(attempt))
+        uploaded = {resolve(upload["with"]["name"], 1): b"original validated artifact"}
+        self.assertEqual(uploaded[resolve(download["with"]["name"], 2)], b"original validated artifact")
+        self.assertEqual(resolve(upload["with"]["name"], 1), resolve(upload["with"]["name"], 2))
+        self.assertIs(upload["with"]["overwrite"], True)
+
+    def test_check_names_are_unique_and_every_main_push_schedules_successor_deploy(self):
+        workflows = [load_yaml(path) for path in (ROOT / ".github/workflows").glob("*.yml")]
+        names = [job.get("name", identifier) for workflow in workflows for identifier, job in workflow["jobs"].items()]
+        self.assertEqual(len(names), len(set(names)))
+        # Main freshness includes every commit; a README-only successor cannot be filtered out.
+        self.assertNotIn("paths", self.deploy["on"]["push"])
+        self.assertNotIn("paths-ignore", self.deploy["on"]["push"])
+
     def test_issue_text_is_never_interpolated_into_shell_and_prs_are_not_merged(self):
         raw = (ROOT / ".github/workflows/leaderboard-issue-to-pr.yml").read_text()
         self.assertNotIn("pull_request_target", raw)
