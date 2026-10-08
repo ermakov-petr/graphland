@@ -91,6 +91,30 @@ class TorchCPUIntegrationTests(unittest.TestCase):
 
 @unittest.skipUnless(OPTUNA_AVAILABLE, 'Requires Optuna in the isolated research environment.')
 class RealOptunaIntegrationTests(unittest.TestCase):
+    def test_integer_lr_distribution_rejects_map_bounds_and_predefined_indices(self):
+        import optuna
+        module = load_module('hparam_generators.py', 'graphland_actual_optuna_lr_bounds')
+        for low, high in ((-1, 15), (0, 20)):
+            with self.subTest(low=low, high=high), self.assertRaisesRegex(ValueError, 'lr.*indices'):
+                module.OptunaHparamGenerator(SimpleNamespace(
+                    num_optuna_trials=1, lr=optuna.distributions.IntDistribution(low, high)))
+        distribution = optuna.distributions.IntDistribution(0, 14, step=2)
+        for index in (-1, 16, .001, True, 3):
+            with self.subTest(index=index), self.assertRaisesRegex(ValueError, 'predefined.*lr'):
+                module.OptunaHparamGenerator(SimpleNamespace(
+                    num_optuna_trials=1, lr=distribution, predefined_hparam_combs=[{'lr': index}]))
+
+    def test_integer_lr_distribution_maps_valid_boundary_indices(self):
+        import optuna
+        module = load_module('hparam_generators.py', 'graphland_actual_optuna_lr_valid')
+        generator = module.OptunaHparamGenerator(SimpleNamespace(
+            num_optuna_trials=2, lr=optuna.distributions.IntDistribution(0, 15),
+            predefined_hparam_combs=[{'lr': 0}, {'lr': 15}]))
+        for expected in (1e-5, 1e-2):
+            self.assertEqual(generator.start_trial()['lr'], expected)
+            generator.finish_trial(-.2)
+        self.assertEqual([trial.params['lr'] for trial in generator.study.trials], [0, 15])
+
     def test_three_actual_trials_complete_and_fail(self):
         import optuna
         module = load_module('hparam_generators.py', 'graphland_actual_optuna_test')
@@ -104,6 +128,20 @@ class RealOptunaIntegrationTests(unittest.TestCase):
         self.assertEqual([trial.state for trial in generator.study.trials],
                          [optuna.trial.TrialState.FAIL, optuna.trial.TrialState.COMPLETE, optuna.trial.TrialState.FAIL])
         self.assertEqual(generator.study.best_value, -.3)
+
+    @unittest.skipUnless(TORCH_AVAILABLE, 'Actual Logger imports PyTorch utilities.')
+    def test_actual_logger_serializes_distribution_valued_args(self):
+        import optuna
+        utils = load_module('utils.py', 'graphland_optuna_distribution_yaml_utils')
+        with patch.dict(sys.modules, {'utils': utils}):
+            logger_module = load_module('logger.py', 'graphland_optuna_distribution_yaml_logger')
+        with tempfile.TemporaryDirectory() as directory:
+            args = SimpleNamespace(save_dir=directory, dataset='fixture', name='distribution',
+                num_runs_with_best_hparams=1, num_runs_with_each_hparams=1, num_hparam_search_trials=3,
+                lr=optuna.distributions.FloatDistribution(1e-4, 1e-2, log=True))
+            logger = logger_module.Logger(args, 'R2')
+            saved = utils.read_yaml(Path(logger.save_dir) / 'args.yaml')
+            self.assertEqual(saved['lr'], args.lr)
 
     @unittest.skipUnless(TORCH_AVAILABLE, 'Actual Logger imports PyTorch utilities.')
     def test_all_failed_search_retains_attempts_and_rejects_best_hparams(self):

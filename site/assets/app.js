@@ -337,9 +337,11 @@
     });
     elements.tableHead.append(row);
     if (focusedSort) {
-      const replacement = Array.from(elements.tableHead.querySelectorAll("[data-sort-key]"))
-        .find((button) => button.dataset.sortKey === focusedSort);
-      replacement?.focus({ preventScroll: true });
+      const buttons = Array.from(elements.tableHead.querySelectorAll("[data-sort-key]"));
+      const replacement = buttons.find((button) => button.dataset.sortKey === focusedSort);
+      const focusTarget = replacement && !replacement.disabled
+        ? replacement : buttons.find((button) => button.dataset.sortKey === "model");
+      focusTarget?.focus({ preventScroll: true });
     }
   }
 
@@ -429,6 +431,10 @@
     if (hasAnySubmissions && sliceCount === 0) {
       elements.emptyTitle.textContent = "No results for this setting and task yet";
       elements.emptyCopy.textContent = "Other views have submissions. Submit a result for this experimental setting and task family.";
+      elements.emptyLink.hidden = false;
+    } else if (hasAnySubmissions && matchingCount > 0) {
+      elements.emptyTitle.textContent = "Matching models have no results in this view";
+      elements.emptyCopy.textContent = "Choose another setting or task, or change the model filters to see available results.";
       elements.emptyLink.hidden = false;
     } else if (hasAnySubmissions) {
       elements.emptyTitle.textContent = "No models match these filters";

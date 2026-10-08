@@ -1006,15 +1006,22 @@ class PyGDataset:
         values = predictions.detach().cpu().numpy() if torch.is_tensor(predictions) else np.asarray(predictions)
         return self.regression_targets_transform.inverse_transform(values.reshape(-1, 1)).reshape(-1)
 
-    def compute_regression_metric(self, predictions, snapshot=0, mask=None):
-        """Canonical raw-space R² on the snapshot's mask (test by default for RL/RH/TH)."""
+    def compute_regression_metric(self, predictions, snapshot=None, mask=None):
+        """Raw-space R² on the test snapshot/mask by default, including THI.
+
+        For THI, pass snapshot=0 (train), 1 (validation), or 2 (test) explicitly
+        to evaluate another snapshot. Predictions must cover that snapshot.
+        """
         if self.task != 'regression':
             raise ValueError('compute_regression_metric is only available for regression datasets.')
+        if snapshot is None:
+            snapshot = 0 if self.transductive else 2
         data = self.data_list[snapshot]
         targets = data.y_raw.detach().cpu().numpy()
         preds = self.inverse_predictions(predictions)
         if mask is None:
-            mask_name = f'{data.snapshot}_mask' if not self.transductive else 'test_mask'
+            # PyG Data.snapshot is also a method; access the stored field by key.
+            mask_name = f'{data["snapshot"]}_mask' if not self.transductive else 'test_mask'
             mask = getattr(data, mask_name, None)
             if mask is None:
                 raise ValueError('Provide an evaluation mask for this snapshot.')

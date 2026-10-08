@@ -59,5 +59,28 @@ class DatasetAPIRealTests(unittest.TestCase):
         self.assertAlmostEqual(wrapper.compute_regression_metric(predictions), self.r2_score(raw, predictions_raw))
         self.assertIs(wrapper.to('cpu'), wrapper)
 
+    def test_inductive_inverse_metric_defaults_to_test_snapshot_and_allows_explicit_train(self):
+        torch = self.torch
+        raw = self.np.array([1., 4., 9., 16.])
+        transform = self.PowerTransformer().fit(raw[:2, None])
+        underlying = SimpleNamespace(name='fixture', split='THI', transductive=False, task='regression',
+            numerical_features_mask=torch.tensor([True]), fraction_features_mask=torch.tensor([False]),
+            categorical_features_mask=torch.tensor([False]), regression_targets_transform=transform)
+        for part, size, mask in (('train', 2, [True, True]), ('val', 3, [False, True, True]),
+                                 ('test', 4, [False, False, True, True])):
+            setattr(underlying, f'{part}_features', torch.zeros(size, 1))
+            setattr(underlying, f'{part}_targets', torch.tensor(transform.transform(raw[:size, None]).ravel()))
+            setattr(underlying, f'{part}_targets_orig', raw[:size])
+            setattr(underlying, f'{part}_graph', torch.empty((2, 0), dtype=torch.long))
+            setattr(underlying, f'{part}_mask', torch.tensor(mask))
+            setattr(underlying, f'{part}_node_ids_in_full_graph', torch.arange(size))
+        with patch.object(self.module, 'Dataset', return_value=underlying):
+            wrapper = self.module.PyGDataset('fixture', split='THI')
+        predictions_raw = self.np.array([1., 4., 9., 8.])
+        predictions = torch.tensor(transform.transform(predictions_raw[:, None]).ravel())
+        self.assertAlmostEqual(wrapper.compute_regression_metric(predictions),
+                               self.r2_score(raw[2:], predictions_raw[2:]))
+        self.assertAlmostEqual(wrapper.compute_regression_metric(predictions[:2], snapshot=0), 1.)
+
 
 if __name__ == '__main__': unittest.main()

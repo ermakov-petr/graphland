@@ -117,6 +117,16 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.keyboard.press('Escape')
         self.assertEqual(self.page.evaluate('document.activeElement.className'), 'model-button')
 
+    def test_history_focus_falls_back_when_previous_dataset_sort_becomes_unavailable(self):
+        self.open('?setting=RL&task=binary_node_classification')
+        self.page.locator('[data-sort-key="city-reviews"]').click()
+        self.page.locator('#setting-tab-TH').click()
+        self.page.go_back()
+        self.page.locator('[data-sort-key="city-reviews"]').focus()
+        self.page.go_forward()
+        self.assertTrue(self.page.locator('[data-sort-key="city-reviews"]').is_disabled())
+        self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'model')
+
     def test_mobile_menu_contains_focus_and_unlocks_at_768(self):
         self.page.set_viewport_size({'width': 740, 'height': 800})
         self.open()
@@ -155,6 +165,18 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertTrue(self.page.locator('[data-state="missing"]').count() > 0)
         self.assertTrue(any(text.startswith('-') for text in self.page.locator('[data-state="value"]').all_text_contents()))
         self.assertNotIn('Reproduced', self.page.locator('#leaderboard-body').inner_text())
+
+    def test_matching_model_with_no_current_view_results_has_specific_empty_state(self):
+        payload = copy.deepcopy(self.payload)
+        selected = payload['submissions'][0]
+        selected['results'] = [{'setting': 'RL', 'dataset': 'city-reviews', 'value': .7}]
+        self.with_payload(payload)
+        self.open('?task=node_regression')
+        self.assertTrue(self.page.locator('#leaderboard-body tr').count() > 0)
+        self.page.locator('#model-search').fill(selected['model_name'])
+        self.assertEqual(self.page.locator('#empty-state h3').inner_text(),
+                         'Matching models have no results in this view')
+        self.assertIn('setting or task', self.page.locator('#empty-state p').inner_text())
 
     def test_failed_load_retry_and_download_fallback(self):
         requests = []

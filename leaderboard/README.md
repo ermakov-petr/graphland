@@ -82,6 +82,8 @@ std is sample standard deviation (ddof=1); it needs at least two successful runs
 
 THI is an information-access setting, not a fourth split file. Training sees only TH train nodes and edges; validation sees train+validation; test sees the full graph. Every fitted encoder, imputer, feature/target transform uses training data only in THI and is then applied without refitting to later snapshots. Intersect masks with labeled nodes. Test labels never select checkpoints, hyperparameters or models. Regression evaluation must invert the fitted target transform to the original scale; PyGDataset exposes y_raw, inverse_predictions and compute_regression_metric for this purpose.
 
+compute_regression_metric defaults to the test snapshot and test mask: snapshot 2 for THI, snapshot 0 for transductive settings. Supply snapshot=0/1/2 explicitly for THI train/validation/test evaluation, and an explicit mask when needed. Read stored snapshot labels with data["snapshot"]; PyG also has a native Data.snapshot method.
+
 TH/THI are unavailable for city-reviews, city-roads-M, city-roads-L and web-traffic. They display N/A and validation rejects submitted values. Supported but missing cells display —. A table slice with no submitted values explains its coverage rather than showing an all-dash ranking.
 
 The dataset release is v1, [Zenodo DOI 10.5281/zenodo.16895532](https://doi.org/10.5281/zenodo.16895532), Apache-2.0. The repository code uses MIT.
