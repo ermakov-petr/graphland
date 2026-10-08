@@ -1295,7 +1295,7 @@ th:first-child .sort-label {
 }
 
 .footer-links a:hover {
-  color: var(--gray-700);
+  color: var(--white);
 }
 
 .footer-inner .footer-meta {

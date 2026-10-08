@@ -7,6 +7,7 @@ import copy
 import functools
 import importlib.util
 import json
+import re
 import shutil
 import tempfile
 import threading
@@ -201,6 +202,58 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.open()
                 self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
+
+    def test_footer_link_text_contrast_normal_and_hover_desktop_and_mobile(self):
+        def channels(css_color):
+            values = [float(value) for value in re.findall(r'[\d.]+', css_color)]
+            self.assertIn(len(values), (3, 4), css_color)
+            self.assertTrue(len(values) == 3 or values[3] == 1, css_color)
+            return values[:3]
+
+        def luminance(rgb):
+            values = [value / 255 for value in rgb]
+            linear = [value / 12.92 if value <= .04045 else ((value + .055) / 1.055) ** 2.4
+                      for value in values]
+            return sum(weight * value for weight, value in zip((.2126, .7152, .0722), linear))
+
+        self.footer_contrast_observations = []
+        for width in (1280, 375):
+            self.page.set_viewport_size({'width': width, 'height': 900})
+            self.open()
+            links = self.page.locator('.footer-links a')
+            for index in range(links.count()):
+                link = links.nth(index)
+                for state in ('normal', 'hover'):
+                    with self.subTest(width=width, link=index, state=state):
+                        if state == 'hover':
+                            link.hover()
+                        else:
+                            self.page.mouse.move(0, 0)
+                        measurement = link.evaluate('''(element) => {
+                            const foreground = getComputedStyle(element);
+                            let ancestor = element;
+                            while (ancestor) {
+                                const background = getComputedStyle(ancestor).backgroundColor;
+                                const values = background.match(/[\\d.]+/g).map(Number);
+                                const alpha = values.length === 4 ? values[3] : 1;
+                                if (alpha === 1) return {
+                                    foreground: foreground.color, background,
+                                    font_size: foreground.fontSize, opacity: foreground.opacity,
+                                    hovered: element.matches(':hover'), text: element.textContent.trim()
+                                };
+                                if (alpha !== 0) throw new Error('Unexpected translucent footer background');
+                                ancestor = ancestor.parentElement;
+                            }
+                            throw new Error('No opaque footer background');
+                        }''')
+                        self.assertEqual(measurement['opacity'], '1')
+                        self.assertEqual(measurement['hovered'], state == 'hover')
+                        foreground = luminance(channels(measurement['foreground']))
+                        background = luminance(channels(measurement['background']))
+                        ratio = (max(foreground, background) + .05) / (min(foreground, background) + .05)
+                        measurement.update(width=width, state=state, ratio=ratio)
+                        self.footer_contrast_observations.append(measurement)
+                        self.assertGreaterEqual(ratio, 4.5, measurement)
 
     def test_mobile_initial_view_shows_model_and_first_numeric_score(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
