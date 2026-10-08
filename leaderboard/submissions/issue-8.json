@@ -1,0 +1,57 @@
+{
+  "code_availability": "available",
+  "data_release": "v1",
+  "evaluator_ref": "https://github.com/yandex-research/graphland/tree/7246fe3",
+  "external_data_pretraining": "None. Synthetic metadata.",
+  "id": "issue-8",
+  "method_type": "trained",
+  "model_name": "SYNTHETIC Workflow QA 2026-10-08",
+  "model_variant": "test-only",
+  "notes": "AUTOMATION QA ONLY. No model was trained and none of these fixture scores are scientific results. The checked form statements below exercise the parser only. Do not merge or publish this fixture. Close this Issue and its draft PR after lifecycle verification.\n\nSynthetic fixture, never publish as benchmark results.",
+  "paper_url": "https://example.test/paper",
+  "provenance": "author_submission",
+  "results": [
+    {
+      "dataset": "hm-categories",
+      "hparam_trials": 20,
+      "num_runs": 10,
+      "setting": "RL",
+      "std": 0.0041,
+      "value": 0.8123
+    },
+    {
+      "dataset": "web-fraud",
+      "num_runs": 5,
+      "setting": "RH",
+      "std": 0.006,
+      "value": 0.5942
+    },
+    {
+      "dataset": "web-topics",
+      "num_runs": 1,
+      "setting": "THI",
+      "value": 0.774
+    },
+    {
+      "dataset": "hm-prices",
+      "hparam_trials": 10,
+      "num_runs": 5,
+      "setting": "RL",
+      "std": 0.02,
+      "value": -0.125
+    }
+  ],
+  "review": {
+    "notes": null,
+    "reviewed_at": null,
+    "reviewer_github": null,
+    "status": "pending"
+  },
+  "schema_version": "2.0",
+  "source_issue": 8,
+  "submitted_at": "2026-10-08",
+  "submitter_github": "ermakov-petr",
+  "training_code_url": "https://example.test/code",
+  "tuning_protocol": "Test fixture: validation selection with disclosed per-result counts.",
+  "verification": "self_reported"
+}
