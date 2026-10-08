@@ -12,12 +12,19 @@ from model import Model
 
 class ModelSmokeTests(unittest.TestCase):
     def test_all_model_variants_and_plr_modes_forward_backward(self):
+        # A green smoke must represent the declared environment, not a silent
+        # resolver downgrade or a CUDA wheel incidentally executed on CPU.
+        self.assertEqual(torch.__version__.split("+")[0], "2.4.0")
+        self.assertIsNone(torch.version.cuda)
+        self.assertEqual(dgl.__version__, "2.4.0")
         torch.set_num_threads(1)
         torch.manual_seed(0)
         # Node 3 has no neighbors before self-loops; the node count is explicit.
         graph = dgl.graph(([0, 1, 1, 2], [1, 0, 2, 1]), num_nodes=4)
         graph = dgl.add_self_loop(graph)
         features = torch.randn(4, 4)
+        self.assertEqual(graph.device.type, "cpu")
+        self.assertEqual(features.device.type, "cpu")
         for name in ("ResMLP", "GCN", "GraphSAGE", "GAT", "GAT-sep", "GT", "GT-sep"):
             for use_plr, lite in ((False, False), (True, False), (True, True)):
                 with self.subTest(model=name, plr=use_plr, lite=lite):

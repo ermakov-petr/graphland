@@ -45,7 +45,7 @@ python -m unittest discover -s tests/browser -v
 
 The browser suite builds fixture data and starts its own local server. It checks real Chromium interactions, keyboard focus, dialogs, URL/history, filters, loading recovery and viewport overflow. The CPU suite tests tiny fixtures; neither suite reproduces the full GPU benchmark.
 
-The separate Linux dgl-cpu CI job exercises all seven existing graph models with plain, PLR and PLR-lite features (21 forward/backward combinations), including an isolated node. It uses PyTorch 2.5.1 CPU and the official DGL 2.4.0 cp311 Linux wheel, pinned by SHA-256 89b4a58a17ffce37d35e81ea43c4cb975e22f91412f728f3ea31be0f06b0b734. This checks the real DGL model API; CUDA/AMP/compile and full-scale experiment reproduction require their own platform checks. The legacy CUDA experiment environment retains its existing versions.
+The separate Linux dgl-cpu CI job exercises all seven existing graph models with plain, PLR and PLR-lite features (21 forward/backward combinations), including an isolated node. It uses compatible PyTorch 2.4.0 CPU and the official DGL 2.4.0 cp311 Linux wheel, pinned by SHA-256 89b4a58a17ffce37d35e81ea43c4cb975e22f91412f728f3ea31be0f06b0b734. Tests assert the actual versions, a CPU PyTorch build and CPU tensors/graph, so a resolver replacement cannot silently satisfy the check. The PyG/core job uses PyTorch 2.5.1. This checks real model APIs; CUDA/AMP/compile and full-scale experiment reproduction require their own platform checks. The legacy CUDA experiment environment retains its existing versions and is not certified by the supported DGL CPU smoke; the CPU wheel's metadata requires torch<=2.4.0.
 
 ## Files and contracts
 

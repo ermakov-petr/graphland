@@ -32,8 +32,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
-      - name: Install CPU PyTorch at the existing experiment version
-        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+      - name: Install CPU PyTorch compatible with DGL 2.4 metadata
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.0
       - name: Install pinned numerical dependencies
         run: python -m pip install numpy==1.26.4
       - name: Install official DGL 2.4 CPU wheel
