@@ -247,6 +247,155 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'submit-results-link')
                 observation['next_content_focus'] = 'breadcrumb Home then submit-results-link'
 
+    def test_code_filter_feedback_explains_unchanged_rows_and_filters_mixed_code(self):
+        payload = copy.deepcopy(self.payload)
+        payload['config']['default_filters']['only_models_with_code'] = False
+        payload['submissions'] = payload['submissions'][:3]
+        for submission in payload['submissions']:
+            submission['code_availability'] = 'available'
+        self.with_payload(payload)
+        self.open()
+        names_before = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
+        self.assertEqual(len(names_before), 3)
+        status = self.page.locator('#filter-status')
+        self.assertEqual(status.count(), 1, 'Applied filters need a dedicated visible status')
+        self.assertEqual(status.get_attribute('role'), 'status')
+        self.page.locator('label.toggle').click()
+        self.assertTrue(self.page.locator('#code-filter').is_checked())
+        self.assertEqual(self.page.locator('#leaderboard-body .model-button strong').all_text_contents(), names_before)
+        self.assertTrue(status.is_visible())
+        self.assertRegex(status.inner_text(), r'(?i)code')
+        self.assertRegex(status.inner_text(), r'(?i)all\s+3')
+        self.brand_observations.append({'check': 'all_code_filter_feedback', 'models_before': names_before,
+                                        'models_after': names_before, 'status': status.inner_text()})
+
+        self.page.unroute('**/data/leaderboard.json')
+        payload['submissions'][-1]['code_availability'] = 'unavailable'
+        self.with_payload(payload)
+        self.open()
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 3)
+        self.page.locator('label.toggle').click()
+        expected_names = [submission['model_name'] for submission in payload['submissions']
+                          if submission['code_availability'] == 'available']
+        actual_names = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
+        self.assertCountEqual(actual_names, expected_names)
+        self.assertEqual(len(actual_names), 2)
+        self.assertRegex(status.inner_text(), r'(?i)code')
+        self.page.locator('#model-search').fill('Atlas')
+        self.assertIn('Atlas', status.inner_text())
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 1)
+        self.brand_observations.append({'check': 'mixed_code_filter_feedback', 'models_after': actual_names,
+                                        'search_status': status.inner_text()})
+
+    def test_keyboard_reset_filters_preserves_view_and_explicit_off_history(self):
+        payload = copy.deepcopy(self.payload)
+        payload['config']['default_filters']['only_models_with_code'] = True
+        self.with_payload(payload)
+        self.open('?setting=RH&task=binary_node_classification&sort=city-reviews&order=desc&q=Atlas')
+        self.assertTrue(self.page.locator('#code-filter').is_checked())
+        reset = self.page.locator('#reset-filters')
+        self.assertEqual(reset.count(), 1, 'Active filters need an accessible reset control')
+        self.assertTrue(reset.is_visible())
+        self.page.locator('#code-filter').focus()
+        self.page.keyboard.press('Tab')
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'reset-filters')
+        self.page.keyboard.press('Enter')
+        self.page.wait_for_function("document.activeElement.id === 'model-search'")
+        self.assertEqual(self.page.locator('#model-search').input_value(), '')
+        self.assertFalse(self.page.locator('#code-filter').is_checked())
+        self.assertFalse(reset.is_visible())
+        self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
+        self.assertEqual(self.page.locator('#task-tab-binary_node_classification').get_attribute('aria-selected'), 'true')
+        self.assertEqual(self.page.locator('[data-sort-key="city-reviews"]').locator('..').get_attribute('aria-sort'), 'descending')
+        expected = {'setting': 'RH', 'task': 'binary_node_classification', 'sort': 'city-reviews',
+                    'order': 'desc', 'code': '0'}
+        query_after_reset = self.page.evaluate('Object.fromEntries(new URL(location.href).searchParams)')
+        self.assertEqual(query_after_reset, expected)
+        self.page.reload()
+        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+        self.assertFalse(self.page.locator('#code-filter').is_checked(), 'Explicit code=0 must override the true config default')
+        self.assertFalse(reset.is_visible())
+        self.page.go_back()
+        self.page.wait_for_function("document.getElementById('model-search').value === 'Atlas' && document.getElementById('code-filter').checked")
+        self.assertTrue(reset.is_visible())
+        reset.focus()
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'reset-filters')
+        self.page.go_forward()
+        self.page.wait_for_function("document.getElementById('model-search').value === '' && !document.getElementById('code-filter').checked")
+        self.assertFalse(reset.is_visible())
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
+        self.assertEqual(self.page.evaluate('Object.fromEntries(new URL(location.href).searchParams)'), expected)
+        self.brand_observations.append({'check': 'keyboard_reset_filters', 'reset_query': query_after_reset,
+                                        'reload_explicit_off': True, 'back_forward_restored': True,
+                                        'history_hides_focused_reset_safely': True})
+
+    def test_scroll_hint_tracks_mobile_edges_resize_task_and_empty_results(self):
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.open()
+        scroll = self.page.locator('.table-scroll')
+        hint = self.page.locator('#table-scroll-hint')
+        self.assertEqual(hint.count(), 1, 'Overflowing datasets need a visible discovery hint')
+        self.assertTrue(scroll.evaluate('(el) => el.scrollWidth > el.clientWidth'))
+        self.page.wait_for_function("!document.getElementById('table-scroll-hint').hidden")
+        self.assertTrue(hint.is_visible())
+        self.assertRegex(hint.inner_text(), r'(?i)scroll.*dataset')
+        self.assertIn('table-scroll-hint', (scroll.get_attribute('aria-describedby') or '').split())
+        scroll.evaluate('(el) => { el.scrollLeft = el.scrollWidth; }')
+        self.page.wait_for_function("document.getElementById('table-scroll-hint').hidden")
+        self.assertFalse(hint.is_visible())
+        self.assertNotIn('table-scroll-hint', (scroll.get_attribute('aria-describedby') or '').split())
+        scroll.evaluate('(el) => { el.scrollLeft = 0; }')
+        self.page.wait_for_function("!document.getElementById('table-scroll-hint').hidden")
+        self.page.set_viewport_size({'width': 1601, 'height': 900})
+        self.page.wait_for_function("document.querySelector('.table-scroll').scrollWidth <= document.querySelector('.table-scroll').clientWidth")
+        self.page.wait_for_function("document.getElementById('table-scroll-hint').hidden")
+        self.assertFalse(hint.is_visible())
+        self.assertNotIn('table-scroll-hint', (scroll.get_attribute('aria-describedby') or '').split())
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.page.wait_for_function("!document.getElementById('table-scroll-hint').hidden")
+        self.page.locator('#task-tab-node_regression').click()
+        self.assertTrue(scroll.evaluate('(el) => el.scrollWidth > el.clientWidth'))
+        self.assertTrue(hint.is_visible())
+        self.page.locator('#model-search').fill('no-such-model')
+        self.assertTrue(self.page.locator('#empty-state').is_visible())
+        self.assertFalse(scroll.is_visible())
+        self.assertFalse(hint.is_visible())
+        self.page.locator('#model-search').fill('')
+        self.page.wait_for_function("!document.getElementById('table-scroll-hint').hidden")
+        self.assertTrue(scroll.is_visible())
+        self.assertTrue(hint.is_visible())
+        self.assertIn('table-scroll-hint', (scroll.get_attribute('aria-describedby') or '').split())
+        self.brand_observations.append({'check': 'conditional_table_scroll_hint', 'widths': [375, 1601],
+                                        'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
+                                        'task_change_and_results_restore': True})
+
+    def test_hero_view_results_anchor_focuses_visible_controls(self):
+        for width in (1280, 375):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.open('?setting=RH&task=binary_node_classification')
+                link = self.page.locator('#view-results-link')
+                self.assertEqual(link.count(), 1, 'The hero needs a direct route to the comparison controls')
+                self.assertEqual(link.get_attribute('href'), '#leaderboard-controls')
+                link.focus()
+                link.press('Enter')
+                self.page.wait_for_function("document.activeElement.id === 'leaderboard-controls'")
+                self.page.wait_for_function('''() => {
+                    const controls=document.getElementById('leaderboard-controls').getBoundingClientRect();
+                    const header=document.querySelector('.site-header').getBoundingClientRect();
+                    return controls.top >= header.bottom && controls.bottom <= innerHeight;
+                }''')
+                controls_bounds = self.page.locator('#leaderboard-controls').bounding_box()
+                self.assertTrue(self.page.url.endswith('#leaderboard-controls'))
+                self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
+                self.assertEqual(self.page.locator('#task-tab-binary_node_classification').get_attribute('aria-selected'), 'true')
+                self.page.keyboard.press('Tab')
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'setting-tab-RH')
+                self.brand_observations.append({'check': 'hero_view_results_anchor', 'width': width,
+                                                'focused_controls_id': 'leaderboard-controls',
+                                                'next_tab_focus': self.page.evaluate('document.activeElement.id'),
+                                                'controls': controls_bounds})
+
     def test_sort_keeps_keyboard_focus_and_numeric_order(self):
         self.open()
         header = self.page.locator('[data-sort-key="hm-categories"]')

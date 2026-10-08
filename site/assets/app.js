@@ -27,6 +27,7 @@
   };
 
   const elements = {};
+  let tableHintFrame = 0;
 
   function cacheElements() {
     elements.header = document.querySelector("[data-site-header]");
@@ -37,10 +38,14 @@
     elements.settingDescription = document.getElementById("setting-description");
     elements.search = document.getElementById("model-search");
     elements.codeFilter = document.getElementById("code-filter");
+    elements.filterFeedback = document.getElementById("filter-feedback");
+    elements.filterStatus = document.getElementById("filter-status");
+    elements.resetFilters = document.getElementById("reset-filters");
     elements.panel = document.getElementById("leaderboard-panel");
     elements.resultSummary = document.getElementById("result-summary");
     elements.metricNote = document.getElementById("metric-note");
     elements.tableScroll = document.querySelector(".table-scroll");
+    elements.tableHint = document.getElementById("table-scroll-hint");
     elements.table = document.getElementById("leaderboard-table");
     elements.tableCaption = elements.table.querySelector("caption");
     elements.tableHead = document.getElementById("leaderboard-head");
@@ -447,6 +452,56 @@
     }
   }
 
+  function updateFilterFeedback(sliceSubmissions, visibleCount) {
+    const query = state.search.trim();
+    const hasFilters = Boolean(query || state.codeOnly);
+    const parts = [];
+    if (query) parts.push(`Search: “${query}”`);
+    if (state.codeOnly) {
+      const matchingSlice = sliceSubmissions.filter((submission) => !query
+        || submissionName(submission).toLocaleLowerCase("en").includes(query.toLocaleLowerCase("en")));
+      if (matchingSlice.length && matchingSlice.every((submission) => submission.code_availability === "available")) {
+        parts.push(matchingSlice.length === 1
+          ? "Code filter on · the matching model has code"
+          : `Code filter on · all ${matchingSlice.length} matching models have code`);
+      } else if (matchingSlice.length) {
+        parts.push(`Code filter on · ${visibleCount} of ${matchingSlice.length} matching models have code`);
+      } else {
+        parts.push("Code filter on");
+      }
+    }
+    if (!hasFilters && document.activeElement === elements.resetFilters) {
+      elements.search.focus({ preventScroll: true });
+    }
+    elements.filterStatus.textContent = parts.join(" · ");
+    elements.resetFilters.hidden = !hasFilters;
+    elements.filterFeedback.classList.toggle("has-filters", hasFilters);
+  }
+
+  function scheduleTableHint() {
+    if (tableHintFrame) return;
+    tableHintFrame = window.requestAnimationFrame(() => {
+      tableHintFrame = 0;
+      const scroll = elements.tableScroll;
+      const remaining = scroll.scrollWidth - scroll.clientWidth - scroll.scrollLeft;
+      const show = state.loaded && !state.loading && !scroll.hidden
+        && elements.tableBody.rows.length > 0 && scroll.clientWidth > 0 && remaining > 1;
+      elements.tableHint.hidden = !show;
+      if (show) scroll.setAttribute("aria-describedby", "table-scroll-hint");
+      else scroll.removeAttribute("aria-describedby");
+    });
+  }
+
+  function bindTableHint() {
+    elements.tableScroll.addEventListener("scroll", scheduleTableHint, { passive: true });
+    window.addEventListener("resize", scheduleTableHint);
+    if (typeof ResizeObserver === "function") {
+      elements.tableSizeObserver = new ResizeObserver(scheduleTableHint);
+      elements.tableSizeObserver.observe(elements.tableScroll);
+      elements.tableSizeObserver.observe(elements.table);
+    }
+  }
+
   function renderTable() {
     if (!state.payload) {
       return;
@@ -463,7 +518,8 @@
     const hasSliceResult = (submission) => datasets.some((dataset) => isSettingAvailable(dataset, state.setting)
       && Number.isFinite(getResult(submission, state.setting, dataset.id)?.value));
     const matching = filteredSubmissions();
-    const sliceCount = state.payload.submissions.filter(hasSliceResult).length;
+    const sliceSubmissions = state.payload.submissions.filter(hasSliceResult);
+    const sliceCount = sliceSubmissions.length;
     const submissions = matching.filter(hasSliceResult).sort((left, right) => compareRows(left, right, {
       key: state.sortKey,
       direction: state.sortDirection,
@@ -484,6 +540,8 @@
     elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : ""} · ${state.payload.submissions.length} submissions overall`;
     elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "GraphLand"} leaderboard`;
     updateEmptyState(submissions.length, matching.length, sliceCount);
+    updateFilterFeedback(sliceSubmissions, submissions.length);
+    scheduleTableHint();
   }
 
   function render() {
@@ -813,6 +871,14 @@
       writeQueryState();
       renderTable();
     });
+    elements.resetFilters.addEventListener("click", () => {
+      state.search = "";
+      state.codeOnly = false;
+      state.queryCodeExplicit = true;
+      elements.search.focus({ preventScroll: true });
+      writeQueryState("push");
+      render();
+    });
     window.addEventListener("popstate", () => {
       closeNavigation();
       readQueryState();
@@ -863,8 +929,9 @@
     state.loading = loading;
     elements.panel.setAttribute("aria-busy", String(loading));
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
-      elements.search, elements.codeFilter].forEach((control) => { control.disabled = loading || !state.loaded; });
+      elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
     elements.retry.disabled = loading;
+    scheduleTableHint();
   }
 
   async function loadPublicationInfo() {
@@ -910,6 +977,9 @@
       elements.emptyState.hidden = true;
       elements.loadError.hidden = false;
       elements.demoNotice.hidden = true;
+      elements.filterStatus.textContent = "";
+      elements.resetFilters.hidden = true;
+      elements.filterFeedback.classList.remove("has-filters");
       console.error(error);
     } finally {
       setLoading(false);
@@ -922,6 +992,7 @@
     setActiveTabs();
     bindNavigation();
     bindControls();
+    bindTableHint();
     bindDialog();
     await loadLeaderboard();
   }

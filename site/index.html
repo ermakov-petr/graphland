@@ -59,6 +59,7 @@
           <div class="hero-actions">
             <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
+            <a class="view-results-link" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
           </div>
           <p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p>
         </div>
@@ -95,7 +96,7 @@
           <p>Choose one setting and one task family. Every dataset remains a separate comparison—there is no aggregate score or overall rank.</p>
         </div>
 
-        <div class="leaderboard-controls" aria-label="Leaderboard filters">
+        <div class="leaderboard-controls" id="leaderboard-controls" role="group" aria-label="Leaderboard filters" tabindex="-1">
           <div class="control-block">
             <span class="control-label" id="setting-tabs-label">Experimental setting</span>
             <div class="tabs tabs-primary" id="setting-tabs" role="tablist" aria-labelledby="setting-tabs-label">
@@ -133,6 +134,10 @@
               <span>Only models with code</span>
             </label>
           </div>
+          <div class="filter-feedback" id="filter-feedback">
+            <p id="filter-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <button class="reset-filters" id="reset-filters" type="button" hidden disabled>Reset filters</button>
+          </div>
         </div>
 
         <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="setting-tab-RL task-tab-multiclass_node_classification" tabindex="0">
@@ -141,13 +146,14 @@
             <p class="metric-note" id="metric-note">Canonical metric: Accuracy · higher is better</p>
           </div>
 
-          <div class="table-scroll" tabindex="0" aria-label="Scrollable leaderboard table">
+          <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable leaderboard table">
             <table id="leaderboard-table">
               <caption class="visually-hidden">GraphLand leaderboard results</caption>
               <thead id="leaderboard-head"></thead>
               <tbody id="leaderboard-body"></tbody>
             </table>
           </div>
+          <p class="table-scroll-hint" id="table-scroll-hint" hidden>Scroll for more datasets <span aria-hidden="true">→</span></p>
 
           <div class="empty-state" id="empty-state" hidden>
             <span class="empty-state-mark" aria-hidden="true">GL</span>
