@@ -58,6 +58,7 @@ class ExperimentConfig:
 
     num_runs_with_best_hparams: int = None
     num_runs_with_each_hparams: int = 1
+    min_successful_runs: int = 1
     num_optuna_trials: int = 100
 
     device: str = 'cuda:0'
@@ -171,6 +172,9 @@ def get_args():
     parser.add_argument('--num_runs_with_best_hparams', type=int, default=None,
                         help='If None, dataset-specific default values is used.')
     parser.add_argument('--num_runs_with_each_hparams', type=int, default=None)
+    parser.add_argument('--min_successful_runs', type=int, default=None,
+                        help='Minimum finite successful runs required for a trial mean. Run counts are attempt budgets; '
+                             'failed attempts are retained but excluded. Sample std requires at least two successes.')
     parser.add_argument('--num_optuna_trials', type=int, default=None)
 
     parser.add_argument('--device', type=str, default=None)
@@ -219,5 +223,15 @@ def get_args():
     else:
         args.hparam_search_strategy = 'fixed'
         args.num_hparam_search_trials = None
+
+    for key in ('num_runs_with_best_hparams', 'num_runs_with_each_hparams', 'num_optuna_trials', 'min_successful_runs'):
+        value = getattr(args, key)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            parser.error(f'--{key} must be a positive integer.')
+    budgets = [args.num_runs_with_best_hparams]
+    if args.hparam_search_strategy != 'fixed':
+        budgets.append(args.num_runs_with_each_hparams)
+    if args.min_successful_runs > min(budgets):
+        parser.error('--min_successful_runs cannot exceed a requested run attempt budget.')
 
     return args

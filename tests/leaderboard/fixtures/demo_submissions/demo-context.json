@@ -25,17 +25,65 @@
   },
   "notes": "Synthetic UI/QA fixture. These values are not benchmark claims and must never be published as GraphLand results.",
   "results": [
-    {"setting": "RL", "dataset": "pokec-regions", "value": 0.591},
-    {"setting": "RL", "dataset": "city-reviews", "value": 0.623, "std": 0.014},
-    {"setting": "RL", "dataset": "hm-prices", "value": -0.231, "std": 0.041},
-    {"setting": "RH", "dataset": "hm-categories", "value": 0.803, "std": 0.005},
-    {"setting": "RH", "dataset": "artnet-exp", "value": 0.553, "std": 0.01},
-    {"setting": "RH", "dataset": "city-roads-L", "value": -0.052, "std": 0.022},
-    {"setting": "RH", "dataset": "web-traffic", "value": 0.021},
-    {"setting": "TH", "dataset": "web-topics", "value": 0.612, "std": 0.009},
-    {"setting": "TH", "dataset": "web-fraud", "value": 0.501},
-    {"setting": "TH", "dataset": "twitch-views", "value": -0.118, "std": 0.028},
-    {"setting": "THI", "dataset": "hm-categories", "value": 0.579, "std": 0.013},
-    {"setting": "THI", "dataset": "artnet-views", "value": -0.337, "std": 0.054}
+    {
+      "setting": "RL",
+      "dataset": "pokec-regions",
+      "value": 0.591
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "value": 0.623
+    },
+    {
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "value": -0.231
+    },
+    {
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "value": 0.803
+    },
+    {
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "value": 0.553
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "value": -0.052
+    },
+    {
+      "setting": "RH",
+      "dataset": "web-traffic",
+      "value": 0.021
+    },
+    {
+      "setting": "TH",
+      "dataset": "web-topics",
+      "value": 0.612
+    },
+    {
+      "setting": "TH",
+      "dataset": "web-fraud",
+      "value": 0.501
+    },
+    {
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "value": -0.118
+    },
+    {
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "value": 0.579
+    },
+    {
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "value": -0.337
+    }
   ]
 }

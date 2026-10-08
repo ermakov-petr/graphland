@@ -1,0 +1,6 @@
+# Actual repository owner. Add additional reviewers only after confirming handles.
+/leaderboard/ @ermakov-petr
+/scripts/leaderboard/ @ermakov-petr
+/site/ @ermakov-petr
+/.github/ @ermakov-petr
+/requirements-leaderboard.txt @ermakov-petr

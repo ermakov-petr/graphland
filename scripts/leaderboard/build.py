@@ -6,9 +6,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import copy
+import os
 import re
 import shutil
 import sys
+import tempfile
+import zipfile
+from xml.etree import ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
@@ -19,6 +24,10 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from validate import LeaderboardValidationError, validate_repository  # noqa: E402
+from common import load_json, result_hparam_trials, result_num_runs
+
+BUILD_MARKER = ".graphland-build.json"
+MARKER_CONTENT = {"builder": "graphland-leaderboard", "format": 1}
 
 
 CSV_COLUMNS = [
@@ -45,16 +54,33 @@ CSV_COLUMNS = [
 
 
 def _json_bytes(value: Any) -> bytes:
-    return (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    try:
+        return (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+    except (ValueError, OverflowError) as exc:
+        raise LeaderboardValidationError(f"Cannot serialize non-finite leaderboard JSON: {exc}") from exc
 
 
-def _safe_output_path(output: Path) -> Path:
+def _safe_output_path(output: Path, root: Path = ROOT, submissions_dir: Optional[Path] = None) -> Path:
     if output.is_symlink():
         raise LeaderboardValidationError(f"Refusing symlink build output path: {output}")
     resolved = output.resolve()
-    forbidden = {Path(resolved.anchor), ROOT.resolve(), Path.home().resolve()}
-    if resolved in forbidden:
+    root = root.resolve()
+    forbidden = {Path(resolved.anchor), Path.home().resolve()}
+    protected = [root / name for name in ("site", "leaderboard", "scripts", "tests", ".git", ".agents", ".codex", ".aws")]
+    if submissions_dir is not None:
+        protected.append(submissions_dir.resolve())
+    if resolved in forbidden or root.is_relative_to(resolved) or any(
+        resolved.is_relative_to(source.resolve()) or source.resolve().is_relative_to(resolved)
+        for source in protected
+    ):
         raise LeaderboardValidationError(f"Refusing unsafe build output path: {resolved}")
+    if resolved.exists():
+        if not resolved.is_dir():
+            raise LeaderboardValidationError(f"Build output is not a directory: {resolved}")
+        if any(resolved.iterdir()):
+            marker = resolved / BUILD_MARKER
+            if marker.is_symlink() or not marker.is_file() or load_json(marker) != MARKER_CONTENT:
+                raise LeaderboardValidationError(f"Refusing nonempty unowned build output: {resolved}; choose an empty directory or a marked GraphLand artifact")
     return resolved
 
 
@@ -98,9 +124,9 @@ def csv_rows(
                     "metric": dataset["metric"],
                     "value": result["value"],
                     "std": result.get("std", ""),
-                    "num_runs": submission["num_runs"],
+                    "num_runs": result_num_runs(submission, result),
                     "method_type": submission["method_type"],
-                    "hparam_trials": submission["hparam_trials"],
+                    "hparam_trials": result_hparam_trials(submission, result) if result_hparam_trials(submission, result) is not None else "",
                     "code_availability": submission["code_availability"],
                     "paper_url": submission["paper_url"],
                     "code_url": submission["training_code_url"] or "",
@@ -111,6 +137,53 @@ def csv_rows(
                 }
             )
     return rows
+
+
+def normalized_submissions(submissions: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    """Public payload includes effective per-result counts without guessing unknown budgets."""
+    normalized = copy.deepcopy(list(submissions))
+    for submission in normalized:
+        for result in submission["results"]:
+            result["num_runs"] = result_num_runs(submission, result)
+            trials = result_hparam_trials(submission, result)
+            if trials is not None:
+                result["hparam_trials"] = trials
+    return normalized
+
+
+def write_xlsx(destination: Path, submissions: Sequence[Mapping[str, Any]], datasets_by_id: Mapping[str, Mapping[str, Any]]) -> None:
+    """Deterministic OOXML: display strings stay strings, never formula cells."""
+    namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    ET.register_namespace("", namespace)
+    worksheet = ET.Element(f"{{{namespace}}}worksheet")
+    sheet_data = ET.SubElement(worksheet, f"{{{namespace}}}sheetData")
+    records = [dict(zip(CSV_COLUMNS, CSV_COLUMNS))] + csv_rows(submissions, datasets_by_id)
+    for index, record in enumerate(records, 1):
+        row = ET.SubElement(sheet_data, f"{{{namespace}}}row", r=str(index))
+        for column_index, key in enumerate(CSV_COLUMNS):
+            value = record[key]
+            letter = chr(ord("A") + column_index)
+            attrs = {"r": f"{letter}{index}"}
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                cell = ET.SubElement(row, f"{{{namespace}}}c", attrs)
+                ET.SubElement(cell, f"{{{namespace}}}v").text = str(value)
+            else:
+                cell = ET.SubElement(row, f"{{{namespace}}}c", {**attrs, "t": "inlineStr"})
+                inline = ET.SubElement(cell, f"{{{namespace}}}is")
+                ET.SubElement(inline, f"{{{namespace}}}t", {"{http://www.w3.org/XML/1998/namespace}space": "preserve"}).text = str(value or "")
+    parts = {
+        "[Content_Types].xml": b'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+        "_rels/.rels": b'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": b'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="GraphLand" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": b'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": ET.tostring(worksheet, encoding="utf-8", xml_declaration=True),
+    }
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in sorted(parts.items()):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            archive.writestr(info, content)
 
 
 def write_csv(
@@ -132,7 +205,7 @@ def build_site(
     allow_pending: bool = False,
 ) -> Dict[str, Any]:
     root = root.resolve()
-    output = _safe_output_path(output)
+    output = _safe_output_path(output, root, submissions_dir)
     validated = validate_repository(
         root=root,
         submissions_dir=submissions_dir,
@@ -141,9 +214,32 @@ def build_site(
     site_source = root / "site"
     _check_relative_asset_paths(site_source)
 
-    if output.exists():
-        shutil.rmtree(output)
-    output.mkdir(parents=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{output.name}.build-", dir=output.parent))
+    backup: Optional[Path] = None
+    try:
+        _write_artifact(staging, site_source, validated)
+        # Recheck ownership immediately before replacement; validation/write errors preserve old output.
+        _safe_output_path(output, root, submissions_dir)
+        if output.exists():
+            backup = Path(tempfile.mkdtemp(prefix=f".{output.name}.previous-", dir=output.parent))
+            backup.rmdir()
+            os.replace(output, backup)
+        try:
+            os.replace(staging, output)
+        except OSError:
+            if backup is not None and backup.exists() and not output.exists():
+                os.replace(backup, output)
+            raise
+        if backup is not None:
+            shutil.rmtree(backup)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    return validated
+
+
+def _write_artifact(output: Path, site_source: Path, validated: Mapping[str, Any]) -> None:
 
     shutil.copy2(site_source / "index.html", output / "index.html")
     shutil.copy2(site_source / "favicon.svg", output / "favicon.svg")
@@ -155,16 +251,17 @@ def build_site(
         "schema_version": "1.0",
         "config": validated["config"],
         "datasets": validated["datasets"],
-        "submissions": validated["submissions"],
+        "submissions": normalized_submissions(validated["submissions"]),
     }
     (data_dir / "leaderboard.json").write_bytes(_json_bytes(payload))
     write_csv(output / "leaderboard.csv", validated["submissions"], validated["datasets_by_id"])
+    write_xlsx(output / "leaderboard.xlsx", validated["submissions"], validated["datasets_by_id"])
 
     schema_dir = output / "schema"
     schema_dir.mkdir()
     (schema_dir / "submission.schema.json").write_bytes(_json_bytes(validated["schema"]))
     (output / ".nojekyll").write_bytes(b"")
-    return validated
+    (output / BUILD_MARKER).write_bytes(_json_bytes(MARKER_CONTENT))
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

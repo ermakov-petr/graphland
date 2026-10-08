@@ -1,0 +1,8 @@
+# CPU/PyG regression environment. DGL/CUDA experiments use environment_dgl.yaml.
+torch==2.5.1
+torch-geometric==2.6.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+PyYAML==6.0.2
+optuna==4.3.0

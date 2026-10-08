@@ -1,0 +1,84 @@
+name: GraphLand behavioral QA
+
+"on":
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphland-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dgl-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DGLBACKEND: pytorch
+      DGL_IMPORT_GRAPHBOLT: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch compatible with DGL 2.4 metadata
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.0
+      - name: Install pinned numerical dependencies
+        run: python -m pip install numpy==1.26.4
+      - name: Install official DGL 2.4 CPU wheel
+        run: >-
+          python -m pip install --only-binary=:all:
+          "https://data.dgl.ai/wheels/torch-2.4/dgl-2.4.0-cp311-cp311-manylinux1_x86_64.whl#sha256=89b4a58a17ffce37d35e81ea43c4cb975e22f91412f728f3ea31be0f06b0b734"
+      - name: Run every graph model with plain, PLR and PLR-lite features
+        run: python -m unittest discover -s tests/dgl -v
+
+  core-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch wheel
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+      - name: Install fixed research test dependencies
+        run: python -m pip install -r requirements-core-test.txt
+      - name: Run real CPU/PyG and Optuna regressions
+        run: python -m unittest discover -s tests/core -v
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install hash-locked build dependencies
+        run: "python -m pip install --require-hashes --only-binary=:all: -r requirements-leaderboard.txt"
+      - name: Install fixed browser test dependencies
+        run: python -m pip install -r requirements-browser-test.txt
+      - name: Install Chromium and operating-system libraries
+        run: python -m playwright install --with-deps chromium
+      - name: Run Chromium behavioral regressions
+        run: python -m unittest discover -s tests/browser -v

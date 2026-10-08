@@ -66,11 +66,20 @@ body:
       placeholder: https://github.com/example/model
 
   - type: input
-    id: graphland_ref
+    id: data_release
     attributes:
-      label: GraphLand release, tag, or commit
-      description: GraphLand dataset/code version used for the reported results.
+      label: GraphLand data release
+      description: Official dataset release used for these results. The current leaderboard accepts v1.
       placeholder: v1
+    validations:
+      required: true
+
+  - type: input
+    id: evaluator_ref
+    attributes:
+      label: Evaluator code reference
+      description: Evaluator repository URL and exact commit/tag, or an explicit public protocol reference if the original commit is not reported. This is separate from the dataset release.
+      placeholder: https://github.com/yandex-research/graphland/tree/<commit>
     validations:
       required: true
 
@@ -85,30 +94,12 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: hparam_trials
-    attributes:
-      label: Hyperparameter trials
-      description: Non-negative integer. Enter `0` for in-context learning.
-      placeholder: "20"
-    validations:
-      required: true
-
   - type: textarea
     id: tuning_protocol
     attributes:
       label: Tuning protocol
       description: Describe search space, validation selection, stopping rules, and any model-selection choices. Do not add Markdown headings.
       placeholder: Hyperparameters were selected by validation AP from a fixed grid...
-    validations:
-      required: true
-
-  - type: input
-    id: num_runs
-    attributes:
-      label: Number of runs or seeds
-      description: Positive integer used to compute each reported mean and standard deviation.
-      placeholder: "10"
     validations:
       required: true
 
@@ -126,12 +117,12 @@ body:
     attributes:
       label: Results
       description: |
-        Enter canonical-scale results as `setting,dataset,value,std`. Allowed settings are RL, RH, TH, and THI. Accuracy and Average Precision use [0, 1]; R² is unscaled and may be negative. Metric and task are derived from the dataset. `city-reviews`, `city-roads-M`, `city-roads-L`, and `web-traffic` do not support TH or THI. Leave `std` empty when unavailable.
+        Enter canonical-scale results as `setting,dataset,value,std,num_runs,hparam_trials`. Each row needs its own positive run/seed count. Leave `hparam_trials` empty if the budget is not known; report 0 for in-context learning. `std` is sample standard deviation (ddof=1), requires at least two runs, and must be empty for one run. Allowed settings are RL, RH, TH, and THI. Accuracy and Average Precision use [0, 1]; R² is unscaled, may be negative, and cannot exceed 1. Metric and task are derived from the dataset. `city-reviews`, `city-roads-M`, `city-roads-L`, and `web-traffic` do not support TH or THI. Leave `std` empty when unavailable.
       placeholder: |
-        setting,dataset,value,std
-        RL,hm-categories,0.8123,0.0041
-        RH,web-fraud,0.5942,0.0060
-        THI,web-topics,0.7740,
+        setting,dataset,value,std,num_runs,hparam_trials
+        RL,hm-categories,0.8123,0.0041,10,20
+        RH,web-fraud,0.5942,0.0060,5,
+        THI,web-topics,0.7740,,1,0
       render: csv
     validations:
       required: true

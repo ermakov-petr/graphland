@@ -15,11 +15,8 @@
     "submitter_github",
     "provenance",
     "source_issue",
-    "graphland_ref",
     "method_type",
-    "hparam_trials",
     "tuning_protocol",
-    "num_runs",
     "external_data_pretraining",
     "submitted_at",
     "verification",
@@ -28,7 +25,7 @@
     "results"
   ],
   "properties": {
-    "schema_version": {"const": "1.0"},
+    "schema_version": {"enum": ["1.0", "2.0"]},
     "id": {
       "type": "string",
       "pattern": "^(?:issue-[1-9][0-9]*|[a-z0-9]+(?:-[a-z0-9]+)*)$",
@@ -50,7 +47,19 @@
       "maxLength": 39
     },
     "provenance": {"enum": ["author_submission", "maintainer_seeded"]},
-    "source_issue": {"type": "integer", "minimum": 1},
+    "source_issue": {"type": ["integer", "null"], "minimum": 1, "maximum": 2147483647},
+    "data_release": {"const": "v1"},
+    "evaluator_ref": {"type": "string", "minLength": 1, "maxLength": 500},
+    "reproduction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidence_url", "evaluator_ref", "reproduced_by", "reproduced_at"],
+      "properties": {
+        "evidence_url": {"type": "string", "format": "uri", "maxLength": 500},
+        "evaluator_ref": {"type": "string", "minLength": 1, "maxLength": 500},
+        "reproduced_by": {"type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$", "maxLength": 39},
+        "reproduced_at": {"type": "string", "format": "date"}
+      }
+    },
     "graphland_ref": {"type": "string", "minLength": 1, "maxLength": 100},
     "method_type": {"enum": ["trained", "in_context"]},
     "hparam_trials": {"type": "integer", "minimum": 0, "maximum": 1000000},
@@ -107,15 +116,40 @@
           "setting": {"enum": ["RL", "RH", "TH", "THI"]},
           "dataset": {"type": "string", "minLength": 1, "maxLength": 100},
           "value": {"type": "number"},
-          "std": {"type": "number", "minimum": 0}
+          "std": {"type": "number", "minimum": 0},
+          "num_runs": {"type": "integer", "minimum": 1, "maximum": 1000000},
+          "hparam_trials": {"type": "integer", "minimum": 0, "maximum": 1000000}
         }
       }
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"method_type": {"const": "in_context"}}},
+      "if": {"properties": {"method_type": {"const": "in_context"}, "schema_version": {"const": "1.0"}}},
       "then": {"properties": {"hparam_trials": {"const": 0}}}
+    },
+    {
+      "if": {"properties": {"schema_version": {"const": "1.0"}}},
+      "then": {
+        "required": ["graphland_ref", "num_runs", "hparam_trials"],
+        "properties": {"source_issue": {"type": "integer"}, "results": {"items": {"not": {"anyOf": [{"required": ["num_runs"]}, {"required": ["hparam_trials"]}]}}}}
+      }
+    },
+    {
+      "if": {"properties": {"schema_version": {"const": "2.0"}}},
+      "then": {
+        "required": ["data_release", "evaluator_ref"],
+        "properties": {"results": {"items": {"required": ["num_runs"]}}},
+        "not": {"anyOf": [{"required": ["graphland_ref"]}, {"required": ["num_runs"]}, {"required": ["hparam_trials"]}]}
+      }
+    },
+    {
+      "if": {"properties": {"provenance": {"const": "author_submission"}}},
+      "then": {"properties": {"source_issue": {"type": "integer"}}}
+    },
+    {
+      "if": {"properties": {"source_issue": {"type": "null"}}},
+      "then": {"properties": {"provenance": {"const": "maintainer_seeded"}, "review": {"properties": {"status": {"const": "approved"}}}}}
     },
     {
       "if": {"properties": {"code_availability": {"const": "available"}}},

@@ -1,0 +1,300 @@
+{
+  "schema_version": "2.0",
+  "id": "paper-v5-catboost",
+  "model_name": "CatBoost",
+  "model_variant": "GraphLand paper v5 baseline",
+  "paper_url": "https://arxiv.org/abs/2409.14500v5",
+  "code_availability": "available",
+  "training_code_url": "https://github.com/gvbazhenov/graphland-baselines",
+  "submitter_github": "ermakov-petr",
+  "provenance": "maintainer_seeded",
+  "source_issue": null,
+  "data_release": "v1",
+  "evaluator_ref": "arXiv:2409.14500v5 Appendix B; original experiment commit not reported",
+  "method_type": "trained",
+  "tuning_protocol": "Validation-only model selection as described in Appendix B.3. 100 Optuna Bayesian trials per dataset/setting.",
+  "external_data_pretraining": "No external pretraining declared for these baselines in the cited paper.",
+  "submitted_at": "2026-10-08",
+  "verification": "self_reported",
+  "review": {
+    "status": "approved",
+    "reviewer_github": "ermakov-petr",
+    "reviewed_at": "2026-10-08",
+    "notes": "Source transcription and declared protocol reviewed by the authorized repository assistant. No independent rerun. See leaderboard/sources/paper-v5.json."
+  },
+  "notes": "Published source values, not new experiments. Tables 2, 5, 6, 7; all displayed metrics divided by 100 to obtain the canonical scale. Failed TLE/MLE/RTE cells omitted, not scored as zero. Appendix B.3 specifies 5 seeds for the four largest datasets and 10 otherwise. Original experiment commit is not reported.",
+  "results": [
+    {
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "value": 0.4072,
+      "std": 0.004,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "tolokers-2",
+      "value": 0.461,
+      "std": 0.0035,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "value": 0.7477,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "artnet-exp",
+      "value": 0.425,
+      "std": 0.0012,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "value": 0.6685,
+      "std": 0.0028,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "avazu-ctr",
+      "value": 0.261,
+      "std": 0.0004,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-roads-M",
+      "value": 0.5753,
+      "std": 0.0018,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-roads-L",
+      "value": 0.5143,
+      "std": 0.0017,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "twitch-views",
+      "value": 0.132,
+      "std": 0.0003,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RL",
+      "dataset": "artnet-views",
+      "value": 0.3289,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "value": 0.4698,
+      "std": 0.0024,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "tolokers-2",
+      "value": 0.5052,
+      "std": 0.0019,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-reviews",
+      "value": 0.78,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "value": 0.455,
+      "std": 0.0015,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "hm-prices",
+      "value": 0.7492,
+      "std": 0.0014,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "avazu-ctr",
+      "value": 0.2968,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-roads-M",
+      "value": 0.6932,
+      "std": 0.0017,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "value": 0.6124,
+      "std": 0.0011,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "twitch-views",
+      "value": 0.1325,
+      "std": 0.0003,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "RH",
+      "dataset": "artnet-views",
+      "value": 0.3747,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "hm-categories",
+      "value": 0.3324,
+      "std": 0.0016,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "tolokers-2",
+      "value": 0.1387,
+      "std": 0.0155,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "artnet-exp",
+      "value": 0.3856,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "hm-prices",
+      "value": 0.6205,
+      "std": 0.0068,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "avazu-ctr",
+      "value": 0.2549,
+      "std": 0.0009,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "value": -0.0876,
+      "std": 0.0023,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "TH",
+      "dataset": "artnet-views",
+      "value": 0.4283,
+      "std": 0.0006,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "value": 0.3324,
+      "std": 0.0016,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "tolokers-2",
+      "value": 0.1387,
+      "std": 0.0155,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "artnet-exp",
+      "value": 0.3856,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "hm-prices",
+      "value": 0.6205,
+      "std": 0.0068,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "avazu-ctr",
+      "value": 0.2549,
+      "std": 0.0009,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "twitch-views",
+      "value": -0.0876,
+      "std": 0.0023,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "value": 0.4283,
+      "std": 0.0006,
+      "num_runs": 10,
+      "hparam_trials": 100
+    }
+  ]
+}

@@ -4,16 +4,22 @@
 from __future__ import annotations
 
 import argparse
-import json
-import math
 import re
+import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
-from urllib.parse import urlsplit
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from jsonschema import Draft202012Validator, FormatChecker
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+from common import (LeaderboardValidationError, finite_number, is_https_url,
+                    is_synthetic_demo, load_json, normalize_display_text,
+                    require_finite_tree, require_safe_text_tree,
+                    result_hparam_trials, result_num_runs)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,39 +60,24 @@ EXPECTED_TASK_COUNTS = {
 }
 
 
-class LeaderboardValidationError(ValueError):
-    """Raised when repository leaderboard data is invalid."""
-
-
-def _reject_non_standard_number(value: str) -> None:
-    raise LeaderboardValidationError(f"JSON contains non-standard numeric value {value!r}")
-
-
-def load_json(path: Path) -> Any:
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle, parse_constant=_reject_non_standard_number)
-    except (OSError, json.JSONDecodeError) as exc:
-        raise LeaderboardValidationError(f"Could not read JSON from {path}: {exc}") from exc
-
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise LeaderboardValidationError(message)
 
 
 def _is_https_url(value: str) -> bool:
-    try:
-        parsed = urlsplit(value)
-    except ValueError:
-        return False
-    return (
-        parsed.scheme == "https"
-        and bool(parsed.netloc)
-        and parsed.hostname is not None
-        and parsed.username is None
-        and parsed.password is None
-    )
+    return is_https_url(value)
+
+
+def _validate_metadata(document: Any, name: str, schema: Optional[Mapping[str, Any]] = None) -> None:
+    require_finite_tree(document)
+    require_safe_text_tree(document)
+    if schema is None:
+        schema = load_json(ROOT / "leaderboard" / "schema" / f"{name}.schema.json")
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(document), key=lambda error: str(list(error.absolute_path)))
+    if errors:
+        raise LeaderboardValidationError(f"{name}.json schema validation failed: {_schema_error_message(errors[0])}")
 
 
 def _is_iso_date(value: str) -> bool:
@@ -97,7 +88,8 @@ def _is_iso_date(value: str) -> bool:
     return parsed.isoformat() == value
 
 
-def validate_config(config: Mapping[str, Any]) -> None:
+def validate_config(config: Mapping[str, Any], schema: Optional[Mapping[str, Any]] = None) -> None:
+    _validate_metadata(config, "config", schema)
     _require(config.get("schema_version") == "1.0", "config.json must use schema_version 1.0")
     site = config.get("site")
     _require(isinstance(site, dict), "config.json must contain a site object")
@@ -123,6 +115,14 @@ def validate_config(config: Mapping[str, Any]) -> None:
     _require(isinstance(settings, list), "config.json settings must be a list")
     _require([setting.get("id") for setting in settings] == list(SETTINGS), "Settings must be RL, RH, TH, THI")
     settings_by_id = {setting["id"]: setting for setting in settings}
+    expected_proportions = {"RL": (10, 10, 80), "RH": (50, 25, 25), "TH": (50, 25, 25), "THI": (50, 25, 25)}
+    for setting_id, expected in expected_proportions.items():
+        setting = settings_by_id[setting_id]
+        observed = tuple(setting[key] for key in ("train_percent", "validation_percent", "test_percent"))
+        _require(observed == expected, f"{setting_id}: split percentages must be {expected}")
+    for family in task_families:
+        canonical_metric = next(metric for task, metric in EXPECTED_DATASETS.values() if task == family["id"])
+        _require(family["metric"] == canonical_metric, f"{family['id']}: wrong canonical metric")
     expected_splits = {
         "RL": "split_masks_RL.csv",
         "RH": "split_masks_RH.csv",
@@ -145,7 +145,10 @@ def validate_config(config: Mapping[str, Any]) -> None:
         )
 
 
-def validate_datasets(document: Mapping[str, Any]) -> List[Dict[str, Any]]:
+def validate_datasets(document: Mapping[str, Any], schema: Optional[Mapping[str, Any]] = None) -> List[Dict[str, Any]]:
+    if isinstance(document, dict) and isinstance(document.get("datasets"), list):
+        _require(len(document["datasets"]) == 14, "datasets.json must describe exactly 14 datasets")
+    _validate_metadata(document, "datasets", schema)
     _require(document.get("schema_version") == "1.0", "datasets.json must use schema_version 1.0")
     datasets = document.get("datasets")
     _require(isinstance(datasets, list), "datasets.json must contain a datasets list")
@@ -213,6 +216,8 @@ def validate_submission(
     *,
     source_path: Optional[Path] = None,
 ) -> None:
+    require_finite_tree(submission)
+    require_safe_text_tree(submission)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     schema_errors = sorted(validator.iter_errors(submission), key=lambda error: list(error.absolute_path))
     if schema_errors:
@@ -221,6 +226,12 @@ def validate_submission(
         raise LeaderboardValidationError(f"{prefix}schema validation failed: {messages}")
 
     submission_id = submission["id"]
+    for field in ("model_name", "model_variant"):
+        _require(submission[field].strip() == submission[field] and bool(submission[field].strip()), f"{submission_id}: {field} needs nonblank trimmed text")
+        normalize_display_text(submission[field], field, single_line=True)
+    for field in ("graphland_ref", "evaluator_ref", "tuning_protocol", "external_data_pretraining"):
+        if field in submission:
+            _require(bool(submission[field].strip()), f"{submission_id}: {field} must not be blank")
     if source_path is not None:
         _require(source_path.name == f"{submission_id}.json", f"{source_path}: filename must match submission id")
 
@@ -232,8 +243,15 @@ def validate_submission(
         _require(code_url is None, f"{submission_id}: unavailable code must use null for training_code_url")
 
     _require(_is_iso_date(submission["submitted_at"]), f"{submission_id}: submitted_at must be an ISO date")
-    if submission["method_type"] == "in_context":
-        _require(submission["hparam_trials"] == 0, f"{submission_id}: in-context submissions must use zero trials")
+    if submission["id"].startswith("demo-"):
+        _require(is_synthetic_demo(submission), f"{submission_id}: demo entries must explicitly declare synthetic, non-benchmark data")
+    if submission["verification"] == "reproduced" and not is_synthetic_demo(submission):
+        _require("reproduction" in submission, f"{submission_id}: reproduced results require reproduction evidence")
+    if "reproduction" in submission:
+        reproduction = submission["reproduction"]
+        _require(bool(reproduction["evaluator_ref"].strip()), f"{submission_id}: reproduction evaluator_ref must not be blank")
+        _require(_is_https_url(reproduction["evidence_url"]), f"{submission_id}: reproduction evidence_url must be HTTPS without credentials")
+        _require(_is_iso_date(reproduction["reproduced_at"]), f"{submission_id}: reproduction date must be an ISO date")
 
     review = submission["review"]
     if review["status"] == "approved":
@@ -255,14 +273,27 @@ def validate_submission(
         _require(setting in dataset["available_settings"], f"{submission_id}: {setting} is not available for {dataset_id}")
 
         value = result["value"]
-        _require(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value), f"{submission_id}: result values must be finite numbers")
+        _require(finite_number(value), f"{submission_id}: result values must be finite numbers")
         if dataset["metric"] in {"accuracy", "average_precision"}:
             _require(0 <= value <= 1, f"{submission_id}: {dataset['metric']} for {dataset_id} must be in [0, 1]")
+        else:
+            _require(value <= 1, f"{submission_id}: R² for {dataset_id} must be at most 1")
+
+        num_runs = result_num_runs(submission, result)
+        trials = result_hparam_trials(submission, result)
+        if submission["method_type"] == "in_context" and trials is not None:
+            _require(trials == 0, f"{submission_id}: in-context submissions must use zero trials")
 
         if "std" in result:
             std = result["std"]
-            _require(isinstance(std, (int, float)) and not isinstance(std, bool) and math.isfinite(std), f"{submission_id}: std must be finite")
+            _require(finite_number(std), f"{submission_id}: std must be finite")
             _require(std >= 0, f"{submission_id}: std must be non-negative")
+            _require(num_runs >= 2, f"{submission_id}: sample std requires at least two runs")
+            if dataset["metric"] in {"accuracy", "average_precision"}:
+                # Scores live in [0,1]; a sample deviation cannot exceed one.
+                # This conservative bound tolerates rounded source deviations
+                # and prevents percentage formatting from overflowing.
+                _require(std <= 1, f"{submission_id}: classification std must be on the canonical [0, 1] scale")
 
 
 def discover_submission_paths(submissions_dir: Path) -> List[Path]:
@@ -284,8 +315,8 @@ def validate_repository(
     config = load_json(root / "leaderboard" / "config.json")
     datasets_document = load_json(root / "leaderboard" / "datasets.json")
     schema = load_json(root / "leaderboard" / "schema" / "submission.schema.json")
-    validate_config(config)
-    datasets = validate_datasets(datasets_document)
+    validate_config(config, load_json(root / "leaderboard" / "schema" / "config.schema.json"))
+    datasets = validate_datasets(datasets_document, load_json(root / "leaderboard" / "schema" / "datasets.schema.json"))
     datasets_by_id = {dataset["id"]: dataset for dataset in datasets}
 
     submission_root = (submissions_dir or root / "leaderboard" / "submissions").resolve()

@@ -3,13 +3,18 @@ name: Deploy leaderboard to Pages
 "on":
   push:
     branches: [main]
-    paths:
-      - leaderboard/**
-      - site/**
-      - scripts/leaderboard/**
-      - requirements-leaderboard.txt
-      - .github/workflows/deploy-pages.yml
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      rollback:
+        description: "Intentionally publish the exact rollback_sha ancestor of main"
+        type: boolean
+        required: false
+        default: false
+      rollback_sha:
+        description: "Full 40-character commit SHA; required only for explicit rollback"
+        type: string
+        required: false
+        default: ""
 
 permissions: {}
 
@@ -24,46 +29,116 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      outcome: ${{ steps.metadata.outputs.outcome }}
+      source_sha: ${{ steps.select.outputs.source_sha }}
     steps:
-      - name: Checkout
+      - name: Checkout trusted current main tools
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: main
+          path: trusted
+          fetch-depth: 0
           persist-credentials: false
-
+      - name: Select latest source or explicitly named rollback
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback }}
+          ROLLBACK_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          args=()
+          if [[ "${ROLLBACK}" == "true" ]]; then args+=(--rollback); fi
+          python3 trusted/scripts/leaderboard/automation.py select-source \
+            --event-name "${EVENT_NAME}" --source-ref "${SOURCE_REF}" \
+            --rollback-sha "${ROLLBACK_SHA}" "${args[@]}"
+      - name: Checkout selected immutable source
+        if: steps.select.outputs.outcome == 'current'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.select.outputs.source_sha }}
+          path: source
+          persist-credentials: false
       - name: Set up Python
+        if: steps.select.outputs.outcome == 'current'
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
-
-      - name: Install leaderboard dependencies
-        run: "python -m pip install --disable-pip-version-check --only-binary=:all: -r requirements-leaderboard.txt"
-
-      - name: Run leaderboard unit tests
+      - name: Install trusted hash-locked dependencies
+        if: steps.select.outputs.outcome == 'current'
+        run: "python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r trusted/requirements-leaderboard.txt"
+      - name: Run selected source tests
+        if: steps.select.outputs.outcome == 'current'
+        working-directory: source
         run: python -m unittest discover -s tests/leaderboard -v
-
-      - name: Validate leaderboard data
+      - name: Validate selected publication data
+        if: steps.select.outputs.outcome == 'current'
+        working-directory: source
         run: python scripts/leaderboard/validate.py
-
-      - name: Build Pages artifact
+      - name: Build selected Pages artifact
+        if: steps.select.outputs.outcome == 'current'
+        working-directory: source
         run: python scripts/leaderboard/build.py --output _site
-
+      - name: Recheck freshness and record published source metadata
+        id: metadata
+        if: steps.select.outputs.outcome == 'current'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+          ROLLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback }}
+          ROLLBACK_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          args=()
+          if [[ "${ROLLBACK}" == "true" ]]; then args+=(--rollback); fi
+          python3 trusted/scripts/leaderboard/automation.py build-info \
+            --source-sha "${SOURCE_SHA}" --source-ref "${SOURCE_REF}" \
+            --event-name "${EVENT_NAME}" --rollback-sha "${ROLLBACK_SHA}" \
+            --output source/_site/data/build-info.json "${args[@]}"
       - name: Upload Pages artifact
+        if: steps.metadata.outputs.outcome == 'current'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: _site
+          path: source/_site
           include-hidden-files: true
 
   deploy:
     needs: build
+    if: ${{ needs.build.outputs.outcome == 'current' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Checkout current trusted freshness guard
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Reject superseded source before deployment
+        id: freshness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          ROLLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback }}
+          ROLLBACK_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.rollback_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          args=()
+          if [[ "${ROLLBACK}" == "true" ]]; then args+=(--rollback); fi
+          python3 scripts/leaderboard/automation.py deploy-check \
+            --source-sha "${SOURCE_SHA}" --source-ref "${SOURCE_REF}" \
+            --event-name "${EVENT_NAME}" --rollback-sha "${ROLLBACK_SHA}" "${args[@]}"
       - name: Deploy to GitHub Pages
         id: deployment
+        if: steps.freshness.outputs.outcome == 'current'
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

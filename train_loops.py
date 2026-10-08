@@ -1,4 +1,5 @@
 from traceback import format_exc
+import math
 from tqdm import tqdm
 import torch
 from utils import get_parameter_groups, get_lr_scheduler_with_warmup
@@ -64,7 +65,7 @@ def evaluate_full_graph_inductive(model, dataset, best_prev_val_metric, amp=Fals
 
     metrics[f'val {dataset.metric_name}'] = dataset.compute_val_metric_inductive(preds)
 
-    if metrics[f'val {dataset.metric_name}'] > best_prev_val_metric:
+    if math.isfinite(metrics[f'val {dataset.metric_name}']) and metrics[f'val {dataset.metric_name}'] > best_prev_val_metric:
         with torch.autocast(enabled=amp, device_type=dataset.test_graph.device.type):
             preds = model(graph=dataset.test_graph, x=dataset.test_features)
 
@@ -74,6 +75,8 @@ def evaluate_full_graph_inductive(model, dataset, best_prev_val_metric, amp=Fals
 
 
 def update_results(results, new_metrics, metric_name, step):
+    if not all(math.isfinite(new_metrics[f'{part} {metric_name}']) for part in ('val', 'test')):
+        raise ValueError('The selected checkpoint must have finite validation and test metrics.')
     results[f'val {metric_name}'] = new_metrics[f'val {metric_name}']
     results[f'test {metric_name}'] = new_metrics[f'test {metric_name}']
     results['step'] = step
@@ -81,80 +84,53 @@ def update_results(results, new_metrics, metric_name, step):
     return results
 
 
-def train_full_graph_transductive(model, dataset, args, run_id):
-    optimizer, gradscaler, scheduler = prepare_for_training(model=model, args=args)
-    results = {f'val {dataset.metric_name}': 0, f'test {dataset.metric_name}': 0, 'step': None, 'successful': True}
+def _train_full_graph(model, dataset, args, run_id, inductive):
+    results = {f'val {dataset.metric_name}': None, f'test {dataset.metric_name}': None,
+               'step': None, 'successful': False, 'failure reason': None}
+    best_val_metric = -math.inf
     num_steps_without_val_improvement = 0
-    with tqdm(total=args.max_steps, desc=f'Run {run_id}') as progress_bar:
-        for step in range(1, args.max_steps + 1):
-            try:
-                train_step_full_graph_transductive(model=model, dataset=dataset, optimizer=optimizer,
-                                                   scheduler=scheduler, gradscaler=gradscaler, amp=args.amp)
-                metrics = evaluate_full_graph_transductive(model=model, dataset=dataset, amp=args.amp)
-
-            except Exception:
-                results['successful'] = False
-                exception_info_str = format_exc()
-                print(exception_info_str)
-                break
-
-            if metrics[f'val {dataset.metric_name}'] > results[f'val {dataset.metric_name}']:
-                results = update_results(results=results, new_metrics=metrics, metric_name=dataset.metric_name,
-                                         step=step)
-                num_steps_without_val_improvement = 0
-
-            else:
-                num_steps_without_val_improvement += 1
-
-            progress_bar.update()
-            progress_bar.set_postfix({metric: f'{value:.2f}' for metric, value in metrics.items()})
-
-            if num_steps_without_val_improvement == args.early_stopping:
-                break
-
-    model.cpu()
-    del model
-
+    try:
+        optimizer, gradscaler, scheduler = prepare_for_training(model=model, args=args)
+        with tqdm(total=args.max_steps, desc=f'Run {run_id}') as progress_bar:
+            for step in range(1, args.max_steps + 1):
+                train_step = train_step_full_graph_inductive if inductive else train_step_full_graph_transductive
+                train_step(model=model, dataset=dataset, optimizer=optimizer, scheduler=scheduler,
+                           gradscaler=gradscaler, amp=args.amp)
+                if inductive:
+                    metrics = evaluate_full_graph_inductive(model=model, dataset=dataset,
+                                                            best_prev_val_metric=best_val_metric, amp=args.amp)
+                else:
+                    metrics = evaluate_full_graph_transductive(model=model, dataset=dataset, amp=args.amp)
+                val_metric = metrics[f'val {dataset.metric_name}']
+                if not math.isfinite(val_metric):
+                    raise ValueError('Validation metric is not finite.')
+                if val_metric > best_val_metric:
+                    update_results(results, metrics, dataset.metric_name, step)
+                    best_val_metric = val_metric
+                    num_steps_without_val_improvement = 0
+                else:
+                    num_steps_without_val_improvement += 1
+                progress_bar.update()
+                progress_bar.set_postfix({metric: f'{value:.2f}' for metric, value in metrics.items()})
+                if num_steps_without_val_improvement == args.early_stopping:
+                    break
+        if results['step'] is None:
+            raise ValueError('No finite checkpoint was evaluated during this run.')
+        results['successful'] = True
+    except Exception:
+        results['failure reason'] = format_exc()
+        print(results['failure reason'])
+    finally:
+        model.cpu()
     return results
+
+
+def train_full_graph_transductive(model, dataset, args, run_id):
+    return _train_full_graph(model, dataset, args, run_id, inductive=False)
 
 
 def train_full_graph_inductive(model, dataset, args, run_id):
-    optimizer, gradscaler, scheduler = prepare_for_training(model=model, args=args)
-    results = {f'val {dataset.metric_name}': 0, f'test {dataset.metric_name}': 0, 'step': None, 'successful': True}
-    num_steps_without_val_improvement = 0
-    with tqdm(total=args.max_steps, desc=f'Run {run_id}') as progress_bar:
-        for step in range(1, args.max_steps + 1):
-            try:
-                train_step_full_graph_inductive(model=model, dataset=dataset, optimizer=optimizer,
-                                                scheduler=scheduler, gradscaler=gradscaler, amp=args.amp)
-                metrics = evaluate_full_graph_inductive(model=model, dataset=dataset,
-                                                        best_prev_val_metric=results[f'val {dataset.metric_name}'],
-                                                        amp=args.amp)
-
-            except Exception:
-                results['successful'] = False
-                exception_info_str = format_exc()
-                print(exception_info_str)
-                break
-
-            if metrics[f'val {dataset.metric_name}'] > results[f'val {dataset.metric_name}']:
-                results = update_results(results=results, new_metrics=metrics, metric_name=dataset.metric_name,
-                                         step=step)
-                num_steps_without_val_improvement = 0
-
-            else:
-                num_steps_without_val_improvement += 1
-
-            progress_bar.update()
-            progress_bar.set_postfix({f'val {dataset.metric_name}': f'{metrics[f"val {dataset.metric_name}"]:.2f}'})
-
-            if num_steps_without_val_improvement == args.early_stopping:
-                break
-
-    model.cpu()
-    del model
-
-    return results
+    return _train_full_graph(model, dataset, args, run_id, inductive=True)
 
 
 def train_minibatch(model, dataset, args, run_id):

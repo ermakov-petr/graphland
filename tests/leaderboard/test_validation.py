@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support import DEMO_SUBMISSIONS, ROOT, load_json, load_module, valid_submission
+from support import DEMO_SUBMISSIONS, ROOT, load_json, load_module, valid_submission, valid_v2_submission
 
 
 class SubmissionValidationTests(unittest.TestCase):
@@ -27,6 +27,101 @@ class SubmissionValidationTests(unittest.TestCase):
         submission = valid_submission()
         submission["results"] = submission["results"][:1]
         self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
+    def test_classification_std_cannot_overflow_percentage_display(self) -> None:
+        for create in (valid_submission, valid_v2_submission):
+            for value in (1.01, 1e308):
+                submission = create()
+                submission["results"] = [submission["results"][0]]
+                submission["results"][0]["std"] = value
+                self.assert_invalid(submission, "classification std.*canonical")
+            submission = create()
+            submission["results"] = [submission["results"][0]]
+            submission["results"][0]["std"] = math.sqrt(0.5)
+            if submission["schema_version"] == "1.0":
+                submission["num_runs"] = 2
+            else:
+                submission["results"][0]["num_runs"] = 2
+            self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
+    def test_v2_counts_and_unknown_budgets_are_valid(self) -> None:
+        submission = valid_v2_submission()
+        self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+        self.assertEqual([row["num_runs"] for row in submission["results"][:2]], [10, 5])
+        self.assertNotIn("hparam_trials", submission["results"][1])
+        del submission["results"][0]["num_runs"]
+        self.assert_invalid(submission, "num_runs.*required|required.*num_runs")
+
+    def test_v2_null_source_issue_is_only_approved_maintainer_seed(self) -> None:
+        submission = valid_v2_submission()
+        submission.update(source_issue=None, provenance="maintainer_seeded")
+        self.assert_invalid(submission, "approved")
+        submission["review"] = {"status": "approved", "reviewer_github": "fixture-user", "reviewed_at": "2026-10-08", "notes": None}
+        self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+        submission["provenance"] = "author_submission"
+        self.assert_invalid(submission, "integer")
+
+    def test_v2_requires_explicit_refs_and_disallows_ambiguous_legacy_counts(self) -> None:
+        for field in ("data_release", "evaluator_ref"):
+            submission = valid_v2_submission()
+            del submission[field]
+            self.assert_invalid(submission, "required")
+        submission = valid_v2_submission()
+        submission["num_runs"] = 10
+        self.assert_invalid(submission, "should not be valid")
+
+    def test_reproduced_real_entry_requires_usable_evidence(self) -> None:
+        submission = valid_v2_submission()
+        submission["verification"] = "reproduced"
+        self.assert_invalid(submission, "reproduction evidence")
+        submission["reproduction"] = {"evidence_url": "https://example.test/runs", "evaluator_ref": "commit-abcdef", "reproduced_by": "fixture-user", "reproduced_at": "2026-10-08"}
+        self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+        submission["reproduction"]["evidence_url"] = "https://example.test:bogus/runs"
+        self.assert_invalid(submission, "evidence_url.*HTTPS")
+
+    def test_sample_std_requires_two_effective_runs(self) -> None:
+        for submission in (valid_submission(), valid_v2_submission()):
+            if submission["schema_version"] == "1.0":
+                submission["num_runs"] = 1
+            else:
+                submission["results"][0]["num_runs"] = 1
+            self.assert_invalid(submission, "at least two runs")
+            submission["results"] = [submission["results"][0]]
+            submission["results"][0].pop("std")
+            self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
+    def test_display_policy_rejects_spoofing_and_allows_legitimate_joiners(self) -> None:
+        for character in ("\u200b", "\ufeff", "\u202e", "\u2060", "\u00ad"):
+            submission = valid_submission()
+            submission["model_name"] = "Model" + character + "Name"
+            self.assert_invalid(submission, "invisible|control")
+        for name in ("مدل\u200cفارسی", "👩\u200d💻 Model", "Модель 日本語"):
+            submission = valid_submission()
+            submission["model_name"] = name
+            self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
+    def test_large_integer_and_duplicate_nested_keys_have_validation_diagnostics(self) -> None:
+        submission = valid_submission()
+        submission["results"][0]["value"] = -(10 ** 400)
+        self.assert_invalid(submission, "finite.*representable")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "duplicate.json"
+            path.write_text('{"result":{"value":0.1,"value":0.9}}', encoding="utf-8")
+            with self.assertRaisesRegex(self.validation.LeaderboardValidationError, "duplicate key"):
+                self.validation.load_json(path)
+            path.write_text('{"value":1e309}', encoding="utf-8")
+            with self.assertRaisesRegex(self.validation.LeaderboardValidationError, "finite"):
+                self.validation.load_json(path)
+
+    def test_https_url_ports_have_one_consistent_policy(self) -> None:
+        for url in ("https://example.test:bogus/paper", "https://example.test:65536/paper"):
+            submission = valid_submission()
+            submission["paper_url"] = url
+            self.assert_invalid(submission, "HTTPS")
+        for url in ("https://example.test:65535/paper", "https://[::1]:443/paper"):
+            submission = valid_submission()
+            submission["paper_url"] = url
+            self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
 
     def test_task_and_metric_are_not_accepted_in_result_rows(self) -> None:
         submission = valid_submission()
@@ -72,11 +167,15 @@ class SubmissionValidationTests(unittest.TestCase):
                 submission["results"] = [{"setting": "RL", "dataset": dataset_id, "value": rejected}]
                 self.assert_invalid(submission, r"must be in \[0, 1\]")
 
-    def test_r2_accepts_negative_and_values_above_one_but_not_non_finite(self) -> None:
-        for value in (-100.0, -0.25, 0.0, 1.0, 1.1):
+    def test_r2_accepts_negative_and_one_but_rejects_above_one_or_non_finite(self) -> None:
+        for value in (-100.0, -0.25, 0.0, 1.0):
             submission = valid_submission()
             submission["results"] = [{"setting": "RL", "dataset": "hm-prices", "value": value}]
             self.validation.validate_submission(submission, self.datasets_by_id, self.schema)
+
+        submission = valid_submission()
+        submission["results"] = [{"setting": "RL", "dataset": "hm-prices", "value": 1.2}]
+        self.assert_invalid(submission, "at most 1")
 
         for value in (math.nan, math.inf, -math.inf):
             submission = valid_submission()

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false, "required": ["schema_version", "datasets"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "datasets": {
+      "type": "array", "minItems": 14, "maxItems": 14,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "display_name", "task", "metric", "higher_is_better", "available_settings", "display", "source", "release_version", "license"],
+        "properties": {
+          "id": {"$ref": "#/$defs/text"}, "display_name": {"$ref": "#/$defs/text"},
+          "task": {"enum": ["multiclass_node_classification", "binary_node_classification", "node_regression"]},
+          "metric": {"enum": ["accuracy", "average_precision", "r2"]}, "higher_is_better": {"const": true},
+          "available_settings": {"type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["RL", "RH", "TH", "THI"]}},
+          "display": {
+            "type": "object", "additionalProperties": false, "required": ["style", "decimals"],
+            "properties": {"style": {"enum": ["percentage", "number"]}, "decimals": {"type": "integer", "minimum": 0, "maximum": 8}}
+          },
+          "source": {
+            "type": "object", "additionalProperties": false, "required": ["name", "url"],
+            "properties": {"name": {"$ref": "#/$defs/text"}, "url": {"type": "string", "format": "uri", "maxLength": 500}}
+          },
+          "release_version": {"const": "v1"}, "license": {"const": "Apache-2.0"}
+        }
+      }
+    }
+  },
+  "$defs": {"text": {"type": "string", "minLength": 1, "maxLength": 4000}}
+}

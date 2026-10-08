@@ -50,6 +50,28 @@ def valid_issue(body: str | None = None) -> dict:
 
 
 class IssueParserTests(unittest.TestCase):
+    def test_v2_issue_has_per_result_counts_and_explicit_references(self) -> None:
+        submission = self.parser.submission_from_issue(valid_issue(fixture_text("valid_v2_issue_body.md")))
+        self.assertEqual(submission["schema_version"], "2.0")
+        self.assertEqual(submission["data_release"], "v1")
+        self.assertIn("7246fe3", submission["evaluator_ref"])
+        self.assertNotIn("graphland_ref", submission)
+        self.assertNotIn("num_runs", submission)
+        self.assertEqual([row["num_runs"] for row in submission["results"]], [10, 5, 1, 5])
+        self.assertNotIn("hparam_trials", submission["results"][1])
+
+    def test_v2_issue_rejects_std_single_run_and_r2_above_one(self) -> None:
+        original = fixture_text("valid_v2_issue_body.md")
+        self.assert_issue_invalid(valid_issue(original.replace("0.8123,0.0041,10,20", "0.8123,0.0041,1,20")), "at least two runs")
+        self.assert_issue_invalid(valid_issue(original.replace("-0.125,0.02,5,10", "1.2,0.02,5,10")), "at most 1")
+
+    def test_issue_url_policy_matches_manual_and_normalizes_unicode(self) -> None:
+        original = fixture_text("valid_v2_issue_body.md")
+        for port in ("bogus", "65536"):
+            self.assert_issue_invalid(valid_issue(original.replace("https://example.test/paper", f"https://example.test:{port}/paper")), "valid port")
+        decomposed = original.replace("Fixture Model", "Cafe\u0301 Model")
+        self.assertEqual(self.parser.submission_from_issue(valid_issue(decomposed))["model_name"], "Café Model")
+        self.assert_issue_invalid(valid_issue(original.replace("Fixture Model", "Fixture\u200b Model")), "invisible")
     @classmethod
     def setUpClass(cls) -> None:
         cls.parser = load_module(

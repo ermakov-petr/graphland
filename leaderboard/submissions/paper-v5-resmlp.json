@@ -1,0 +1,364 @@
+{
+  "schema_version": "2.0",
+  "id": "paper-v5-resmlp",
+  "model_name": "ResMLP",
+  "model_variant": "GraphLand paper v5 baseline",
+  "paper_url": "https://arxiv.org/abs/2409.14500v5",
+  "code_availability": "available",
+  "training_code_url": "https://github.com/yandex-research/graphland",
+  "submitter_github": "ermakov-petr",
+  "provenance": "maintainer_seeded",
+  "source_issue": null,
+  "data_release": "v1",
+  "evaluator_ref": "arXiv:2409.14500v5 Appendix B; original experiment commit not reported",
+  "method_type": "trained",
+  "tuning_protocol": "Validation-only model selection as described in Appendix B.3. Learning-rate/dropout grid plus dataset-specific preprocessing search; total trial counts omitted because the fixed paper does not state each complete budget.",
+  "external_data_pretraining": "No external pretraining declared for these baselines in the cited paper.",
+  "submitted_at": "2026-10-08",
+  "verification": "self_reported",
+  "review": {
+    "status": "approved",
+    "reviewer_github": "ermakov-petr",
+    "reviewed_at": "2026-10-08",
+    "notes": "Source transcription and declared protocol reviewed by the authorized repository assistant. No independent rerun. See leaderboard/sources/paper-v5.json."
+  },
+  "notes": "Published source values, not new experiments. Tables 2, 5, 6, 7; all displayed metrics divided by 100 to obtain the canonical scale. Failed TLE/MLE/RTE cells omitted, not scored as zero. Appendix B.3 specifies 5 seeds for the four largest datasets and 10 otherwise. Original experiment commit is not reported.",
+  "results": [
+    {
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "value": 0.3772,
+      "std": 0.0018,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "pokec-regions",
+      "value": 0.0488,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "setting": "RL",
+      "dataset": "web-topics",
+      "value": 0.4241,
+      "std": 0.0002,
+      "num_runs": 5
+    },
+    {
+      "setting": "RL",
+      "dataset": "tolokers-2",
+      "value": 0.4116,
+      "std": 0.0113,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "value": 0.7132,
+      "std": 0.0011,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "artnet-exp",
+      "value": 0.3507,
+      "std": 0.0234,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "web-fraud",
+      "value": 0.0877,
+      "std": 0.0018,
+      "num_runs": 5
+    },
+    {
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "value": 0.6266,
+      "std": 0.0037,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "avazu-ctr",
+      "value": 0.2454,
+      "std": 0.0036,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-roads-M",
+      "value": 0.5477,
+      "std": 0.0015,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "city-roads-L",
+      "value": 0.4647,
+      "std": 0.0029,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "twitch-views",
+      "value": 0.1335,
+      "std": 0.0002,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "artnet-views",
+      "value": 0.2971,
+      "std": 0.006,
+      "num_runs": 10
+    },
+    {
+      "setting": "RL",
+      "dataset": "web-traffic",
+      "value": 0.7242,
+      "std": 0.0005,
+      "num_runs": 5
+    },
+    {
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "value": 0.4312,
+      "std": 0.0025,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "pokec-regions",
+      "value": 0.0509,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "setting": "RH",
+      "dataset": "web-topics",
+      "value": 0.4455,
+      "std": 0.0008,
+      "num_runs": 5
+    },
+    {
+      "setting": "RH",
+      "dataset": "tolokers-2",
+      "value": 0.4596,
+      "std": 0.0046,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-reviews",
+      "value": 0.7521,
+      "std": 0.0008,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "value": 0.4355,
+      "std": 0.0023,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "web-fraud",
+      "value": 0.1352,
+      "std": 0.0021,
+      "num_runs": 5
+    },
+    {
+      "setting": "RH",
+      "dataset": "hm-prices",
+      "value": 0.7011,
+      "std": 0.0048,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "avazu-ctr",
+      "value": 0.2803,
+      "std": 0.0022,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-roads-M",
+      "value": 0.6243,
+      "std": 0.0032,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "value": 0.5309,
+      "std": 0.0017,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "twitch-views",
+      "value": 0.1336,
+      "std": 0.0001,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "artnet-views",
+      "value": 0.361,
+      "std": 0.0017,
+      "num_runs": 10
+    },
+    {
+      "setting": "RH",
+      "dataset": "web-traffic",
+      "value": 0.7388,
+      "std": 0.0005,
+      "num_runs": 5
+    },
+    {
+      "setting": "TH",
+      "dataset": "hm-categories",
+      "value": 0.3244,
+      "std": 0.0054,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "pokec-regions",
+      "value": 0.0418,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "setting": "TH",
+      "dataset": "web-topics",
+      "value": 0.3549,
+      "std": 0.0003,
+      "num_runs": 5
+    },
+    {
+      "setting": "TH",
+      "dataset": "tolokers-2",
+      "value": 0.2172,
+      "std": 0.0669,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "artnet-exp",
+      "value": 0.3748,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "web-fraud",
+      "value": 0.0283,
+      "std": 0.0026,
+      "num_runs": 5
+    },
+    {
+      "setting": "TH",
+      "dataset": "hm-prices",
+      "value": 0.6164,
+      "std": 0.0079,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "avazu-ctr",
+      "value": 0.2035,
+      "std": 0.015,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "value": 0.1191,
+      "std": 0.08,
+      "num_runs": 10
+    },
+    {
+      "setting": "TH",
+      "dataset": "artnet-views",
+      "value": 0.4215,
+      "std": 0.0052,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "value": 0.3244,
+      "std": 0.0054,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "pokec-regions",
+      "value": 0.0418,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "setting": "THI",
+      "dataset": "web-topics",
+      "value": 0.3549,
+      "std": 0.0003,
+      "num_runs": 5
+    },
+    {
+      "setting": "THI",
+      "dataset": "tolokers-2",
+      "value": 0.2172,
+      "std": 0.0669,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "artnet-exp",
+      "value": 0.3748,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "web-fraud",
+      "value": 0.0283,
+      "std": 0.0026,
+      "num_runs": 5
+    },
+    {
+      "setting": "THI",
+      "dataset": "hm-prices",
+      "value": 0.6164,
+      "std": 0.0079,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "avazu-ctr",
+      "value": 0.2035,
+      "std": 0.015,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "twitch-views",
+      "value": 0.1191,
+      "std": 0.08,
+      "num_runs": 10
+    },
+    {
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "value": 0.4215,
+      "std": 0.0052,
+      "num_runs": 10
+    }
+  ]
+}

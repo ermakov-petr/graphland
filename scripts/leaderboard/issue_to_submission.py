@@ -21,7 +21,6 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence
-from urllib.parse import urlsplit
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -35,6 +34,7 @@ from validate import (  # noqa: E402
     validate_datasets,
     validate_submission,
 )
+from common import is_https_url, normalize_display_text
 
 
 TITLE_PREFIX = "[Leaderboard submission]"
@@ -48,7 +48,7 @@ MAX_RESULTS_BYTES = 20_000
 MAX_RESULTS = 48
 MAX_NUMERIC_TOKEN = 64
 
-SECTION_LABELS = (
+LEGACY_SECTION_LABELS = (
     "Model name",
     "Model variant or version",
     "GitHub username",
@@ -64,6 +64,13 @@ SECTION_LABELS = (
     "Results",
     "Additional notes",
     "Confirmations",
+)
+
+SECTION_LABELS = (
+    "Model name", "Model variant or version", "GitHub username", "Paper URL",
+    "Code availability", "Training code URL", "GraphLand data release", "Evaluator code reference",
+    "Method type", "Tuning protocol", "External data or pretraining", "Results",
+    "Additional notes", "Confirmations",
 )
 
 CONFIRMATIONS = (
@@ -91,25 +98,10 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _reject_unsafe_characters(value: str, field: str) -> None:
-    for character in value:
-        if character in "\n\t":
-            continue
-        category = unicodedata.category(character)
-        if category == "Cc" or character in {
-            "\u061c",
-            "\u200e",
-            "\u200f",
-            "\u202a",
-            "\u202b",
-            "\u202c",
-            "\u202d",
-            "\u202e",
-            "\u2066",
-            "\u2067",
-            "\u2068",
-            "\u2069",
-        }:
-            raise IssueSubmissionError(f"{field} contains an unsupported control character")
+    try:
+        normalize_display_text(value, field)
+    except LeaderboardValidationError as exc:
+        raise IssueSubmissionError(str(exc)) from exc
 
 
 def _normalize(value: str, field: str) -> str:
@@ -129,7 +121,7 @@ def _bounded_text(
     value = _normalize(value, field).strip()
     _require(minimum <= len(value) <= maximum, f"{field} must contain {minimum} to {maximum} characters")
     if single_line:
-        _require("\n" not in value and "\r" not in value, f"{field} must be a single line")
+        _require("\n" not in value and "\r" not in value and "\t" not in value, f"{field} must be a single line")
     return value
 
 
@@ -140,6 +132,7 @@ def parse_issue_body(body: str) -> Dict[str, str]:
     _require(len(body.encode("utf-8")) <= MAX_BODY_BYTES, "issue body is too large")
     body = _normalize(body.replace("\r\n", "\n").replace("\r", "\n"), "issue body")
     lines = body.split("\n")
+    section_labels = LEGACY_SECTION_LABELS if "### GraphLand release, tag, or commit" in lines else SECTION_LABELS
     _require(len(lines) <= MAX_BODY_LINES, "issue body contains too many lines")
     for line in lines:
         _require(len(line.encode("utf-8")) <= MAX_LINE_BYTES, "issue body contains an overlong line")
@@ -150,10 +143,10 @@ def parse_issue_body(body: str) -> Dict[str, str]:
     for line in lines:
         if line.startswith("### "):
             label = line[4:].strip()
-            _require(label in SECTION_LABELS, f"unexpected issue-form heading: {label!r}")
+            _require(label in section_labels, f"unexpected issue-form heading: {label!r}")
             _require(label not in sections, f"duplicate issue-form heading: {label!r}")
             _require(
-                expected_index < len(SECTION_LABELS) and label == SECTION_LABELS[expected_index],
+                expected_index < len(section_labels) and label == section_labels[expected_index],
                 f"issue-form heading {label!r} is missing or out of order",
             )
             sections[label] = []
@@ -165,8 +158,8 @@ def parse_issue_body(body: str) -> Dict[str, str]:
         else:
             sections[current].append(line)
 
-    _require(expected_index == len(SECTION_LABELS), "issue body is missing one or more form sections")
-    parsed = {label: "\n".join(sections[label]).strip() for label in SECTION_LABELS}
+    _require(expected_index == len(section_labels), "issue body is missing one or more form sections")
+    parsed = {label: "\n".join(sections[label]).strip() for label in section_labels}
     for label, value in parsed.items():
         if value == NO_RESPONSE and label not in {"Training code URL", "Additional notes"}:
             raise IssueSubmissionError(f"{label} is required")
@@ -183,17 +176,7 @@ def _parse_username(value: str, field: str) -> str:
 
 def _parse_https_url(value: str, field: str) -> str:
     value = _bounded_text(value, field, maximum=500, single_line=True)
-    try:
-        parsed = urlsplit(value)
-    except ValueError as exc:
-        raise IssueSubmissionError(f"{field} is not a valid URL") from exc
-    _require(
-        parsed.scheme == "https"
-        and parsed.hostname is not None
-        and parsed.username is None
-        and parsed.password is None,
-        f"{field} must be an HTTPS URL without embedded credentials",
-    )
+    _require(is_https_url(value), f"{field} must be a valid HTTPS URL without embedded credentials and with a valid port")
     return value
 
 
@@ -229,15 +212,17 @@ def _parse_results(value: str) -> List[Dict[str, Any]]:
     except csv.Error as exc:
         raise IssueSubmissionError(f"Results contains invalid CSV: {exc}") from exc
     _require(bool(rows), "Results must include a header and at least one result")
-    _require(rows[0] == ["setting", "dataset", "value", "std"], "Results must use the exact setting,dataset,value,std header")
+    legacy_header = ["setting", "dataset", "value", "std"]
+    current_header = legacy_header + ["num_runs", "hparam_trials"]
+    _require(rows[0] in (legacy_header, current_header), "Results must use the exact setting,dataset,value,std,num_runs,hparam_trials header (or the legacy four-column header)")
     data_rows = rows[1:]
     _require(1 <= len(data_rows) <= MAX_RESULTS, f"Results must contain 1 to {MAX_RESULTS} rows")
 
     results: List[Dict[str, Any]] = []
     seen = set()
     for index, row in enumerate(data_rows, start=2):
-        _require(len(row) == 4, f"Results row {index} must contain exactly four columns")
-        setting, dataset, raw_value, raw_std = (cell.strip() for cell in row)
+        _require(len(row) == len(rows[0]), f"Results row {index} must contain exactly {len(rows[0])} columns")
+        setting, dataset, raw_value, raw_std = (cell.strip() for cell in row[:4])
         _require(setting in {"RL", "RH", "TH", "THI"}, f"Results row {index} has an unknown setting")
         dataset = _bounded_text(dataset, f"Results row {index} dataset", maximum=100, single_line=True)
         key = (setting, dataset)
@@ -252,6 +237,10 @@ def _parse_results(value: str) -> List[Dict[str, Any]]:
             std = _parse_number(raw_std, f"Results row {index} std")
             _require(std >= 0, f"Results row {index} std must be non-negative")
             result["std"] = std
+        if rows[0] == current_header:
+            result["num_runs"] = _parse_integer(row[4], f"Results row {index} num_runs", minimum=1)
+            if row[5].strip():
+                result["hparam_trials"] = _parse_integer(row[5], f"Results row {index} hparam_trials", minimum=0)
         results.append(result)
     return results
 
@@ -327,9 +316,11 @@ def submission_from_issue(issue: Mapping[str, Any]) -> Dict[str, Any]:
 
     method_type = _bounded_text(fields["Method type"], "Method type", maximum=20, single_line=True)
     _require(method_type in {"trained", "in_context"}, "Method type must be trained or in_context")
-    hparam_trials = _parse_integer(fields["Hyperparameter trials"], "Hyperparameter trials", minimum=0)
-    if method_type == "in_context":
-        _require(hparam_trials == 0, "in-context learning must use zero hyperparameter trials")
+    legacy = "GraphLand release, tag, or commit" in fields
+    if legacy:
+        hparam_trials = _parse_integer(fields["Hyperparameter trials"], "Hyperparameter trials", minimum=0)
+        if method_type == "in_context":
+            _require(hparam_trials == 0, "in-context learning must use zero hyperparameter trials")
     _validate_confirmations(fields["Confirmations"])
 
     notes_text = fields["Additional notes"]
@@ -340,7 +331,7 @@ def submission_from_issue(issue: Mapping[str, Any]) -> Dict[str, Any]:
         notes = _bounded_text(notes_text, "Additional notes", maximum=4000)
 
     submission: Dict[str, Any] = {
-        "schema_version": "1.0",
+        "schema_version": "1.0" if legacy else "2.0",
         "id": f"issue-{number}",
         "model_name": _bounded_text(fields["Model name"], "Model name", maximum=120, single_line=True),
         "model_variant": _bounded_text(fields["Model variant or version"], "Model variant or version", maximum=120, single_line=True),
@@ -350,11 +341,8 @@ def submission_from_issue(issue: Mapping[str, Any]) -> Dict[str, Any]:
         "submitter_github": author_login,
         "provenance": "author_submission",
         "source_issue": number,
-        "graphland_ref": _bounded_text(fields["GraphLand release, tag, or commit"], "GraphLand release, tag, or commit", maximum=100, single_line=True),
         "method_type": method_type,
-        "hparam_trials": hparam_trials,
         "tuning_protocol": _bounded_text(fields["Tuning protocol"], "Tuning protocol", maximum=4000),
-        "num_runs": _parse_integer(fields["Number of runs or seeds"], "Number of runs or seeds", minimum=1),
         "external_data_pretraining": _bounded_text(fields["External data or pretraining"], "External data or pretraining", maximum=4000),
         "submitted_at": _submitted_date(issue.get("created_at")),
         "verification": "self_reported",
@@ -367,6 +355,17 @@ def submission_from_issue(issue: Mapping[str, Any]) -> Dict[str, Any]:
         "notes": notes,
         "results": _parse_results(fields["Results"]),
     }
+    if legacy:
+        submission.update({
+            "graphland_ref": _bounded_text(fields["GraphLand release, tag, or commit"], "GraphLand release, tag, or commit", maximum=100, single_line=True),
+            "hparam_trials": hparam_trials,
+            "num_runs": _parse_integer(fields["Number of runs or seeds"], "Number of runs or seeds", minimum=1),
+        })
+    else:
+        submission.update({
+            "data_release": _bounded_text(fields["GraphLand data release"], "GraphLand data release", maximum=100, single_line=True),
+            "evaluator_ref": _bounded_text(fields["Evaluator code reference"], "Evaluator code reference", maximum=500, single_line=True),
+        })
 
     try:
         datasets_document = load_json(ROOT / "leaderboard" / "datasets.json")
@@ -421,10 +420,6 @@ def write_submission(issue: Mapping[str, Any], submissions_dir: Path) -> Path:
     return target
 
 
-def _reject_json_constant(value: str) -> None:
-    raise IssueSubmissionError(f"issue JSON contains non-standard numeric value {value!r}")
-
-
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue-json", type=Path, required=True, help="Trusted local path containing the GitHub issue API response")
@@ -435,10 +430,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     try:
-        with args.issue_json.open("r", encoding="utf-8") as handle:
-            issue = json.load(handle, parse_constant=_reject_json_constant)
+        issue = load_json(args.issue_json)
         target = write_submission(issue, args.submissions_dir)
-    except (IssueSubmissionError, OSError, json.JSONDecodeError) as exc:
+    except (IssueSubmissionError, LeaderboardValidationError, OSError, json.JSONDecodeError) as exc:
         print(f"Issue submission conversion failed: {exc}", file=sys.stderr)
         return 1
     print(f"Wrote validated submission: {target}")
