@@ -1,0 +1,1456 @@
+{
+  "source_url": "https://arxiv.org/html/2409.14500v5",
+  "source_sha256": "1cf7ccc4cc2c738cd72d044cf37207cfe05ad541f444b3ead56312e9f6c21b5d",
+  "imported_at": "2026-10-08",
+  "seed_count_source": "https://arxiv.org/html/2409.14500v5#A2.SS3",
+  "scale": "All means and deviations divided by 100; R2 stored as raw coefficient.",
+  "not_independently_reproduced": true,
+  "cells": [
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$37.72$}\\pm 0.18",
+      "value": 0.3772,
+      "std": 0.0018,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "pokec-regions",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$4.88$}\\pm 0.01",
+      "value": 0.0488,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "web-topics",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$42.41$}\\pm 0.02",
+      "value": 0.4241,
+      "std": 0.0002,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "tolokers-2",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$41.16$}\\pm 1.13",
+      "value": 0.4116,
+      "std": 0.0113,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$71.32$}\\pm 0.11",
+      "value": 0.7132,
+      "std": 0.0011,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "artnet-exp",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$35.07$}\\pm 2.34",
+      "value": 0.3507,
+      "std": 0.0234,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "web-fraud",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$8.77$}\\pm 0.18",
+      "value": 0.0877,
+      "std": 0.0018,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$56.75$}\\pm 0.53",
+      "value": 0.5675,
+      "std": 0.0053,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "pokec-regions",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$37.88$}\\pm 0.41",
+      "value": 0.3788,
+      "std": 0.0041,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "web-topics",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$47.41$}\\pm 0.13",
+      "value": 0.4741,
+      "std": 0.0013,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "tolokers-2",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$53.73$}\\pm 0.53",
+      "value": 0.5373,
+      "std": 0.0053,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$77.82$}\\pm 0.13",
+      "value": 0.7782,
+      "std": 0.0013,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "artnet-exp",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$42.65$}\\pm 0.59",
+      "value": 0.4265,
+      "std": 0.0059,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "web-fraud",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$12.11$}\\pm 0.23",
+      "value": 0.1211,
+      "std": 0.0023,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "hm-categories",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$40.72$}\\pm 0.40",
+      "value": 0.4072,
+      "std": 0.004,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "pokec-regions",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "web-topics",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "tolokers-2",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$46.10$}\\pm 0.35",
+      "value": 0.461,
+      "std": 0.0035,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "city-reviews",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$74.77$}\\pm 0.10",
+      "value": 0.7477,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "artnet-exp",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$42.50$}\\pm 0.12",
+      "value": 0.425,
+      "std": 0.0012,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "web-fraud",
+      "table": "S5.T2.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$62.66$}\\pm 0.37",
+      "value": 0.6266,
+      "std": 0.0037,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "avazu-ctr",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$24.54$}\\pm 0.36",
+      "value": 0.2454,
+      "std": 0.0036,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "city-roads-M",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$54.77$}\\pm 0.15",
+      "value": 0.5477,
+      "std": 0.0015,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "city-roads-L",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$46.47$}\\pm 0.29",
+      "value": 0.4647,
+      "std": 0.0029,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "twitch-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.35$}\\pm 0.02",
+      "value": 0.1335,
+      "std": 0.0002,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "artnet-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$29.71$}\\pm 0.60",
+      "value": 0.2971,
+      "std": 0.006,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RL",
+      "dataset": "web-traffic",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$72.42$}\\pm 0.05",
+      "value": 0.7242,
+      "std": 0.0005,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$70.54$}\\pm 0.21",
+      "value": 0.7054,
+      "std": 0.0021,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "avazu-ctr",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$31.84$}\\pm 0.24",
+      "value": 0.3184,
+      "std": 0.0024,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "city-roads-M",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$57.51$}\\pm 0.53",
+      "value": 0.5751,
+      "std": 0.0053,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "city-roads-L",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$52.43$}\\pm 0.25",
+      "value": 0.5243,
+      "std": 0.0025,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "twitch-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$66.87$}\\pm 0.11",
+      "value": 0.6687,
+      "std": 0.0011,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "artnet-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$49.79$}\\pm 0.51",
+      "value": 0.4979,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RL",
+      "dataset": "web-traffic",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$83.50$}\\pm 0.11",
+      "value": 0.835,
+      "std": 0.0011,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "hm-prices",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$66.85$}\\pm 0.28",
+      "value": 0.6685,
+      "std": 0.0028,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "avazu-ctr",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$26.10$}\\pm 0.04",
+      "value": 0.261,
+      "std": 0.0004,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "city-roads-M",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$57.53$}\\pm 0.18",
+      "value": 0.5753,
+      "std": 0.0018,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "city-roads-L",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$51.43$}\\pm 0.17",
+      "value": 0.5143,
+      "std": 0.0017,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "twitch-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.20$}\\pm 0.03",
+      "value": 0.132,
+      "std": 0.0003,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "artnet-views",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$32.89$}\\pm 0.05",
+      "value": 0.3289,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RL",
+      "dataset": "web-traffic",
+      "table": "S5.T2.st2.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$43.12$}\\pm 0.25",
+      "value": 0.4312,
+      "std": 0.0025,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "pokec-regions",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$5.09$}\\pm 0.01",
+      "value": 0.0509,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "web-topics",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$44.55$}\\pm 0.08",
+      "value": 0.4455,
+      "std": 0.0008,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "tolokers-2",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$45.96$}\\pm 0.46",
+      "value": 0.4596,
+      "std": 0.0046,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "city-reviews",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$75.21$}\\pm 0.08",
+      "value": 0.7521,
+      "std": 0.0008,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$43.55$}\\pm 0.23",
+      "value": 0.4355,
+      "std": 0.0023,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "web-fraud",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.52$}\\pm 0.21",
+      "value": 0.1352,
+      "std": 0.0021,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$73.34$}\\pm 0.68",
+      "value": 0.7334,
+      "std": 0.0068,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "pokec-regions",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$40.76$}\\pm 0.21",
+      "value": 0.4076,
+      "std": 0.0021,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "web-topics",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$50.05$}\\pm 0.03",
+      "value": 0.5005,
+      "std": 0.0003,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "tolokers-2",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$58.42$}\\pm 0.92",
+      "value": 0.5842,
+      "std": 0.0092,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "city-reviews",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$80.75$}\\pm 0.06",
+      "value": 0.8075,
+      "std": 0.0006,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$48.49$}\\pm 0.37",
+      "value": 0.4849,
+      "std": 0.0037,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "web-fraud",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$20.47$}\\pm 0.17",
+      "value": 0.2047,
+      "std": 0.0017,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "hm-categories",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$46.98$}\\pm 0.24",
+      "value": 0.4698,
+      "std": 0.0024,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "pokec-regions",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "web-topics",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "tolokers-2",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$50.52$}\\pm 0.19",
+      "value": 0.5052,
+      "std": 0.0019,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "city-reviews",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$78.00$}\\pm 0.05",
+      "value": 0.78,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "artnet-exp",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$45.50$}\\pm 0.15",
+      "value": 0.455,
+      "std": 0.0015,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "web-fraud",
+      "table": "A3.T5.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "hm-prices",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$70.11$}\\pm 0.48",
+      "value": 0.7011,
+      "std": 0.0048,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$28.03$}\\pm 0.22",
+      "value": 0.2803,
+      "std": 0.0022,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "city-roads-M",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$62.43$}\\pm 0.32",
+      "value": 0.6243,
+      "std": 0.0032,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$53.09$}\\pm 0.17",
+      "value": 0.5309,
+      "std": 0.0017,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "twitch-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.36$}\\pm 0.01",
+      "value": 0.1336,
+      "std": 0.0001,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "artnet-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$36.10$}\\pm 0.17",
+      "value": 0.361,
+      "std": 0.0017,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "RH",
+      "dataset": "web-traffic",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$73.88$}\\pm 0.05",
+      "value": 0.7388,
+      "std": 0.0005,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "hm-prices",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$79.89$}\\pm 0.46",
+      "value": 0.7989,
+      "std": 0.0046,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$35.20$}\\pm 0.20",
+      "value": 0.352,
+      "std": 0.002,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "city-roads-M",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$70.20$}\\pm 0.59",
+      "value": 0.702,
+      "std": 0.0059,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$65.77$}\\pm 0.43",
+      "value": 0.6577,
+      "std": 0.0043,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "twitch-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$72.02$}\\pm 0.16",
+      "value": 0.7202,
+      "std": 0.0016,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "artnet-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$56.65$}\\pm 0.50",
+      "value": 0.5665,
+      "std": 0.005,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "RH",
+      "dataset": "web-traffic",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$85.19$}\\pm 0.11",
+      "value": 0.8519,
+      "std": 0.0011,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "hm-prices",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$74.92$}\\pm 0.14",
+      "value": 0.7492,
+      "std": 0.0014,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$29.68$}\\pm 0.10",
+      "value": 0.2968,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "city-roads-M",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$69.32$}\\pm 0.17",
+      "value": 0.6932,
+      "std": 0.0017,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "city-roads-L",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$61.24$}\\pm 0.11",
+      "value": 0.6124,
+      "std": 0.0011,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "twitch-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.25$}\\pm 0.03",
+      "value": 0.1325,
+      "std": 0.0003,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "artnet-views",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$37.47$}\\pm 0.05",
+      "value": 0.3747,
+      "std": 0.0005,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "RH",
+      "dataset": "web-traffic",
+      "table": "A3.T5.st2.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "hm-categories",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$32.44$}\\pm 0.54",
+      "value": 0.3244,
+      "std": 0.0054,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "pokec-regions",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$4.18$}\\pm 0.01",
+      "value": 0.0418,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "web-topics",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$35.49$}\\pm 0.03",
+      "value": 0.3549,
+      "std": 0.0003,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "tolokers-2",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$21.72$}\\pm 6.69",
+      "value": 0.2172,
+      "std": 0.0669,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "artnet-exp",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$37.48$}\\pm 0.51",
+      "value": 0.3748,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "web-fraud",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$2.83$}\\pm 0.26",
+      "value": 0.0283,
+      "std": 0.0026,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "hm-categories",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$59.62$}\\pm 0.51",
+      "value": 0.5962,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "pokec-regions",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$16.60$}\\pm 0.28",
+      "value": 0.166,
+      "std": 0.0028,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "web-topics",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$39.00$}\\pm 0.09",
+      "value": 0.39,
+      "std": 0.0009,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "tolokers-2",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$17.05$}\\pm 7.65",
+      "value": 0.1705,
+      "std": 0.0765,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "artnet-exp",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$40.50$}\\pm 0.84",
+      "value": 0.405,
+      "std": 0.0084,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "web-fraud",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$16.01$}\\pm 2.22",
+      "value": 0.1601,
+      "std": 0.0222,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "hm-categories",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$33.24$}\\pm 0.16",
+      "value": 0.3324,
+      "std": 0.0016,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "pokec-regions",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "web-topics",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "tolokers-2",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.87$}\\pm 1.55",
+      "value": 0.1387,
+      "std": 0.0155,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "artnet-exp",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$38.56$}\\pm 0.10",
+      "value": 0.3856,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "web-fraud",
+      "table": "A3.T6.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "hm-prices",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$61.64$}\\pm 0.79",
+      "value": 0.6164,
+      "std": 0.0079,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$20.35$}\\pm 1.50",
+      "value": 0.2035,
+      "std": 0.015,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$11.91$}\\pm 8.00",
+      "value": 0.1191,
+      "std": 0.08,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "TH",
+      "dataset": "artnet-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$42.15$}\\pm 0.52",
+      "value": 0.4215,
+      "std": 0.0052,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "hm-prices",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$67.93$}\\pm 1.24",
+      "value": 0.6793,
+      "std": 0.0124,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$38.38$}\\pm 0.39",
+      "value": 0.3838,
+      "std": 0.0039,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$61.46$}\\pm 0.68",
+      "value": 0.6146,
+      "std": 0.0068,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "TH",
+      "dataset": "artnet-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$51.87$}\\pm 0.48",
+      "value": 0.5187,
+      "std": 0.0048,
+      "num_runs": 10
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "hm-prices",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$62.05$}\\pm 0.68",
+      "value": 0.6205,
+      "std": 0.0068,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "avazu-ctr",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$25.49$}\\pm 0.09",
+      "value": 0.2549,
+      "std": 0.0009,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "twitch-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$-8.76$}\\pm 0.23",
+      "value": -0.0876,
+      "std": 0.0023,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "TH",
+      "dataset": "artnet-views",
+      "table": "A3.T6.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$42.83$}\\pm 0.06",
+      "value": 0.4283,
+      "std": 0.0006,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$32.44$}\\pm 0.54",
+      "value": 0.3244,
+      "std": 0.0054,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "pokec-regions",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$4.18$}\\pm 0.01",
+      "value": 0.0418,
+      "std": 0.0001,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "web-topics",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$35.49$}\\pm 0.03",
+      "value": 0.3549,
+      "std": 0.0003,
+      "num_runs": 5
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "tolokers-2",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$21.72$}\\pm 6.69",
+      "value": 0.2172,
+      "std": 0.0669,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "artnet-exp",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$37.48$}\\pm 0.51",
+      "value": 0.3748,
+      "std": 0.0051,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "web-fraud",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$2.83$}\\pm 0.26",
+      "value": 0.0283,
+      "std": 0.0026,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$48.11$}\\pm 2.08",
+      "value": 0.4811,
+      "std": 0.0208,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "pokec-regions",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$8.04$}\\pm 0.26",
+      "value": 0.0804,
+      "std": 0.0026,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "web-topics",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$38.04$}\\pm 0.18",
+      "value": 0.3804,
+      "std": 0.0018,
+      "num_runs": 5
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "tolokers-2",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$30.86$}\\pm 9.48",
+      "value": 0.3086,
+      "std": 0.0948,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "artnet-exp",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$40.53$}\\pm 0.40",
+      "value": 0.4053,
+      "std": 0.004,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "web-fraud",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.88$}\\pm 1.32",
+      "value": 0.1388,
+      "std": 0.0132,
+      "num_runs": 5
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "hm-categories",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$33.24$}\\pm 0.16",
+      "value": 0.3324,
+      "std": 0.0016,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "pokec-regions",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "web-topics",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "tolokers-2",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$13.87$}\\pm 1.55",
+      "value": 0.1387,
+      "std": 0.0155,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "artnet-exp",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "\\makebox[20.00003pt][r]{$38.56$}\\pm 0.10",
+      "value": 0.3856,
+      "std": 0.001,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "web-fraud",
+      "table": "A3.T7.st1.5.1",
+      "source_cell": "TLE",
+      "omitted_reason": "TLE"
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "hm-prices",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$61.64$}\\pm 0.79",
+      "value": 0.6164,
+      "std": 0.0079,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "avazu-ctr",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$20.35$}\\pm 1.50",
+      "value": 0.2035,
+      "std": 0.015,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "twitch-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$11.91$}\\pm 8.00",
+      "value": 0.1191,
+      "std": 0.08,
+      "num_runs": 10
+    },
+    {
+      "model": "ResMLP",
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$42.15$}\\pm 0.52",
+      "value": 0.4215,
+      "std": 0.0052,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "hm-prices",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$65.80$}\\pm 0.56",
+      "value": 0.658,
+      "std": 0.0056,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "avazu-ctr",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$36.79$}\\pm 0.55",
+      "value": 0.3679,
+      "std": 0.0055,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "twitch-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$56.60$}\\pm 0.71",
+      "value": 0.566,
+      "std": 0.0071,
+      "num_runs": 10
+    },
+    {
+      "model": "GraphSAGE",
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$53.37$}\\pm 0.30",
+      "value": 0.5337,
+      "std": 0.003,
+      "num_runs": 10
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "hm-prices",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$62.05$}\\pm 0.68",
+      "value": 0.6205,
+      "std": 0.0068,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "avazu-ctr",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$25.49$}\\pm 0.09",
+      "value": 0.2549,
+      "std": 0.0009,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "twitch-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$-8.76$}\\pm 0.23",
+      "value": -0.0876,
+      "std": 0.0023,
+      "num_runs": 10,
+      "hparam_trials": 100
+    },
+    {
+      "model": "CatBoost",
+      "setting": "THI",
+      "dataset": "artnet-views",
+      "table": "A3.T7.st2.5.1",
+      "source_cell": "\\makebox[30.00005pt][r]{$42.83$}\\pm 0.06",
+      "value": 0.4283,
+      "std": 0.0006,
+      "num_runs": 10,
+      "hparam_trials": 100
+    }
+  ]
+}

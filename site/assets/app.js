@@ -20,6 +20,10 @@
     sortKey: "model",
     sortDirection: "asc",
     dialogTrigger: null,
+    dialogSubmissionId: null,
+    queryCodeExplicit: false,
+    loading: false,
+    loaded: false,
   };
 
   const elements = {};
@@ -51,6 +55,10 @@
     elements.dialogTitle = document.getElementById("dialog-title");
     elements.dialogContent = document.getElementById("dialog-content");
     elements.dialogClose = document.querySelector("[data-dialog-close]");
+    elements.retry = document.getElementById("retry-load");
+    elements.buildInfo = document.getElementById("build-info");
+    elements.main = document.getElementById("main-content");
+    elements.footer = document.querySelector(".site-footer");
   }
 
   function createElement(tagName, className, text) {
@@ -185,19 +193,30 @@
     const params = new URLSearchParams(window.location.search);
     const setting = params.get("setting");
     const task = params.get("task");
-    if (SETTING_IDS.includes(setting)) {
-      state.setting = setting;
-    }
-    if (TASK_IDS.includes(task)) {
-      state.task = task;
-    }
+    state.setting = SETTING_IDS.includes(setting) ? setting : "RL";
+    state.task = TASK_IDS.includes(task) ? task : TASK_IDS[0];
+    state.search = (params.get("q") || "").slice(0, 200);
+    state.queryCodeExplicit = ["0", "1"].includes(params.get("code"));
+    state.codeOnly = state.queryCodeExplicit ? params.get("code") === "1" : Boolean(state.payload?.config?.default_filters?.only_models_with_code);
+    state.sortKey = (params.get("sort") || "model").slice(0, 64);
+    state.sortDirection = params.get("order") === "desc" ? "desc" : "asc";
+    const submission = params.get("submission");
+    state.dialogSubmissionId = submission && /^[a-z0-9-]{1,128}$/.test(submission) ? submission : null;
   }
 
-  function writeQueryState() {
+  function writeQueryState(mode = "replace") {
     const url = new URL(window.location.href);
     url.searchParams.set("setting", state.setting);
     url.searchParams.set("task", state.task);
-    window.history.replaceState(null, "", url);
+    for (const [key, value] of [["q", state.search.trim()], ["code", state.codeOnly ? "1" : "0"],
+      ["sort", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortKey],
+      ["order", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortDirection],
+      ["submission", state.dialogSubmissionId]]) {
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+    }
+    const method = mode === "push" ? "pushState" : "replaceState";
+    if (url.href !== window.location.href) window.history[method](null, "", url);
   }
 
   function setActiveTabs() {
@@ -267,6 +286,7 @@
       state.sortKey = key;
       state.sortDirection = key === "model" ? "asc" : "desc";
     }
+    writeQueryState();
     renderTable();
   }
 
@@ -281,6 +301,8 @@
 
     const button = createElement("button", "sort-button");
     button.type = "button";
+    button.dataset.sortKey = key;
+    button.disabled = key !== "model" && !isSettingAvailable(state.datasetsById.get(key), state.setting);
     const directionText = active
       ? (state.sortDirection === "asc" ? "descending" : "ascending")
       : (key === "model" ? "ascending" : "descending");
@@ -304,6 +326,8 @@
   }
 
   function renderTableHeader(datasets) {
+    const focusedSort = elements.tableHead.contains(document.activeElement)
+      ? document.activeElement.dataset.sortKey : null;
     elements.tableHead.replaceChildren();
     const row = document.createElement("tr");
     row.append(sortHeader("Model", "Name / variant", "model"));
@@ -312,6 +336,11 @@
       row.append(sortHeader(dataset.display_name, task ? task.metric_label : dataset.metric, dataset.id));
     });
     elements.tableHead.append(row);
+    if (focusedSort) {
+      const replacement = Array.from(elements.tableHead.querySelectorAll("[data-sort-key]"))
+        .find((button) => button.dataset.sortKey === focusedSort);
+      replacement?.focus({ preventScroll: true });
+    }
   }
 
   function appendMiniBadge(container, text, className) {
@@ -332,10 +361,13 @@
     cell.append(button);
 
     const badges = createElement("div", "model-cell-badges");
+    const demo = isDemoSubmission(submission);
+    if (demo) appendMiniBadge(badges, "Synthetic demo", "synthetic");
+    if (submission.review?.status !== "approved") appendMiniBadge(badges, "Pending review");
     if (submission.code_availability === "available") {
       appendMiniBadge(badges, "Code", "code");
     }
-    if (submission.verification === "reproduced") {
+    if (!demo && submission.verification === "reproduced") {
       appendMiniBadge(badges, "Reproduced", "reproduced");
     }
     if (submission.method_type === "in_context") {
@@ -376,11 +408,15 @@
     cell.className = "metric-value";
     cell.dataset.state = "value";
     cell.textContent = formatMetric(result, dataset);
-    cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; standard deviation: ${result.std}` : ""}`;
+    const runs = result.num_runs ?? submission.num_runs;
+    const trials = result.hparam_trials ?? (submission.schema_version === "1.0" ? submission.hparam_trials : null);
+    const evidence = `Runs: ${runs ?? "unknown"}; hyperparameter trials: ${trials ?? "unknown"}`;
+    cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; sample standard deviation: ${result.std}` : ""}; ${evidence}`;
+    cell.setAttribute("aria-label", `${dataset.display_name}: ${cell.textContent}. ${evidence}`);
     row.append(cell);
   }
 
-  function updateEmptyState(submissionCount) {
+  function updateEmptyState(submissionCount, matchingCount, sliceCount) {
     const hasAnySubmissions = Boolean(state.payload && state.payload.submissions.length);
     const isEmpty = submissionCount === 0;
     elements.tableScroll.hidden = isEmpty;
@@ -390,7 +426,11 @@
       return;
     }
 
-    if (hasAnySubmissions) {
+    if (hasAnySubmissions && sliceCount === 0) {
+      elements.emptyTitle.textContent = "No results for this setting and task yet";
+      elements.emptyCopy.textContent = "Other views have submissions. Submit a result for this experimental setting and task family.";
+      elements.emptyLink.hidden = false;
+    } else if (hasAnySubmissions) {
       elements.emptyTitle.textContent = "No models match these filters";
       elements.emptyCopy.textContent = "Try a different model name or turn off the code availability filter.";
       elements.emptyLink.hidden = true;
@@ -407,8 +447,18 @@
     }
 
     const datasets = taskDatasets();
+    elements.table.style.setProperty("--dataset-count", String(datasets.length));
+    if (state.sortKey !== "model" && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
+      state.sortKey = "model";
+      state.sortDirection = "asc";
+      writeQueryState();
+    }
     const task = state.tasksById.get(state.task);
-    const submissions = filteredSubmissions().sort((left, right) => compareRows(left, right, {
+    const hasSliceResult = (submission) => datasets.some((dataset) => isSettingAvailable(dataset, state.setting)
+      && Number.isFinite(getResult(submission, state.setting, dataset.id)?.value));
+    const matching = filteredSubmissions();
+    const sliceCount = state.payload.submissions.filter(hasSliceResult).length;
+    const submissions = matching.filter(hasSliceResult).sort((left, right) => compareRows(left, right, {
       key: state.sortKey,
       direction: state.sortDirection,
       setting: state.setting,
@@ -425,16 +475,19 @@
     });
 
     const modelLabel = submissions.length === 1 ? "model" : "models";
-    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} · ${task ? task.label : ""}`;
+    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : ""} · ${state.payload.submissions.length} submissions overall`;
     elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "GraphLand"} leaderboard`;
-    updateEmptyState(submissions.length);
+    updateEmptyState(submissions.length, matching.length, sliceCount);
   }
 
   function render() {
+    elements.search.value = state.search;
+    elements.codeFilter.checked = state.codeOnly;
     setActiveTabs();
     updateSettingDescription();
     updateMetricNote();
     renderTable();
+    syncDialogWithUrl();
   }
 
   function activateSetting(setting, updateUrl = true) {
@@ -443,7 +496,7 @@
     }
     state.setting = setting;
     if (updateUrl) {
-      writeQueryState();
+      writeQueryState("push");
     }
     render();
   }
@@ -456,7 +509,7 @@
     state.sortKey = "model";
     state.sortDirection = "asc";
     if (updateUrl) {
-      writeQueryState();
+      writeQueryState("push");
     }
     render();
   }
@@ -499,6 +552,8 @@
     elements.header.classList.remove("nav-open");
     elements.menuButton.setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
+    elements.main.inert = false;
+    elements.footer.inert = false;
   }
 
   function bindNavigation() {
@@ -507,6 +562,8 @@
       elements.header.classList.toggle("nav-open", opening);
       elements.menuButton.setAttribute("aria-expanded", String(opening));
       document.body.classList.toggle("nav-open", opening);
+      elements.main.inert = opening;
+      elements.footer.inert = opening;
     });
     elements.navigation.addEventListener("click", (event) => {
       if (event.target.closest("a")) {
@@ -518,8 +575,16 @@
         closeNavigation();
         elements.menuButton.focus();
       }
+      if (event.key === "Tab" && elements.header.classList.contains("nav-open")) {
+        const controls = [elements.menuButton, ...elements.navigation.querySelectorAll("a")];
+        const current = controls.indexOf(document.activeElement);
+        if (current < 0 || (event.shiftKey && current === 0) || (!event.shiftKey && current === controls.length - 1)) {
+          event.preventDefault();
+          controls[event.shiftKey ? controls.length - 1 : 0].focus();
+        }
+      }
     });
-    window.matchMedia("(min-width: 821px)").addEventListener("change", (event) => {
+    window.matchMedia("(min-width: 768px)").addEventListener("change", (event) => {
       if (event.matches) {
         closeNavigation();
       }
@@ -575,13 +640,18 @@
     return `${repository.replace(/\/$/, "")}/issues/${submission.source_issue}`;
   }
 
-  function openDialog(submission, trigger) {
+  function openDialog(submission, trigger = null, updateUrl = true) {
     const demo = isDemoSubmission(submission);
-    state.dialogTrigger = trigger;
+    state.dialogTrigger = trigger || state.dialogTrigger;
+    state.dialogSubmissionId = submission.id;
+    elements.dialog.dataset.submissionId = submission.id;
+    elements.dialog.dataset.view = `${state.setting}:${state.task}`;
     elements.dialogTitle.textContent = submission.model_name;
     elements.dialogContent.replaceChildren();
 
     const badges = createElement("div", "dialog-badges");
+    if (demo) addBadge(badges, "Synthetic demo", "synthetic");
+    if (submission.review?.status !== "approved") addBadge(badges, "Pending review");
     addBadge(
       badges,
       submission.code_availability === "available" ? "Code available" : "Code unavailable",
@@ -590,8 +660,8 @@
     addBadge(badges, provenanceLabel(submission.provenance));
     addBadge(
       badges,
-      verificationLabel(submission.verification),
-      submission.verification === "reproduced" ? "accent" : "",
+      demo ? "Synthetic — no model was evaluated" : verificationLabel(submission.verification),
+      !demo && submission.verification === "reproduced" ? "accent" : "",
     );
     if (submission.method_type === "in_context") {
       addBadge(badges, "In-context", "accent");
@@ -626,17 +696,30 @@
     appendDetail(
       details,
       "Source issue",
-      demo ? "Not applicable (synthetic demo)" : `#${submission.source_issue}`,
+      demo ? "Not applicable (synthetic demo)" : (Number.isInteger(submission.source_issue) ? `#${submission.source_issue}` : "Not applicable (maintainer-added)"),
       demo ? null : issueUrl(submission),
     );
-    appendDetail(details, "GraphLand version", submission.graphland_ref);
+    if (submission.schema_version === "2.0") {
+      appendDetail(details, "Dataset release", submission.data_release);
+      appendDetail(details, "Evaluator reference", submission.evaluator_ref);
+    } else {
+      appendDetail(details, "Legacy GraphLand reference", submission.graphland_ref);
+    }
     appendDetail(details, "Method type", methodLabel(submission.method_type));
     appendDetail(details, "Tuning protocol", submission.tuning_protocol);
-    appendDetail(details, "Hyperparameter trials", submission.hparam_trials);
-    appendDetail(details, "Runs / seeds", submission.num_runs);
+    if (submission.schema_version === "1.0") {
+      appendDetail(details, "Legacy hyperparameter trials", submission.hparam_trials);
+      appendDetail(details, "Legacy runs / seeds", submission.num_runs);
+    }
     appendDetail(details, "External data / pretraining", submission.external_data_pretraining);
     appendDetail(details, "Provenance", provenanceLabel(submission.provenance));
-    appendDetail(details, "Verification", verificationLabel(submission.verification));
+    appendDetail(details, "Verification", demo ? "Not applicable (synthetic demo)" : verificationLabel(submission.verification));
+    if (!demo && submission.reproduction) {
+      appendDetail(details, "Reproduction evidence", submission.reproduction.evidence_url, submission.reproduction.evidence_url);
+      appendDetail(details, "Reproduction evaluator", submission.reproduction.evaluator_ref);
+      appendDetail(details, "Reproduced by", submission.reproduction.reproduced_by);
+      appendDetail(details, "Reproduced at", submission.reproduction.reproduced_at);
+    }
     appendDetail(details, "Submission date", submission.submitted_at);
     appendDetail(details, "Notes", submission.notes);
 
@@ -651,24 +734,45 @@
     appendDetail(details, "Reviewed at", review.reviewed_at);
     appendDetail(details, "Review notes", review.notes);
 
-    elements.dialogContent.append(badges, lead, details);
-    if (typeof elements.dialog.showModal === "function") {
-      elements.dialog.showModal();
-    } else {
-      elements.dialog.setAttribute("open", "");
+    const resultDetails = createElement("dl", "detail-list");
+    const resultHeading = createElement("h3", "result-details-heading", `Results in ${state.setting} · ${state.tasksById.get(state.task)?.label || state.task}`);
+    for (const dataset of taskDatasets()) {
+      const result = getResult(submission, state.setting, dataset.id);
+      if (!result || !isSettingAvailable(dataset, state.setting)) continue;
+      const runs = result.num_runs ?? submission.num_runs;
+      const trials = result.hparam_trials ?? (submission.schema_version === "1.0" ? submission.hparam_trials : null);
+      appendDetail(resultDetails, dataset.display_name, `${formatMetric(result, dataset)} · ${runs ?? "unknown"} runs · hyperparameter trials: ${trials ?? "unknown"}`);
     }
+    if (!resultDetails.childElementCount) appendDetail(resultDetails, "Coverage", "No results submitted in this view.");
+    elements.dialogContent.append(badges, lead, details, resultHeading, resultDetails);
+    if (!elements.dialog.open) {
+      elements.dialog.showModal();
+    }
+    if (updateUrl) writeQueryState("push");
   }
 
-  function closeDialog() {
-    if (typeof elements.dialog.close === "function") {
-      elements.dialog.close();
+  function closeDialog(updateUrl = true) {
+    state.dialogSubmissionId = null;
+    if (elements.dialog.open) elements.dialog.close();
+    if (updateUrl) writeQueryState("push");
+  }
+
+  function syncDialogWithUrl() {
+    if (!state.payload) return;
+    const submission = state.payload.submissions.find((entry) => entry.id === state.dialogSubmissionId);
+    if (submission) {
+      if (!elements.dialog.open || elements.dialog.dataset.submissionId !== submission.id || elements.dialog.dataset.view !== `${state.setting}:${state.task}`) openDialog(submission, null, false);
     } else {
-      elements.dialog.removeAttribute("open");
+      closeDialog(false);
     }
   }
 
   function bindDialog() {
-    elements.dialogClose.addEventListener("click", closeDialog);
+    elements.dialogClose.addEventListener("click", () => closeDialog());
+    elements.dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closeDialog();
+    });
     elements.dialog.addEventListener("click", (event) => {
       if (event.target === elements.dialog) {
         closeDialog();
@@ -677,6 +781,8 @@
     elements.dialog.addEventListener("close", () => {
       if (state.dialogTrigger && document.contains(state.dialogTrigger)) {
         state.dialogTrigger.focus();
+      } else {
+        elements.panel.focus({ preventScroll: true });
       }
       state.dialogTrigger = null;
     });
@@ -687,16 +793,20 @@
     bindTablist(elements.taskTabs, "task", activateTask);
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
+      writeQueryState();
       renderTable();
     });
     elements.codeFilter.addEventListener("change", () => {
       state.codeOnly = elements.codeFilter.checked;
+      writeQueryState();
       renderTable();
     });
     window.addEventListener("popstate", () => {
+      closeNavigation();
       readQueryState();
       render();
     });
+    elements.retry.addEventListener("click", loadLeaderboard);
   }
 
   function applyConfiguredLinks() {
@@ -722,17 +832,76 @@
   }
 
   async function loadData() {
-    const response = await fetch("data/leaderboard.json", {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      throw new Error(`Leaderboard data request failed with status ${response.status}`);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch("data/leaderboard.json", {
+        headers: { Accept: "application/json" }, signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Leaderboard data request failed with status ${response.status}`);
+      const payload = await response.json();
+      if (!validatePayload(payload)) throw new Error("Leaderboard data has an unexpected shape");
+      return payload;
+    } finally {
+      window.clearTimeout(timeout);
     }
-    const payload = await response.json();
-    if (!validatePayload(payload)) {
-      throw new Error("Leaderboard data has an unexpected shape");
+  }
+
+  function setLoading(loading) {
+    state.loading = loading;
+    elements.panel.setAttribute("aria-busy", String(loading));
+    [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
+      elements.search, elements.codeFilter].forEach((control) => { control.disabled = loading || !state.loaded; });
+    elements.retry.disabled = loading;
+  }
+
+  async function loadPublicationInfo() {
+    try {
+      const response = await fetch("data/build-info.json", { headers: { Accept: "application/json" } });
+      if (!response.ok) return;
+      const info = await response.json();
+      if (!/^[a-f0-9]{40}$/.test(info.commit_sha || "") || !Number.isFinite(Date.parse(info.built_at))) return;
+      const repository = safeExternalUrl(state.payload?.config?.site?.repository_url);
+      if (!repository) return;
+      const link = createElement("a", null, info.commit_sha.slice(0, 7));
+      link.href = `${repository.replace(/\/$/, "")}/commit/${info.commit_sha}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      elements.buildInfo.replaceChildren(createElement("span", null, "Published from "), link,
+        createElement("span", null, ` · ${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(info.built_at))} UTC${info.rollback === true ? " · rollback" : ""}`));
+      elements.buildInfo.hidden = false;
+    } catch (_error) { /* Publication metadata is optional in local previews. */ }
+  }
+
+  async function loadLeaderboard() {
+    if (state.loading) return;
+    setLoading(true);
+    elements.resultSummary.textContent = "Loading leaderboard…";
+    elements.loadError.hidden = true;
+    try {
+      state.payload = await loadData();
+      state.datasetsById = new Map(state.payload.datasets.map((dataset) => [dataset.id, dataset]));
+      state.settingsById = new Map(state.payload.config.settings.map((setting) => [setting.id, setting]));
+      state.tasksById = new Map(state.payload.config.task_families.map((task) => [task.id, task]));
+      state.loaded = true;
+      readQueryState();
+      applyConfiguredLinks();
+      elements.demoNotice.hidden = !hasDemoSubmissions(state.payload);
+      elements.loadError.hidden = true;
+      render();
+      loadPublicationInfo();
+    } catch (error) {
+      state.payload = null;
+      state.loaded = false;
+      elements.resultSummary.textContent = "Leaderboard unavailable";
+      elements.tableScroll.hidden = true;
+      elements.emptyState.hidden = true;
+      elements.loadError.hidden = false;
+      elements.demoNotice.hidden = true;
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    return payload;
   }
 
   async function init() {
@@ -742,28 +911,7 @@
     bindNavigation();
     bindControls();
     bindDialog();
-
-    try {
-      state.payload = await loadData();
-      state.datasetsById = new Map(state.payload.datasets.map((dataset) => [dataset.id, dataset]));
-      state.settingsById = new Map(state.payload.config.settings.map((setting) => [setting.id, setting]));
-      state.tasksById = new Map(state.payload.config.task_families.map((task) => [task.id, task]));
-      state.codeOnly = Boolean(
-        state.payload.config.default_filters
-        && state.payload.config.default_filters.only_models_with_code,
-      );
-      elements.codeFilter.checked = state.codeOnly;
-      applyConfiguredLinks();
-      elements.demoNotice.hidden = !hasDemoSubmissions(state.payload);
-      elements.loadError.hidden = true;
-      render();
-    } catch (error) {
-      elements.resultSummary.textContent = "Leaderboard unavailable";
-      elements.tableScroll.hidden = true;
-      elements.emptyState.hidden = true;
-      elements.loadError.hidden = false;
-      console.error(error);
-    }
+    await loadLeaderboard();
   }
 
   window.GraphLandLeaderboard = Object.freeze({

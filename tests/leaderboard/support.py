@@ -40,3 +40,19 @@ def fixture_json(name: str) -> Any:
 
 def valid_submission() -> dict[str, Any]:
     return copy.deepcopy(fixture_json("valid_submission.json"))
+
+
+def valid_v2_submission() -> dict[str, Any]:
+    submission = valid_submission()
+    submission["schema_version"] = "2.0"
+    submission["data_release"] = "v1"
+    submission["evaluator_ref"] = "https://github.com/yandex-research/graphland/tree/7246fe3"
+    submission.pop("graphland_ref")
+    count = submission.pop("num_runs")
+    submission.pop("hparam_trials")
+    for result in submission["results"]:
+        result["num_runs"] = count
+    submission["results"][0]["num_runs"] = 10
+    submission["results"][0]["hparam_trials"] = 20
+    submission["results"][1]["num_runs"] = 5
+    return submission

@@ -3,192 +3,123 @@ from __future__ import annotations
 import re
 import unittest
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from support import ROOT
 
 
-WORKFLOWS = ROOT / ".github" / "workflows"
-ISSUE_FORM = ROOT / ".github" / "ISSUE_TEMPLATE" / "leaderboard-submission.yml"
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    with path.open(encoding="utf-8") as handle:
-        value = yaml.safe_load(handle)
+def load_yaml(path: Path):
+    value = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise AssertionError(f"{path} must contain a YAML mapping")
+        raise AssertionError("Expected YAML mapping")
     return value
 
 
-def workflow_steps(document: dict[str, Any]) -> list[dict[str, Any]]:
+def steps(document):
     return [step for job in document["jobs"].values() for step in job.get("steps", [])]
 
 
 class WorkflowAndIssueFormTests(unittest.TestCase):
     @classmethod
-    def setUpClass(cls) -> None:
-        cls.validate_path = WORKFLOWS / "leaderboard-validate.yml"
-        cls.issue_path = WORKFLOWS / "leaderboard-issue-to-pr.yml"
-        cls.deploy_path = WORKFLOWS / "deploy-pages.yml"
-        cls.validate = load_yaml(cls.validate_path)
-        cls.issue = load_yaml(cls.issue_path)
-        cls.deploy = load_yaml(cls.deploy_path)
-        cls.form = load_yaml(ISSUE_FORM)
+    def setUpClass(cls):
+        cls.workflows = {name: load_yaml(ROOT / ".github/workflows" / (name + ".yml"))
+                         for name in ("leaderboard-validate", "leaderboard-issue-to-pr", "deploy-pages")}
+        cls.validate = cls.workflows["leaderboard-validate"]
+        cls.issue = cls.workflows["leaderboard-issue-to-pr"]
+        cls.deploy = cls.workflows["deploy-pages"]
+        cls.form = load_yaml(ROOT / ".github/ISSUE_TEMPLATE/leaderboard-submission.yml")
 
-    def test_issue_form_has_stable_prefix_label_and_all_parser_fields(self) -> None:
+    def test_form_contract_has_v2_release_and_per_result_protocol_fields(self):
+        fields = {item.get("id"): item for item in self.form["body"] if item.get("id")}
         self.assertEqual(self.form["title"], "[Leaderboard submission] ")
         self.assertEqual(self.form["labels"], ["leaderboard-submission"])
-        fields = {item.get("id"): item for item in self.form["body"] if item.get("id")}
-        self.assertEqual(
-            set(fields),
-            {
-                "model_name", "model_variant", "github_username", "paper_url",
-                "code_availability", "training_code_url", "graphland_ref", "method_type",
-                "hparam_trials", "tuning_protocol", "num_runs", "external_data_pretraining",
-                "results", "notes", "confirmations",
-            },
-        )
-        self.assertEqual(fields["results"]["attributes"].get("render"), "csv")
-        self.assertEqual(fields["code_availability"]["attributes"]["options"], ["available", "unavailable"])
-        self.assertEqual(fields["method_type"]["attributes"]["options"], ["trained", "in_context"])
+        self.assertEqual(set(fields), {"model_name", "model_variant", "github_username", "paper_url",
+                         "code_availability", "training_code_url", "data_release", "evaluator_ref",
+                         "method_type", "tuning_protocol", "external_data_pretraining", "results", "notes", "confirmations"})
+        self.assertEqual(fields["results"]["attributes"]["render"], "csv")
+        self.assertIn("num_runs,hparam_trials", fields["results"]["attributes"]["placeholder"])
+        confirmations = fields["confirmations"]["attributes"]["options"]
+        self.assertEqual(len(confirmations), 6)
+        self.assertTrue(all(item.get("required") for item in confirmations))
 
-    def test_issue_form_requires_six_public_protocol_confirmations(self) -> None:
-        fields = {item.get("id"): item for item in self.form["body"] if item.get("id")}
-        options = fields["confirmations"]["attributes"]["options"]
-        self.assertEqual(len(options), 6)
-        self.assertTrue(all(option.get("required") is True for option in options))
-        labels = "\n".join(option["label"] for option in options).lower()
-        for concept in ("official graphland", "test labels", "information-access", "published", "self-reported", "secrets"):
-            self.assertIn(concept, labels)
-
-    def test_validation_workflow_covers_pr_merge_queue_and_main(self) -> None:
-        triggers = self.validate["on"]
-        self.assertIn("pull_request", triggers)
-        self.assertIn("merge_group", triggers)
-        self.assertEqual(triggers["push"]["branches"], ["main"])
-        runs = "\n".join(str(step.get("run", "")) for step in workflow_steps(self.validate))
-        self.assertIn("unittest discover -s tests/leaderboard", runs)
+    def test_required_validate_check_is_strict_for_pr_queue_and_main(self):
+        self.assertIn("ready_for_review", self.validate["on"]["pull_request"]["types"])
+        self.assertIn("merge_group", self.validate["on"])
+        self.assertEqual(self.validate["on"]["push"]["branches"], ["main"])
+        self.assertEqual(self.validate["jobs"]["validate"]["name"], "validate")
+        runs = "\n".join(step.get("run", "") for step in self.validate["jobs"]["validate"]["steps"])
+        self.assertNotIn("--allow-pending", runs)
         self.assertIn("scripts/leaderboard/validate.py", runs)
         self.assertEqual(runs.count("scripts/leaderboard/build.py"), 2)
         self.assertIn("diff -ruN --no-dereference", runs)
+        candidate = self.validate["jobs"]["candidate"]
+        self.assertIn("draft == true", candidate["if"])
+        self.assertIn("--allow-pending", "\n".join(step.get("run", "") for step in candidate["steps"]))
 
-    def test_issue_automation_is_label_gated_and_creates_only_a_draft_pr(self) -> None:
-        self.assertEqual(self.issue["on"]["issues"]["types"], ["labeled", "edited"])
-        job = self.issue["jobs"]["issue-to-pr"]
-        gate = str(job["if"])
-        self.assertIn("leaderboard-ready", gate)
-        self.assertIn("github.event.issue.pull_request == null", gate)
-        runs = "\n".join(str(step.get("run", "")) for step in job["steps"])
-        self.assertIn("scripts/leaderboard/issue_to_submission.py", runs)
-        self.assertIn("scripts/leaderboard/validate.py", runs)
-        self.assertIn("scripts/leaderboard/build.py", runs)
-        self.assertGreaterEqual(runs.count("--allow-pending"), 2)
-        self.assertIn("--draft", runs)
-        self.assertIn("Closes #${ISSUE_NUMBER}", runs)
-        self.assertNotRegex(runs, r"\bgh\s+pr\s+(?:merge|review)\b")
-
-    def test_issue_automation_uses_fixed_number_derived_branch_and_path(self) -> None:
-        env = self.issue["jobs"]["issue-to-pr"]["env"]
-        self.assertEqual(env["BRANCH_NAME"], "leaderboard/issue-${{ github.event.issue.number }}")
-        self.assertEqual(env["OUTPUT_FILE"], "leaderboard/submissions/issue-${{ github.event.issue.number }}.json")
-        runs = "\n".join(str(step.get("run", "")) for step in workflow_steps(self.issue))
-        self.assertIn('"${RUNNER_TEMP}/issue.json"', runs)
-        self.assertIn("--submissions-dir leaderboard/submissions", runs)
-
-    def test_issue_automation_never_interpolates_untrusted_issue_text_into_shell(self) -> None:
-        self.assertNotIn("pull_request_target", self.issue_path.read_text(encoding="utf-8"))
-        runs = "\n".join(str(step.get("run", "")) for step in workflow_steps(self.issue))
-        for untrusted in (
-            "github.event.issue.body",
-            "github.event.issue.title",
-            "github.event.issue.user.login",
-            "github.event.comment.body",
-        ):
-            self.assertNotIn(untrusted, runs)
-        self.assertIn("gh api", runs)
-        self.assertIn('> "${RUNNER_TEMP}/issue.json"', runs)
-
-    def test_issue_automation_rejects_fork_pr_branch_collisions(self) -> None:
-        runs = "\n".join(str(step.get("run", "")) for step in workflow_steps(self.issue))
-        self.assertIn("headRepositoryOwner", runs)
-        self.assertIn("isCrossRepository", runs)
-        self.assertIn('pull.get("isCrossRepository") is False', runs)
-        self.assertIn('pull.get("headRepositoryOwner", {}).get("login") == owner', runs)
-
-    def test_workflows_do_not_persist_checkout_credentials(self) -> None:
-        for path in (self.validate_path, self.issue_path, self.deploy_path):
-            document = load_yaml(path)
-            for step in workflow_steps(document):
-                if str(step.get("uses", "")).startswith("actions/checkout@"):
-                    with self.subTest(workflow=path.name):
-                        self.assertIs(step.get("with", {}).get("persist-credentials"), False)
-
-    def test_issue_push_receives_token_only_in_the_mutation_step(self) -> None:
-        job = self.issue["jobs"]["issue-to-pr"]
-        push_step = next(step for step in job["steps"] if step["name"] == "Commit and push validated submission")
-        self.assertEqual(push_step["env"]["GH_TOKEN"], "${{ github.token }}")
-        self.assertIn("https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git", push_step["run"])
-        checkout = next(step for step in job["steps"] if str(step.get("uses", "")).startswith("actions/checkout@"))
-        self.assertIs(checkout["with"]["persist-credentials"], False)
-
-    def test_workflow_permissions_are_explicit_and_scoped(self) -> None:
-        self.assertEqual(self.validate["permissions"], {"contents": "read"})
+    def test_candidate_read_permission_is_separated_from_mutation(self):
         self.assertEqual(self.issue["permissions"], {})
-        self.assertEqual(
-            self.issue["jobs"]["issue-to-pr"]["permissions"],
-            {"contents": "write", "pull-requests": "write", "issues": "write"},
-        )
-        self.assertEqual(self.deploy["permissions"], {})
-        self.assertEqual(self.deploy["jobs"]["build"]["permissions"], {"contents": "read"})
-        self.assertEqual(
-            self.deploy["jobs"]["deploy"]["permissions"],
-            {"pages": "write", "id-token": "write"},
-        )
+        candidate, mutation = self.issue["jobs"]["candidate"], self.issue["jobs"]["mutation"]
+        self.assertEqual(candidate["permissions"], {"contents": "read", "issues": "read", "pull-requests": "read"})
+        self.assertEqual(mutation["permissions"], {"contents": "write", "pull-requests": "write", "issues": "write"})
+        self.assertEqual(mutation["needs"], "candidate")
+        mutation_checkout = next(step for step in mutation["steps"] if step.get("uses", "").startswith("actions/checkout@"))
+        self.assertEqual(mutation_checkout["with"]["ref"], "main")
+        self.assertIn("github.event.issue.state == 'open'", candidate["if"])
+        self.assertIn("needs.candidate.result == 'success'", mutation["if"])
+        self.assertTrue(any("actions/upload-artifact@" in step.get("uses", "") for step in candidate["steps"]))
+        self.assertTrue(any("actions/download-artifact@" in step.get("uses", "") for step in mutation["steps"]))
+        for step in mutation["steps"]:
+            if "automation.py mutate" in step.get("run", ""):
+                self.assertEqual(step["env"]["GH_TOKEN"], "${{ github.token }}")
 
-    def test_pages_workflow_builds_and_deploys_official_static_artifact(self) -> None:
-        triggers = self.deploy["on"]
-        self.assertEqual(triggers["push"]["branches"], ["main"])
-        self.assertIn("workflow_dispatch", triggers)
-        self.assertEqual(self.deploy["concurrency"], {"group": "pages", "cancel-in-progress": False})
+    def test_issue_text_is_never_interpolated_into_shell_and_prs_are_not_merged(self):
+        raw = (ROOT / ".github/workflows/leaderboard-issue-to-pr.yml").read_text()
+        self.assertNotIn("pull_request_target", raw)
+        runs = "\n".join(step.get("run", "") for step in steps(self.issue))
+        for untrusted in ("github.event.issue.body", "github.event.issue.title", "github.event.issue.user.login", "github.event.comment.body"):
+            self.assertNotIn(untrusted, runs)
+        self.assertNotRegex(runs, r"\bgh\s+pr\s+(?:merge|review)\b")
+        self.assertIn("automation.py prepare", runs)
+        self.assertIn("automation.py mutate", runs)
+
+    def test_pages_has_named_explicit_rollback_and_three_freshness_guards(self):
+        self.assertEqual(self.deploy["on"]["push"]["branches"], ["main"])
+        inputs = self.deploy["on"]["workflow_dispatch"]["inputs"]
+        self.assertEqual(inputs["rollback"]["type"], "boolean")
+        self.assertFalse(inputs["rollback"]["default"])
+        self.assertEqual(inputs["rollback_sha"]["type"], "string")
         self.assertEqual(self.deploy["jobs"]["deploy"]["environment"]["name"], "github-pages")
-        steps = workflow_steps(self.deploy)
-        uses = [str(step.get("uses", "")) for step in steps]
-        self.assertFalse(any(value.startswith("actions/configure-pages@") for value in uses))
-        self.assertTrue(any(value.startswith("actions/upload-pages-artifact@") for value in uses))
-        self.assertTrue(any(value.startswith("actions/deploy-pages@") for value in uses))
-        runs = "\n".join(str(step.get("run", "")) for step in steps)
-        self.assertIn("unittest discover -s tests/leaderboard", runs)
-        self.assertIn("scripts/leaderboard/validate.py", runs)
-        self.assertIn("scripts/leaderboard/build.py --output _site", runs)
+        self.assertEqual(self.deploy["jobs"]["build"]["permissions"], {"contents": "read"})
+        self.assertEqual(self.deploy["jobs"]["deploy"]["permissions"], {"contents": "read", "pages": "write", "id-token": "write"})
+        runs = "\n".join(step.get("run", "") for step in steps(self.deploy))
+        for command in ("select-source", "build-info", "deploy-check"):
+            self.assertIn("automation.py " + command, runs)
         self.assertNotIn("--allow-pending", runs)
+        deploy_step = next(step for step in self.deploy["jobs"]["deploy"]["steps"] if step.get("id") == "deployment")
+        self.assertIn("freshness.outputs.outcome == 'current'", deploy_step["if"])
 
-    def test_workflow_dependency_installs_require_prebuilt_pinned_packages(self) -> None:
-        requirements = (ROOT / "requirements-leaderboard.txt").read_text(encoding="utf-8")
-        package_lines = [line for line in requirements.splitlines() if line and not line.startswith("#")]
-        self.assertTrue(package_lines)
-        self.assertTrue(all("==" in line for line in package_lines))
-        for path in (self.validate_path, self.issue_path, self.deploy_path):
-            document = load_yaml(path)
-            installs = [
-                str(step.get("run", ""))
-                for step in workflow_steps(document)
-                if "pip install" in str(step.get("run", ""))
-            ]
-            with self.subTest(workflow=path.name):
-                self.assertTrue(installs)
-                self.assertTrue(all("--only-binary=:all:" in command for command in installs))
-
-    def test_all_external_actions_are_pinned_to_full_commit_shas(self) -> None:
-        for path in (self.validate_path, self.issue_path, self.deploy_path):
-            document = load_yaml(path)
-            for step in workflow_steps(document):
-                action = step.get("uses")
-                if not action or str(action).startswith("./"):
+    def test_checkouts_do_not_persist_credentials_and_actions_are_sha_pinned(self):
+        for name, workflow in self.workflows.items():
+            for step in steps(workflow):
+                action = step.get("uses", "")
+                if not action:
                     continue
-                with self.subTest(workflow=path.name, action=action):
-                    self.assertRegex(str(action), r"^[^@\s]+@[0-9a-f]{40}$")
+                with self.subTest(workflow=name, action=action):
+                    self.assertRegex(action, r"^[^@\s]+@[0-9a-f]{40}$")
+                    if action.startswith("actions/checkout@"):
+                        self.assertIs(step["with"]["persist-credentials"], False)
+
+    def test_dependency_installs_require_hash_locked_binary_packages(self):
+        requirements = (ROOT / "requirements-leaderboard.txt").read_text()
+        self.assertIn("--require-hashes", requirements)
+        self.assertIn("--hash=sha256:", requirements)
+        declarations = re.findall(r"^([A-Za-z0-9_-]+)==([^\s]+)", requirements, re.MULTILINE)
+        self.assertTrue(declarations)
+        for name, workflow in self.workflows.items():
+            installs = [step["run"] for step in steps(workflow) if "pip install" in step.get("run", "")]
+            self.assertTrue(installs, name)
+            self.assertTrue(all("--only-binary=:all:" in command and "--require-hashes" in command for command in installs))
 
 
 if __name__ == "__main__":

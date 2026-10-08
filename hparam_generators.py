@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from itertools import product
+import math
 import optuna
 
 
@@ -48,7 +49,7 @@ class GridSearchHparamGenerator(BaseHparamGenerator):
 
 
 class OptunaHparamGenerator(BaseHparamGenerator):
-    """WIP. Optuna hyperparameter generator has not been tested yet."""
+    """Ask/tell hyperparameter search using the public experiment argument names."""
     lr_map = [1e-5, 2e-5, 3e-5, 5e-5, 7e-5, 1e-4, 2e-4, 3e-4, 5e-4, 7e-4, 1e-3, 2e-3, 3e-3, 5e-3, 7e-3, 1e-2]
 
     def __init__(self, args):
@@ -59,8 +60,9 @@ class OptunaHparamGenerator(BaseHparamGenerator):
         sampler = optuna.samplers.TPESampler(seed=0, n_startup_trials=10)
         study = optuna.create_study(sampler=sampler, direction='maximize')
 
-        if args.predefined_hparam_combs is not None:
-            for hparams in args.predefined_hparam_combs:
+        predefined = getattr(args, 'predefined_hparam_combs', None)
+        if predefined is not None:
+            for hparams in predefined:
                 if hparams.keys() != distributions.keys():
                     raise ValueError(
                         f'The set of predefined hparams {set(hparams.keys())} does not match the set of hparams to be '
@@ -71,7 +73,7 @@ class OptunaHparamGenerator(BaseHparamGenerator):
 
         self.study = study
         self.distributions = distributions
-        self.num_trials = args.num_trials
+        self.num_trials = args.num_optuna_trials
         self.cur_trial = None
 
         self.use_lr_map = (
@@ -91,7 +93,10 @@ class OptunaHparamGenerator(BaseHparamGenerator):
         return hparams
 
     def finish_trial(self, val_metric):
-        self.study.tell(trial=self.cur_trial, values=val_metric)
+        if val_metric is None or not math.isfinite(val_metric):
+            self.study.tell(trial=self.cur_trial, state=optuna.trial.TrialState.FAIL)
+        else:
+            self.study.tell(trial=self.cur_trial, values=val_metric)
 
 
 def get_hparam_generator(args):

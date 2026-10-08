@@ -1,7 +1,8 @@
 name: Leaderboard validation
 
 "on":
-  pull_request: {}
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
     types: [checks_requested]
   push:
@@ -13,9 +14,7 @@ name: Leaderboard validation
       - tests/leaderboard/**
       - requirements-leaderboard.txt
       - .github/ISSUE_TEMPLATE/leaderboard-submission.yml
-      - .github/workflows/leaderboard-validate.yml
-      - .github/workflows/leaderboard-issue-to-pr.yml
-      - .github/workflows/deploy-pages.yml
+      - .github/workflows/**
   workflow_dispatch: {}
 
 permissions:
@@ -26,6 +25,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  candidate:
+    name: candidate
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout draft merge candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install hash-locked leaderboard dependencies
+        run: "python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-leaderboard.txt"
+      - name: Validate pending draft data
+        run: python scripts/leaderboard/validate.py --allow-pending
+      - name: Build pending draft preview
+        run: python scripts/leaderboard/build.py --allow-pending --output "${RUNNER_TEMP}/draft-site"
+
   validate:
     name: validate
     runs-on: ubuntu-24.04
@@ -35,26 +55,19 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
-
-      - name: Install leaderboard dependencies
-        run: "python -m pip install --disable-pip-version-check --only-binary=:all: -r requirements-leaderboard.txt"
-
-      - name: Run leaderboard unit tests
+      - name: Install hash-locked leaderboard dependencies
+        run: "python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-leaderboard.txt"
+      - name: Run leaderboard unit and lifecycle tests
         run: python -m unittest discover -s tests/leaderboard -v
-
-      - name: Validate leaderboard data
+      - name: Validate publication data
         run: python scripts/leaderboard/validate.py
-
       - name: Build first deterministic artifact
         run: python scripts/leaderboard/build.py --output "${RUNNER_TEMP}/site-a"
-
       - name: Build second deterministic artifact
         run: python scripts/leaderboard/build.py --output "${RUNNER_TEMP}/site-b"
-
       - name: Compare build artifacts
         run: diff -ruN --no-dereference "${RUNNER_TEMP}/site-a" "${RUNNER_TEMP}/site-b"

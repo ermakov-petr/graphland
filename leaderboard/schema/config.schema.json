@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "site", "default_filters", "task_families", "settings"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "site": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "base_path", "repository_url", "submission_url", "release", "license"],
+      "properties": {
+        "title": {"$ref": "#/$defs/text"}, "base_path": {"const": "/graphland/"},
+        "repository_url": {"$ref": "#/$defs/url"}, "submission_url": {"$ref": "#/$defs/url"},
+        "release": {"const": "v1"}, "license": {"const": "Apache-2.0"}
+      }
+    },
+    "default_filters": {
+      "type": "object", "additionalProperties": false, "required": ["only_models_with_code"],
+      "properties": {"only_models_with_code": {"type": "boolean"}}
+    },
+    "task_families": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "label", "metric", "metric_label"],
+        "properties": {"id": {"$ref": "#/$defs/text"}, "label": {"$ref": "#/$defs/text"}, "metric": {"$ref": "#/$defs/text"}, "metric_label": {"$ref": "#/$defs/text"}}
+      }
+    },
+    "settings": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "name", "split_file", "information_access", "train_percent", "validation_percent", "test_percent", "description"],
+        "properties": {
+          "id": {"enum": ["RL", "RH", "TH", "THI"]}, "name": {"$ref": "#/$defs/text"},
+          "split_file": {"$ref": "#/$defs/text"}, "information_access": {"enum": ["transductive", "inductive"]},
+          "train_percent": {"$ref": "#/$defs/percentage"}, "validation_percent": {"$ref": "#/$defs/percentage"}, "test_percent": {"$ref": "#/$defs/percentage"},
+          "description": {"$ref": "#/$defs/text"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "url": {"type": "string", "format": "uri", "maxLength": 500},
+    "percentage": {"type": "integer", "minimum": 0, "maximum": 100}
+  }
+}

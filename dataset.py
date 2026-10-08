@@ -816,7 +816,7 @@ class Dataset:
             edge_index = pyg.utils.to_undirected(edge_index)
 
         if add_self_loops:
-            edge_index = pyg.utils.add_self_loops(edge_index)
+            edge_index = pyg.utils.add_self_loops(edge_index, num_nodes=num_nodes)[0]
 
         return edge_index
 
@@ -831,7 +831,7 @@ class Dataset:
         edges = np.array([
             (old_node_id_to_new_node_id[u], old_node_id_to_new_node_id[v]) for u, v in edges
             if u in nodes_to_keep and v in nodes_to_keep
-        ])
+        ], dtype=np.int64).reshape(-1, 2)
 
         return edges
 
@@ -977,6 +977,12 @@ class PyGDataset:
         self.transductive = dataset.transductive
         self.task = dataset.task
         self.data_list = data_list
+        self.regression_targets_transform = getattr(dataset, 'regression_targets_transform', None)
+        if dataset.task == 'regression':
+            raw_targets = ([dataset.targets_orig] if dataset.transductive else
+                           [dataset.train_targets_orig, dataset.val_targets_orig, dataset.test_targets_orig])
+            for data, targets_orig in zip(self.data_list, raw_targets):
+                data.y_raw = torch.as_tensor(targets_orig, device=device)
 
     def __getitem__(self, item):
         return self.data_list[item]
@@ -992,3 +998,26 @@ class PyGDataset:
         self.data_list = [data.to(device) for data in self.data_list]
 
         return self
+
+    def inverse_predictions(self, predictions):
+        """Convert regression predictions to the published target scale without refitting."""
+        if self.task != 'regression':
+            raise ValueError('inverse_predictions is only available for regression datasets.')
+        values = predictions.detach().cpu().numpy() if torch.is_tensor(predictions) else np.asarray(predictions)
+        return self.regression_targets_transform.inverse_transform(values.reshape(-1, 1)).reshape(-1)
+
+    def compute_regression_metric(self, predictions, snapshot=0, mask=None):
+        """Canonical raw-space R² on the snapshot's mask (test by default for RL/RH/TH)."""
+        if self.task != 'regression':
+            raise ValueError('compute_regression_metric is only available for regression datasets.')
+        data = self.data_list[snapshot]
+        targets = data.y_raw.detach().cpu().numpy()
+        preds = self.inverse_predictions(predictions)
+        if mask is None:
+            mask_name = f'{data.snapshot}_mask' if not self.transductive else 'test_mask'
+            mask = getattr(data, mask_name, None)
+            if mask is None:
+                raise ValueError('Provide an evaluation mask for this snapshot.')
+        mask = mask.detach().cpu().numpy() if torch.is_tensor(mask) else np.asarray(mask)
+        targets, preds = targets[mask], preds[mask]
+        return float(r2_score(y_true=targets, y_pred=preds))

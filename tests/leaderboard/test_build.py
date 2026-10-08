@@ -5,9 +5,13 @@ import hashlib
 import json
 import tempfile
 import unittest
+import os
+import zipfile
+from unittest import mock
+from xml.etree import ElementTree as ET
 from pathlib import Path
 
-from support import DEMO_SUBMISSIONS, ROOT, load_json, load_module, valid_submission
+from support import DEMO_SUBMISSIONS, ROOT, load_json, load_module, valid_submission, valid_v2_submission
 
 
 def tree_digest(root: Path) -> dict[str, str]:
@@ -19,6 +23,86 @@ def tree_digest(root: Path) -> dict[str, str]:
 
 
 class BuildTests(unittest.TestCase):
+    def test_source_overlap_and_unowned_output_are_refused_without_mutation(self) -> None:
+        for output in (ROOT, ROOT.parent, ROOT / "site", ROOT / "leaderboard", ROOT / ".git", ROOT / "site/nested"):
+            with self.assertRaisesRegex(self.build.LeaderboardValidationError, "unsafe build output"):
+                self.build._safe_output_path(output)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "unrelated"
+            output.mkdir()
+            sentinel = output / "user.txt"
+            sentinel.write_text("preserve")
+            with self.assertRaisesRegex(self.build.LeaderboardValidationError, "unowned"):
+                self.build._safe_output_path(output)
+            self.assertEqual(sentinel.read_text(), "preserve")
+            copied_root = root / "repo"
+            with self.assertRaisesRegex(self.build.LeaderboardValidationError, "unsafe"):
+                self.build._safe_output_path(copied_root / "site", root=copied_root)
+            self.assertEqual(self.build._safe_output_path(copied_root / "_site", root=copied_root), (copied_root / "_site").resolve())
+
+    def test_staged_write_and_swap_failures_preserve_last_good_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            submissions = root / "submissions"
+            submissions.mkdir()
+            output = root / "output"
+            output.mkdir()  # A caller may supply an initially empty directory.
+            self.build.build_site(output, submissions_dir=submissions)
+            before = tree_digest(output)
+            with mock.patch.object(self.build.shutil, "copy2", side_effect=OSError("write failed")):
+                with self.assertRaisesRegex(OSError, "write failed"):
+                    self.build.build_site(output, submissions_dir=submissions)
+            self.assertEqual(tree_digest(output), before)
+            real_replace = os.replace
+            def fail_staged_swap(source, target):
+                if ".build-" in Path(source).name:
+                    raise OSError("swap failed")
+                return real_replace(source, target)
+            with mock.patch.object(self.build.os, "replace", side_effect=fail_staged_swap):
+                with self.assertRaisesRegex(OSError, "swap failed"):
+                    self.build.build_site(output, submissions_dir=submissions)
+            self.assertEqual(tree_digest(output), before)
+            self.assertEqual(sorted(path.name for path in root.iterdir()), ["output", "submissions"])
+            self.build.build_site(output, submissions_dir=submissions)
+            self.assertEqual(tree_digest(output), before)
+
+    def test_xlsx_keeps_formula_like_text_as_strings_and_metrics_numeric(self) -> None:
+        submission = valid_submission()
+        submission.update(model_name="=1+1", model_variant="+SUM(1,2)")
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "leaderboard.xlsx"
+            self.build.write_xlsx(target, [submission], self.datasets_by_id)
+            with zipfile.ZipFile(target) as archive:
+                self.assertIsNone(archive.testzip())
+                document = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
+                ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+                self.assertEqual(document.findall(".//s:f", ns), [])
+                model = document.find(".//s:c[@r='B2']", ns)
+                variant = document.find(".//s:c[@r='C2']", ns)
+                self.assertEqual(model.get("t"), "inlineStr")
+                self.assertEqual(model.find("s:is/s:t", ns).text, "=1+1")
+                self.assertEqual(variant.find("s:is/s:t", ns).text, "+SUM(1,2)")
+                score = document.find(".//s:c[@r='H2']", ns)
+                self.assertNotEqual(score.get("t"), "inlineStr")
+                self.assertEqual(float(score.find("s:v", ns).text), 0.8123)
+
+    def test_v2_exports_effective_counts_without_inventing_unknown_budgets(self) -> None:
+        submission = valid_v2_submission()
+        rows = self.build.csv_rows([submission], self.datasets_by_id)
+        by_dataset = {row["dataset"]: row for row in rows}
+        self.assertEqual(by_dataset["hm-categories"]["num_runs"], 10)
+        self.assertEqual(by_dataset["web-fraud"]["num_runs"], 5)
+        self.assertEqual(by_dataset["web-fraud"]["hparam_trials"], "")
+        normalized = self.build.normalized_submissions([valid_submission(), submission])
+        self.assertEqual(normalized[0]["results"][0]["num_runs"], 3)
+        self.assertEqual(normalized[0]["results"][0]["hparam_trials"], 4)
+        self.assertNotIn("hparam_trials", normalized[1]["results"][1])
+        self.assertNotIn("num_runs", valid_submission()["results"][0])
+
+    def test_json_serializer_refuses_nonstandard_numeric_constants(self) -> None:
+        with self.assertRaisesRegex(self.build.LeaderboardValidationError, "non-finite"):
+            self.build._json_bytes({"value": float("inf")})
     @classmethod
     def setUpClass(cls) -> None:
         cls.build = load_module("leaderboard_build_tests", "scripts/leaderboard/build.py")
@@ -121,6 +205,8 @@ class BuildTests(unittest.TestCase):
                 "assets/app.js",
                 "data/leaderboard.json",
                 "leaderboard.csv",
+                "leaderboard.xlsx",
+                ".graphland-build.json",
                 "schema/submission.schema.json",
             }
             actual = {str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()}

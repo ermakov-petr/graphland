@@ -1,301 +1,146 @@
 # GraphLand Leaderboard
 
-The GraphLand Leaderboard is a fully static, version-controlled leaderboard for the 14 official GraphLand datasets. It has no backend, database, CMS, runtime GitHub API calls, analytics, or cookies. Researchers submit results through a public GitHub Issue Form; maintainers review the public issue and explicitly opt it into automation; an approved and merged JSON submission is then included in the next GitHub Pages deployment.
+A static, version-controlled leaderboard for the 14 official GraphLand datasets. Submission JSON is the source of truth; CSV, XLSX and browser data are generated. The site has no runtime GitHub API calls, database, analytics or cookies.
 
-Review verifies the submitted format and declared protocol. It is not an independent reproduction unless the entry is explicitly marked `reproduced`. GraphLand has no hidden test set: targets and fixed split masks are part of the public dataset release. Issues, draft pull requests, and their discussions are public, so submissions must not contain secrets or confidential data.
+Production seeds are published ResMLP, GraphSAGE and CatBoost results from [arXiv v5](https://arxiv.org/abs/2409.14500v5): 130 numerical cells from Tables 2, 5, 6 and 7. They are source transcriptions, not independent reruns. [sources/paper-v5.json](sources/paper-v5.json) retains the exact source table, original cell, canonical value, seed count and source SHA-256. TLE/MLE/RTE cells are omitted; they are never scored as zero. The original experiment commit is not reported and is explicitly described as unknown in evaluator_ref. Synthetic examples live only under tests/leaderboard/fixtures/demo_submissions.
 
-The production data directory may temporarily contain clearly labelled `demo-*.json`
-entries for public UI QA. Their numbers are synthetic, are not benchmark claims, and
-are derived from the canonical fixtures under `tests/leaderboard/fixtures/`. They are
-ordinary data files rather than a site mode or configuration flag, so removing them
-restores an empty leaderboard without changing application code or configuration.
+## Local build and checks
 
-## Architecture
+Python 3.9+ works for the static leaderboard. Use Python 3.11 for the CPU research-code environment.
 
-The repository has one source of truth for each kind of data:
-
-- `leaderboard/config.json` defines site configuration, task families, display labels, and the four settings.
-- `leaderboard/datasets.json` defines the fixed 14-dataset catalog, canonical metric for each dataset, setting availability, display formatting, source, release, and license.
-- `leaderboard/schema/submission.schema.json` defines the portable JSON structure for one model submission.
-- `leaderboard/submissions/*.json` stores one reviewed submission per file. CSV is never edited as source data.
-- `site/` contains the static HTML, CSS, JavaScript, and favicon.
-- `scripts/leaderboard/validate.py` performs JSON Schema and semantic validation.
-- `scripts/leaderboard/build.py` validates the repository and creates the complete `_site/` artifact, including frontend data, canonical long-form CSV, the public schema, and `.nojekyll`.
-- `scripts/leaderboard/issue_to_submission.py` converts the constrained Issue Form body into one submission object. It treats all issue text as untrusted data.
-- `tests/leaderboard/` contains standard-library `unittest` coverage and fixtures.
-- `.github/workflows/leaderboard-validate.yml` validates pull requests and relevant pushes.
-- `.github/workflows/leaderboard-issue-to-pr.yml` creates or updates one label-gated draft pull request per issue.
-- `.github/workflows/deploy-pages.yml` builds and deploys the Pages artifact from `main`.
-
-Generated output belongs in `_site/` and is ignored by Git. Every public asset and data reference is relative so the site works at the project Pages base path `/graphland/`.
-
-## Local setup and checks
-
-Python 3.9 or newer is recommended.
-
-```bash
+~~~sh
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements-leaderboard.txt
-```
+python -m pip install -r requirements-leaderboard.txt
+python scripts/leaderboard/validate.py
+python -m unittest discover -s tests/leaderboard -p 'test_*.py' -v
+python scripts/leaderboard/build.py --output _site
+python -m http.server 8000 --directory _site
+~~~
 
-Validate metadata and every committed submission:
+The portable wheel lock includes every allowed wheel SHA-256 and enables --require-hashes and --only-binary=:all:. To review dependency updates, edit requirements-leaderboard.in and run scripts/leaderboard/lock_requirements.py with network access; commit the reviewed input and generated lock together. CI installs the checked-in lock, never regenerates it.
 
-```bash
-python3 scripts/leaderboard/validate.py
-```
+The output must be absent, empty, or carry the builder-owned .graphland-build.json marker. Source directories, their ancestors, .git, agent directories and an explicitly selected submissions directory cannot be output targets. A legacy nonempty _site without the marker is refused: use a fresh output path and deliberately remove the old artifact after inspection. A sibling staging directory is built before replacement; write or swap failure preserves/restores the prior good artifact.
 
-Run the complete test suite:
+For opt-in local synthetic UI QA:
 
-```bash
-python3 -m unittest discover -s tests/leaderboard -p 'test_*.py' -v
-```
-
-Build the deterministic Pages artifact:
-
-```bash
-python3 scripts/leaderboard/build.py --output _site
-```
-
-### Demo submissions and public QA
-
-The repository includes four explicitly synthetic submissions for local UI and
-Browser QA. They exercise all settings and task families, missing and unavailable
-cells, negative R², code filtering, and the main provenance and verification
-badges. They are not benchmark claims. The fixture directory remains the canonical
-test source and is read only when passed explicitly to the build command below.
-
-Build the opt-in demo artifact:
-
-```bash
-python3 scripts/leaderboard/build.py \
-  --allow-pending \
-  --output _site \
+~~~sh
+python scripts/leaderboard/build.py --allow-pending --output _site-demo \
   --submissions-dir tests/leaderboard/fixtures/demo_submissions
-```
+~~~
 
-For temporary public QA, reviewed derivatives can be committed as
-`leaderboard/submissions/demo-*.json`. Because the ordinary production build reads
-that directory, those files then appear on GitHub Pages. Keep the `demo-` IDs and
-the explicit synthetic/non-benchmark notices so they cannot be confused with real
-results.
+Demo records retain their explicit synthetic/non-benchmark notices and display a local Synthetic demo badge. They may exercise review/reproduction UI states but are never scientific evidence.
 
-To end the public demo, remove only those tracked data files:
+For browser behavior and scientific CPU checks use a separate environment:
 
-```bash
-git rm -- 'leaderboard/submissions/demo-*.json'
-```
+~~~sh
+python3.11 -m venv .venv-qa
+. .venv-qa/bin/activate
+python -m pip install -r requirements-leaderboard.txt
+python -m pip install -r requirements-core-test.txt -r requirements-browser-test.txt
+python -m playwright install chromium
+python -m unittest discover -s tests/core -v
+python -m unittest discover -s tests/browser -v
+~~~
 
-Then run validation, tests, and the ordinary build before committing and pushing
-the removal. No code, workflow, fixture, schema, or configuration edit is needed;
-the next Pages deployment will publish an empty leaderboard if no real submissions
-have been added.
+The browser suite builds fixture data and starts its own local server. It checks real Chromium interactions, keyboard focus, dialogs, URL/history, filters, loading recovery and viewport overflow. The CPU suite tests tiny fixtures; neither suite reproduces the full GPU benchmark.
 
-For a quick local preview, serve `_site/` directly and open `http://localhost:8000/`:
+## Files and contracts
 
-```bash
-python3 -m http.server 8000 --directory _site
-```
+- config.json: site labels, task families and settings, validated against schema/config.schema.json.
+- datasets.json: the fixed dataset catalog, canonical metric, release, availability and formatting, validated against schema/datasets.schema.json.
+- schema/submission.schema.json: public v1/v2 submission structure.
+- submissions/*.json: one reviewed model record per file, safe filename exactly matching its id.
+- sources/paper-v5.json: attributable paper seed evidence.
+- scripts/leaderboard/common.py: strict JSON, finite numbers, URL and display-text policy.
+- scripts/leaderboard/validate.py: structural and semantic validation.
+- scripts/leaderboard/build.py: staged static build, normalized per-result metadata and deterministic exports.
+- scripts/leaderboard/issue_to_submission.py: constrained form parsing; all issue text is untrusted data.
+- scripts/leaderboard/automation.py: trusted lifecycle, ownership, handover and deployment freshness checks.
+- site/: relative-path HTML/CSS/JavaScript assets for project Pages /graphland/.
 
-To exercise the exact production base path, serve a temporary parent directory and open `http://localhost:8000/graphland/`:
+## Canonical metrics and information access
 
-```bash
-preview_root="$(mktemp -d)"
-cp -R _site "$preview_root/graphland"
-python3 -m http.server 8000 --directory "$preview_root"
-```
-
-Stop the server with `Ctrl-C` and remove the temporary preview directory afterward.
-
-## Dataset catalog and canonical metrics
-
-The benchmark is fixed at 14 datasets in three task families:
-
-| Task family | Canonical metric | Dataset IDs |
+| Task | Metric | Dataset IDs |
 | --- | --- | --- |
-| Multiclass node classification | Accuracy | `hm-categories`, `pokec-regions`, `web-topics` |
-| Binary node classification | AP (Average Precision) | `tolokers-2`, `city-reviews`, `artnet-exp`, `web-fraud` |
-| Node regression | R² (coefficient of determination) | `hm-prices`, `avazu-ctr`, `city-roads-M`, `city-roads-L`, `twitch-views`, `artnet-views`, `web-traffic` |
+| Multiclass classification | Accuracy | hm-categories, pokec-regions, web-topics |
+| Binary classification | AP | tolokers-2, city-reviews, artnet-exp, web-fraud |
+| Regression | R² | hm-prices, avazu-ctr, city-roads-M, city-roads-L, twitch-views, artnet-views, web-traffic |
 
-These are described as recommended metrics in the dataset release and are canonical for this leaderboard. Higher is better for all three metrics. There is no aggregate score, overall rank, or `All` task table; results with different metrics are never combined.
+Higher is better. There is no aggregate rank across different metrics. Accuracy/AP are raw [0,1] fractions, displayed as percentages; R² is a finite raw coefficient at most 1 and has no arbitrary lower bound. Paper tables display all metrics at 100 times their canonical scale, including R²: 62.66 becomes 0.6266. Deviations use the same conversion.
 
-Accuracy and AP are stored on their canonical `[0, 1]` scale and formatted as percentages only for display. R² is stored as the raw coefficient and is not multiplied by 100; valid R² values may be negative. The reference metric accepts raw negative R². However, the current reference training loops initialize the best validation score to zero, so they may fail to retain a checkpoint if every validation R² is negative. This leaderboard follows the metric definition and accepts every finite R² value; submitters must ensure their own checkpoint selection handles negative validation scores correctly.
+std is sample standard deviation (ddof=1); it needs at least two successful runs. Omit it when unavailable. Counts describe successful contributing runs, while research logs retain attempted/failed run details. The training code starts checkpoint selection at negative infinity, checks finite metrics and excludes failed runs/trials. --min_successful_runs declares the eligibility threshold before execution; it does not increase the attempt budget or manufacture a score.
 
-When results from multiple runs or seeds are summarized, `std` means the sample standard deviation used by the official logger (`ddof=1`, with an `n-1` denominator). It is stored in the same raw scale as the corresponding value and must be finite and non-negative. Omit the `std` field when a standard deviation is unavailable; do not invent one or convert classification deviations to percentage points in the JSON.
-
-For example, this schema-only fragment demonstrates the optional standard-deviation field; it is not a claimed GraphLand result:
-
-```json
-{
-  "setting": "RL",
-  "dataset": "hm-categories",
-  "value": 0.8123,
-  "std": 0.0041
-}
-```
-
-The UI would display that Accuracy using the dataset's percentage formatting. Omitting `std` displays only the mean.
-
-The dataset release is Zenodo version `v1`, DOI [`10.5281/zenodo.16895532`](https://doi.org/10.5281/zenodo.16895532), licensed under Apache-2.0. That is the dataset license recorded in `datasets.json`; the research code repository itself uses the MIT license.
-
-## Experimental settings
-
-| Setting | Split file | Information access | Train / validation / test |
+| Setting | Split masks | Visibility | Train / validation / test |
 | --- | --- | --- | --- |
-| RL — Random Low | `split_masks_RL.csv` | Transductive | Random stratified 10% / 10% / 80% |
-| RH — Random High | `split_masks_RH.csv` | Transductive | Random stratified 50% / 25% / 25% |
-| TH — Temporal High | `split_masks_TH.csv` | Transductive | Temporal 50% / 25% / 25% |
-| THI — Temporal High, inductive | `split_masks_TH.csv` | Inductive | The same temporal 50% / 25% / 25% split as TH |
+| RL | split_masks_RL.csv | transductive | stratified 10% / 10% / 80% |
+| RH | split_masks_RH.csv | transductive | stratified 50% / 25% / 25% |
+| TH | split_masks_TH.csv | transductive | temporal 50% / 25% / 25% |
+| THI | split_masks_TH.csv | inductive | same temporal membership as TH |
 
-In the transductive settings, the full graph is available and train, validation, and test masks select the labeled nodes used at each stage.
+THI is an information-access setting, not a fourth split file. Training sees only TH train nodes and edges; validation sees train+validation; test sees the full graph. Every fitted encoder, imputer, feature/target transform uses training data only in THI and is then applied without refitting to later snapshots. Intersect masks with labeled nodes. Test labels never select checkpoints, hyperparameters or models. Regression evaluation must invert the fitted target transform to the original scale; PyGDataset exposes y_raw, inverse_predictions and compute_regression_metric for this purpose.
 
-THI is a leaderboard setting and information-access protocol, not a fourth split file. The official evaluator handles `THI` by selecting the TH masks and switching to inductive preprocessing. Do not create, document, or read `split_masks_THI.csv`.
+TH/THI are unavailable for city-reviews, city-roads-M, city-roads-L and web-traffic. They display N/A and validation rejects submitted values. Supported but missing cells display —. A table slice with no submitted values explains its coverage rather than showing an all-dash ranking.
 
-The evaluator constructs THI snapshots as follows:
+The dataset release is v1, [Zenodo DOI 10.5281/zenodo.16895532](https://doi.org/10.5281/zenodo.16895532), Apache-2.0. The repository code uses MIT.
 
-1. The training graph is the subgraph induced by nodes in the TH train mask. Validation and test nodes and their incident edges are absent.
-2. The validation graph is the subgraph induced by nodes in the TH train or validation masks. Test nodes and their incident edges are absent.
-3. The test graph is the full graph.
-4. Categorical encoding, regression-target transforms, numerical/fraction feature transforms, and imputers in the inductive preprocessing path are fitted on training data and then applied to later snapshots.
-5. Labels are intersected with the labeled-node mask before loss or metric computation.
+## Submission schema v2
 
-Thus TH and THI use identical temporal membership but different graph information. Models must not use validation or test information earlier than the selected protocol permits, and test labels must not be used for training, tuning, checkpoint selection, or model selection.
+The new Issue Form emits schema_version 2.0. Existing valid v1 records and legacy Issue bodies remain supported. v1 retains graphland_ref and global counts; the builder copies those effective counts into generated rows without rewriting source JSON. v2 separates data_release (currently v1) from evaluator_ref, an exact evaluator commit/tag or an honest attributable protocol reference when the original commit is unreported.
 
-Every dataset supports RL and RH. TH and THI are both unavailable for `city-reviews`, `city-roads-M`, `city-roads-L`, and `web-traffic`; the UI shows these combinations as `N/A`, and validation rejects them. The remaining ten datasets support all four settings. A missing result in an otherwise supported combination is displayed as `—`.
+Each v2 result contains setting,dataset,value,num_runs with optional std,hparam_trials. Budget is per result because preprocessing/model grids vary by dataset and setting. An omitted hparam_trials means unknown, not zero. For in_context, any supplied budget must be zero. Example (schema illustration, not a benchmark claim):
 
-## Submission JSON
+~~~json
+{"setting":"RL","dataset":"hm-categories","value":0.8123,"std":0.0041,"num_runs":10,"hparam_trials":30}
+~~~
 
-Each submission is a separate UTF-8 JSON file under `leaderboard/submissions/`. Its safe filename must equal `<id>.json`. Use a lowercase, hyphenated stable ID, or the automation-owned `issue-<number>` form. Do not derive paths from model names, variants, URLs, or other user-provided text.
+Model, variant, paper/code availability, submitter, provenance, source issue, method/tuning, external-data disclosure, submission date, review and notes remain required. Closed or unavailable training code is allowed: use code_availability unavailable and training_code_url null. The public schema rejects unknown properties; task/metric are derived from the catalog.
 
-The JSON Schema is the structural contract. Semantic validation additionally checks canonical datasets/settings, metric ranges, finite numbers, result uniqueness, URL policy, dates, review state, code availability, and cross-field rules. A submission may contain any non-empty subset of supported dataset/setting results; partial submissions are expected.
+source_issue is a positive integer for author_submission and v1. An approved v2 maintainer_seeded paper record can explicitly use null when no source issue exists. Never invent an issue or experiment commit.
 
-Important fields include:
+provenance describes introduction (author_submission or maintainer_seeded). verification describes evidence (self_reported or reproduced). approved review records format/declared-protocol review and requires an actual repository reviewer handle/date; it does not imply an independent reproduction. A real reproduced record additionally needs reproduction with HTTPS evidence_url, evaluator_ref, reproduced_by and reproduced_at. Link actual run logs/configuration/results. Validation checks this declared evidence contract; it cannot prove the experiment occurred.
 
-- Model name and variant/version.
-- Paper URL and training-code availability/URL.
-- Submitter, provenance (`author_submission` or `maintainer_seeded`), and source issue.
-- GraphLand release, tag, or commit used.
-- Method type (`trained` or `in_context`), tuning protocol, hyperparameter-trial count, and run/seed count.
-- External data or pretraining disclosure.
-- Submission date, verification state, review metadata, and notes.
-- Results containing only `setting`, `dataset`, `value`, and optional `std`; task and metric are derived from `datasets.json`.
+JSON rejects duplicate keys at any depth, nonstandard/overflow/nonfinite numbers, illegal URL ports/credentials and invalid UTF-8 surrogate codepoints. Display text is NFC; controls, zero-width space, BOM, bidi controls, word joiner and soft hyphen are rejected. ZWNJ/ZWJ remain available for legitimate language joining and emoji sequences. Names/variants cannot contain line/tab separators.
 
-For in-context learning, `hparam_trials` must be `0`. Closed models and models without published training code are permitted, but must use `code_availability: "unavailable"` and `training_code_url: null` so that the UI can label them accurately.
+## Downloads and browser state
 
-To add a reviewed submission manually:
+leaderboard.xlsx is the primary spreadsheet download: text uses explicit OOXML string cells, numerical metrics remain numerical and no formula XML is generated. It safely preserves names beginning with formula characters. leaderboard.csv is the canonical programmatic export; do not treat arbitrary CSV text as safe for spreadsheet formula evaluation. Both exports use effective per-result counts and leave unknown budgets empty.
 
-1. Create `leaderboard/submissions/<id>.json` using the public schema.
-2. Include only real, attributable results; do not add demonstrations or estimated numbers.
-3. Run validation, tests, and a full build.
-4. Inspect `_site/data/leaderboard.json`, `_site/leaderboard.csv`, and the local site.
-5. Open a pull request for manual review.
+The stable CSV column order is submission_id,model_name,model_variant,setting,task,dataset,metric,value,std,num_runs,method_type,hparam_trials,code_availability,paper_url,code_url,provenance,verification,submitted_at,source_issue.
 
-## CSV generation
+The URL carries setting,task,q,code,sort,order,submission so a filtered view or result dialog can be shared. Back/Forward restores state. Failed data loads offer Retry and a canonical CSV fallback. Mobile menu and dialogs contain keyboard focus; resize closes the menu and restores the page at the same 768px breakpoint used in CSS.
 
-`leaderboard.csv` is generated during every build from the validated submission JSON files. It is a canonical long-form artifact, not a second editable data source. Task and metric values are joined from `datasets.json`, preventing submitters from relabeling results.
+## Public Issue lifecycle and manual handover
 
-The stable column order is:
+1. A researcher opens the public Issue Form and accepts the protocol confirmations. Rows use setting,dataset,value,std,num_runs,hparam_trials; an empty std or budget is allowed.
+2. A maintainer with current write/maintain/admin permission reviews the exact current body/title and freshly adds leaderboard-ready. Opening an issue or editing it does not generate a candidate.
+3. The read-only job checks current source, permission and snapshot, parses bounded input and produces a manifest plus JSON artifact. Pending candidates are accepted for these checks; they remain unpublishable.
+4. The mutation job checks the bounded artifact and re-fetches the issue, trusted label actor, current main and remote branch. Only after revalidation does it update leaderboard/issue-<number> and its one draft PR. It writes no unrelated files, never executes submitted code and never fetches submitted URLs.
+5. A trusted bot marker binds issue snapshot, generated JSON hash and branch head. Exact bot ownership plus a force-with-lease guard is required for updates. Prepared/generated states allow recovery when push succeeds but PR creation fails.
+6. Successful conversion consumes leaderboard-ready. Any revision requires a fresh maintainer review and removal/re-addition of the label. Closing an issue, obsolete events and ordinary races terminate neutrally. Repeated equivalent conversion errors use deduplicated notices.
+7. Any manual JSON/branch change, approved/reproduced record or PR made ready for review freezes automation. Human review metadata and changed scientific results are never overwritten or carried forward. Continue edits in the PR; use a new submission/review if its results change.
+8. A human reviewer records approved metadata, checks declared evidence and merges through required CI/review. Automation never approves or merges. Strict main validation refuses pending records.
 
-```text
-submission_id,model_name,model_variant,setting,task,dataset,metric,value,std,num_runs,method_type,hparam_trials,code_availability,paper_url,code_url,provenance,verification,submitted_at,source_issue
-```
+A PR generated with GITHUB_TOKEN can create approval-required workflow runs on opened/synchronize/reopened events. Check the actual Actions run and approve it when GitHub requires a trusted maintainer; do not assume that the absence of a check is success. Candidate CI accepts pending records to test the draft. Publication CI remains strict. A trusted manual event can rerun validation if a generated event is suppressed.
 
-An omitted standard deviation or unavailable code URL is represented by an empty CSV field. Builds sort submissions and results deterministically.
+## GitHub enforcement and deployment
 
-## Public Issue to draft pull request
+CODEOWNERS names the confirmed owner @ermakov-petr for leaderboard data, tools, UI and workflows. Repository settings must enforce required PR review, stale-review dismissal, conversation resolution and the validate status check on main, including administrators; no force push or deletion. A CODEOWNERS file alone does not enable these controls. The bootstrap implementation and enforcement evidence are retained in outputs/implementation-2026-10-08.
 
-The public workflow is deliberately label-gated:
+Actions needs permission to create draft PRs; the shared GitHub setting also controls whether Actions may approve PRs. Do not disable it blindly and break generation. Branch rules and human review provide the enforcement boundary. Pages uses GitHub Actions and the github-pages environment restricted to main; add required environment reviewers when the real deployment-review team is established.
 
-1. A researcher opens the `leaderboard-submission.yml` Issue Form.
-2. The researcher supplies model metadata and rows in `setting,dataset,value,std` format and accepts all protocol/publication confirmations.
-3. A maintainer reviews the issue and adds the `leaderboard-ready` label only when it is ready for conversion.
-4. The issue workflow parses and validates the body without executing submitted code or downloading submitted URLs.
-5. It writes only `leaderboard/submissions/issue-<number>.json` on the stable branch `leaderboard/issue-<number>` and creates one draft pull request containing `Closes #<number>`.
-6. Later issue edits update the same branch and draft pull request while the gate label remains present.
-7. Discussion and manual review continue in the pull request. A maintainer records `review.status: approved`, their GitHub login, and the ISO review date in the JSON before merge; ordinary pull-request validation rejects `pending` records. Automation never approves or merges the pull request.
-8. After approval and merge, validation runs again on `main`, Pages is rebuilt, and the merged result appears on the site. The pull request closes the source issue.
+Deploy builds run without write access. The separate deployment job verifies freshness against current main before publishing. data/build-info.json reports the source commit SHA and explicit rollback status. An obsolete rerun is refused. An intentional rollback uses workflow_dispatch with rollback=true and rollback_sha set to an exact 40-character ancestor commit; it is validated and flagged publicly, not silently inferred from an old run. Ordinary push/manual deployment selects latest main. Published assets remain relative to /graphland/.
 
-Merely opening an issue cannot create a branch or pull request. The conversion workflow uses the issue number for branch and file paths, bounds input sizes, uses minimal permissions, and never interpolates untrusted text into shell commands. A pull request created with `GITHUB_TOKEN` may not start ordinary pull-request workflows, so the issue workflow performs validation and a full build itself; `main` is validated again after merge.
+## Source maintenance
 
-The expected manual-review service level is approximately one week. This is a target, not a guarantee.
+To reimport the fixed paper seeds, obtain the exact v5 HTML, inspect its SHA/version and run:
 
-## Review and provenance statuses
+~~~sh
+python scripts/leaderboard/import_paper_baselines.py --source paper-v5.html
+python scripts/leaderboard/validate.py
+python -m unittest discover -s tests/leaderboard
+~~~
 
-`provenance` describes who introduced the entry:
+The importer fails on missing/ambiguous model rows or unrecognized cells and writes the source ledger with the file SHA. Review both JSON and original tables before merging. Different paper versions are a new review, not an implicit refresh.
 
-- `author_submission`: submitted by a model author through the public form.
-- `maintainer_seeded`: a standard open baseline added by a maintainer from an attributable source.
-
-`verification` describes evidentiary status:
-
-- `self_reported`: reviewed for format and declared protocol compliance, but not independently reproduced.
-- `reproduced`: independently rerun by the GraphML team. Use this only after an actual reproduction.
-
-The nested review status records repository review state:
-
-- `pending`: no reviewer or review date may be recorded, and production validation refuses to publish it.
-- `approved`: requires a reviewer and ISO review date.
-
-These dimensions are intentionally separate. Approval does not imply reproduction, and neither status should be described as verification of state of the art.
-
-## Manual GitHub repository settings
-
-After merging the implementation, a repository administrator must configure GitHub:
-
-1. Enable GitHub Actions for the repository or fork.
-2. In `Settings → Pages`, select `GitHub Actions` as the source.
-3. In `Settings → Actions → General`, allow GitHub Actions to create pull requests.
-4. Create the `leaderboard-submission` label used by the Issue Form.
-5. Create the maintainer-only gate label `leaderboard-ready`.
-6. Configure branch protection for `main`.
-7. Make the leaderboard validation workflow a required status check.
-8. Require manual pull-request review before merge.
-9. Later, add GraphML reviewers or `CODEOWNERS` once the real GitHub users/team are known; do not invent a team slug.
-
-Also verify that the Pages environment is named `github-pages` and that deployment approvals, if enabled, name the intended maintainers.
-
-## Troubleshooting
-
-### Validation reports an unknown or unsupported result
-
-Use the exact case-sensitive dataset IDs from `datasets.json`. Only RL, RH, TH, and THI are valid settings. Remove TH/THI rows for the four non-temporal datasets. Do not add datasets or metrics to a submission.
-
-### A classification value is rejected
-
-Accuracy and AP must be submitted on `[0, 1]`, not as percentages. Submit `0.8123`, not `81.23`. R² remains in its raw scale and may be negative. `std` uses the same scale as its value.
-
-### An in-context submission is rejected
-
-Set `method_type` to `in_context` and `hparam_trials` to `0`. Describe any other adaptation or inference procedure in `tuning_protocol`.
-
-### Validation mentions the filename
-
-The filename must be exactly `<submission-id>.json`, use the safe ID grammar, be a regular file, and not be a symlink. Automated submissions always use `issue-<number>.json`.
-
-### Someone expects `split_masks_THI.csv`
-
-That file does not exist. Both TH and THI read `split_masks_TH.csv`; THI changes graph visibility and preprocessing.
-
-### The site works at `/` but not `/graphland/`
-
-Run the base-path preview above. Keep HTML, CSS, JavaScript, JSON, CSV, schema, and favicon references relative; a leading `/` targets the domain root and breaks project Pages.
-
-### The issue does not create a pull request
-
-Confirm that both labels exist, the issue has `leaderboard-ready`, Actions may create pull requests, and the parser comment explains no validation error. Removing the label closes the automation gate; adding it again retriggers review.
-
-### A generated pull request does not run normal PR checks
-
-This can be expected for pull requests created with `GITHUB_TOKEN`. The issue-to-PR workflow must run schema validation, semantic validation, unit tests, and the full build before pushing. Required checks run again on the merge commit or another trusted event.
-
-### Pages does not deploy
-
-Confirm that Pages uses GitHub Actions, the workflow has `contents: read`, `pages: write`, and `id-token: write`, the environment is `github-pages`, and the uploaded artifact contains `_site/index.html` plus `.nojekyll`.
-
-## Official resources
-
-- [GraphLand dataset on Zenodo](https://zenodo.org/records/16895532)
-- [GraphLand dataset on Kaggle](https://www.kaggle.com/datasets/bazhenovgleb/graphland)
-- [Official GraphLand repository](https://github.com/yandex-research/graphland)
-- [GraphLand paper](https://arxiv.org/abs/2409.14500)
-- [PyTorch Geometric `GraphLandDataset`](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html)
+Official resources: [paper](https://arxiv.org/abs/2409.14500), [official code](https://github.com/yandex-research/graphland), [non-GNN baselines](https://github.com/gvbazhenov/graphland-baselines), [Zenodo](https://zenodo.org/records/16895532), [Kaggle](https://www.kaggle.com/datasets/bazhenovgleb/graphland), [PyG GraphLandDataset](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html).

@@ -30,9 +30,13 @@ How to use `PyGDataset`:
 
 - Now you can use `PyGDataset`. A detailed description of its arguments is provided in the class docstring, but you most likely only need to specify the dataset name and the data split to use. Below we provide a couple simple examples. You can read more about the available data splits and the transductive and the inductive learning settings in our paper.
 
+For regression, `Data.y` may be transformed for training. `Data.y_raw` retains the original target and `dataset.inverse_predictions()` applies the fitted inverse transform without refitting it. The examples below use `compute_regression_metric()` to evaluate R² on the original scale and the selected mask. For classification, use the canonical Accuracy or AP metric instead.
+
 If you want to use a dataset in the transductive setting (that is, with either `RL`, `RH`, or `TH` split), your code might look like this:
 
 ```python
+import math
+import torch
 from dataset import PyGDataset
 
 dataset = PyGDataset(name='artnet-views', split='RL')
@@ -40,8 +44,8 @@ dataset = PyGDataset(name='artnet-views', split='RL')
 # In the transductive setting, the dataset contains a single PyG Data object.
 data = dataset[0]
 
-best_val_metric = 0
-corresponding_test_metric = 0
+best_val_metric = float('-inf')
+corresponding_test_metric = None
 for _ in range(num_steps):
     model.train()
     preds = model(features=data.x, edges=data.edge_index)
@@ -53,17 +57,22 @@ for _ in range(num_steps):
     model.eval()
     with torch.no_grad():
         preds = model(features=data.x, edges=data.edge_index)
-        val_metric = compute_metric(input=preds[data.val_mask], target=data.y[data.val_mask])
-        if val_metric > best_val_metric:
-            test_metric = compute_metric(input=preds[data.test_mask], target=data.y[data.test_mask])
+        val_metric = dataset.compute_regression_metric(preds, mask=data.val_mask)
+        if math.isfinite(val_metric) and val_metric > best_val_metric:
+            best_val_metric = val_metric
+            test_metric = dataset.compute_regression_metric(preds, mask=data.test_mask)
             corresponding_test_metric = test_metric
 
-print(f'Best val metric: {val_metric}, corresponding test metric: {corresponding_test_metric}')
+if corresponding_test_metric is None:
+    raise RuntimeError('No finite validation checkpoint was found')
+print(f'Best val metric: {best_val_metric}, corresponding test metric: {corresponding_test_metric}')
 ```
 
 If you want to use a dataset in the inductive setting (that is, with `THI` split), your code might look like this:
 
 ```python
+import math
+import torch
 from dataset import PyGDataset
 
 dataset = PyGDataset(name='artnet-views', split='THI')
@@ -71,8 +80,8 @@ dataset = PyGDataset(name='artnet-views', split='THI')
 # In the inductive setting, the dataset contains 3 PyG Data objects - the train, val, and test snapshots of an evolving network.
 train_data, val_data, test_data = dataset
 
-best_val_metric = 0
-corresponding_test_metric = 0
+best_val_metric = float('-inf')
+corresponding_test_metric = None
 for _ in range(num_steps):
     model.train()
     preds = model(features=train_data.x, edges=train_data.edge_index)
@@ -84,13 +93,16 @@ for _ in range(num_steps):
     model.eval()
     with torch.no_grad():
         preds = model(features=val_data.x, edges=val_data.edge_index)
-        val_metric = compute_metric(input=preds[val_data.val_mask], target=val_data.y[val_data.val_mask])
-        if val_metric > best_val_metric:
+        val_metric = dataset.compute_regression_metric(preds, snapshot=1, mask=val_data.val_mask)
+        if math.isfinite(val_metric) and val_metric > best_val_metric:
+            best_val_metric = val_metric
             preds = model(features=test_data.x, edges=test_data.edge_index)
-            test_metric = compute_metric(input=preds[test_data.test_mask], target=test_data.y[test_data.test_mask])
+            test_metric = dataset.compute_regression_metric(preds, snapshot=2, mask=test_data.test_mask)
             corresponding_test_metric = test_metric
 
-print(f'Best val metric: {val_metric}, corresponding test metric: {corresponding_test_metric}')
+if corresponding_test_metric is None:
+    raise RuntimeError('No finite validation checkpoint was found')
+print(f'Best val metric: {best_val_metric}, corresponding test metric: {corresponding_test_metric}')
 ```
 
 ### If you want to reproduce our experimental results
@@ -104,6 +116,8 @@ How to run experiments in this repository:
 - If you want to run expriments with (some of) the GraphLand datasets, download them from [Zenodo](https://zenodo.org/records/16895532) or [Kaggle](https://kaggle.com/datasets/bazhenovgleb/graphland) and put them in the `data` directory. If you want to run experiments with other supported datasets, they will be downloaded automatically upon experiment launch.
 
 - Run `main.py` with the neccessary arguments.
+
+Failed or non-finite runs are recorded with their attempted seeds and excluded from score aggregation and hyperparameter selection. `--min_successful_runs` sets the minimum number of successful attempts required (default: 1); choose it before running the experiment. A sample standard deviation requires at least two successful runs. No finite eligible trial produces a clear failure rather than a fabricated zero score.
 
 Executing `main.py` runs a single experiment, which might include hyperparameter search and multiple runs with the best hyperparameters to compute the mean and standard deviation of model performance. `main.py` can accept a number of arguments, see `get_args` function from `args.py` for a full list. A simple example is:
 

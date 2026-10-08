@@ -9,6 +9,21 @@ from support import ROOT, load_json, load_module
 
 
 class MetadataTests(unittest.TestCase):
+    def test_config_rejects_bad_types_ranges_proportions_and_metric_drift(self) -> None:
+        for value in ("10", True, -10, 101, float("inf")):
+            config = load_json(ROOT / "leaderboard" / "config.json")
+            config["settings"][0]["train_percent"] = value
+            with self.assertRaises(self.validation.LeaderboardValidationError):
+                self.validation.validate_config(config)
+        config = load_json(ROOT / "leaderboard" / "config.json")
+        config["settings"][0].update(train_percent=20, validation_percent=10, test_percent=70)
+        with self.assertRaisesRegex(self.validation.LeaderboardValidationError, "split percentages"):
+            self.validation.validate_config(config)
+        config = load_json(ROOT / "leaderboard" / "config.json")
+        config["task_families"][0]["metric"] = "average_precision"
+        with self.assertRaisesRegex(self.validation.LeaderboardValidationError, "canonical metric"):
+            self.validation.validate_config(config)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.validation = load_module("leaderboard_validation_metadata", "scripts/leaderboard/validate.py")

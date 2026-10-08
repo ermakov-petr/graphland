@@ -49,6 +49,8 @@ class FrontendContractTests(unittest.TestCase):
             "demo-data-notice",
             "model-dialog",
             "dialog-content",
+            "retry-load",
+            "build-info",
         }
         self.assertEqual(required - self.document.by_id.keys(), set())
 
@@ -152,7 +154,9 @@ class FrontendContractTests(unittest.TestCase):
         normalized_html = " ".join(self.html.lower().split())
         self.assertIn("synthetic demo data", normalized_html)
         self.assertIn("not benchmark claims", normalized_html)
-        self.assertIn("leaderboard/submissions/demo-*.json", normalized_html)
+        self.assertNotIn("leaderboard/submissions/demo-*.json", normalized_html)
+        self.assertIn("Synthetic demo", self.javascript)
+        self.assertIn('!demo && submission.verification === "reproduced"', self.javascript)
 
         self.assertIn('submission.id.startsWith("demo-")', self.javascript)
         self.assertIn('demo ? "Demo documentation" : "Paper"', self.javascript)
