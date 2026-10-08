@@ -85,9 +85,12 @@ def _safe_output_path(output: Path, root: Path = ROOT, submissions_dir: Optional
 
 
 def _check_relative_asset_paths(site_source: Path) -> None:
+    # URL parsing trims leading ASCII spaces/tabs inside CSS quotes, too.
+    # NBSP is URL content, not trim whitespace; // remains protocol-relative.
+    root_absolute_css_url = r"(?i:url)\(\s*(?:[\"'][ \t]*)?/(?!/)"
     checks = {
-        "index.html": [r"(?:href|src)=[\"']/(?!/)", r"url\(/"],
-        "assets/styles.css": [r"url\(/"],
+        "index.html": [r"(?:href|src)=[\"']/(?!/)", root_absolute_css_url],
+        "assets/styles.css": [root_absolute_css_url],
         "assets/app.js": [r"fetch\(\s*[\"']/"],
     }
     for relative_path, patterns in checks.items():

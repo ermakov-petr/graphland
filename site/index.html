@@ -7,6 +7,9 @@
   <meta name="theme-color" content="#fff">
   <title>GraphLand Leaderboard · Yandex Research</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/brand/ys-text-regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/brand/ys-text-medium.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/brand/merriweather-light.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/styles.css">
   <script src="assets/app.js" defer></script>
 </head>
@@ -16,8 +19,8 @@
   <header class="site-header" data-site-header>
     <div class="shell header-inner">
       <a class="wordmark" href="https://research.yandex.com/" aria-label="Yandex Research home">
-        <span class="wordmark-yandex">Yandex</span>
-        <span class="wordmark-research">Research</span>
+        <img class="wordmark-yandex" src="assets/brand/yandex.svg" width="83" height="31" alt="">
+        <img class="wordmark-research" src="assets/brand/research.svg" width="99" height="31" alt="">
       </a>
 
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation">
@@ -32,47 +35,37 @@
         <a href="https://research.yandex.com/research-areas">Research areas</a>
         <a href="https://research.yandex.com/blog">Blog</a>
         <a href="https://research.yandex.com/publications">Publications</a>
-        <a class="active" href="#leaderboard" aria-current="page">GraphLand</a>
+        <a href="https://research.yandex.com/join">Join</a>
+        <a class="header-search" href="#model-search" aria-label="Search models">
+          <svg aria-hidden="true" width="25" height="25" viewBox="0 0 25 25" fill="none"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"></circle><path d="M16.5 16.5l7 7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>
+        </a>
       </nav>
     </div>
   </header>
 
-  <main id="main-content">
+  <main id="main-content" tabindex="-1">
     <section class="hero">
-      <div class="shell">
+      <div class="shell hero-shell">
         <nav class="breadcrumb" aria-label="Breadcrumb">
           <a href="https://research.yandex.com/">Home</a>
-          <span aria-hidden="true">/</span>
+          <span aria-hidden="true">|</span>
           <span aria-current="page">GraphLand</span>
         </nav>
 
-        <div class="hero-grid">
-          <div class="hero-copy">
-            <p class="eyebrow">Graph machine learning benchmark</p>
-            <h1>GraphLand<br>Leaderboard</h1>
-            <p class="hero-intro">Compare graph learning methods across 14 industrial datasets and four realistic experimental settings—without collapsing distinct tasks into a single score.</p>
+        <div class="hero-copy">
+          <h1>GraphLand Leaderboard</h1>
+          <p class="hero-intro">Compare graph learning methods across 14 industrial datasets and four realistic experimental settings—without collapsing distinct tasks into a single score.</p>
 
-            <div class="hero-actions">
-              <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
-              <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
-              <a class="text-link csv-download" href="leaderboard.csv" download>Canonical CSV</a>
-            </div>
-            <p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p>
+          <div class="hero-actions">
+            <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
+            <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
+            <a class="view-results-link" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
           </div>
+          <p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p>
+        </div>
 
-          <aside class="hero-aside" aria-label="Benchmark summary">
-            <div class="hero-stat">
-              <span class="hero-stat-value">14</span>
-              <span class="hero-stat-label">public datasets</span>
-            </div>
-            <div class="hero-stat">
-              <span class="hero-stat-value">4</span>
-              <span class="hero-stat-label">evaluation settings</span>
-            </div>
-            <div class="hero-mark" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-          </aside>
+        <div class="hero-art" aria-hidden="true">
+          <img src="assets/brand/research-circles.svg" width="660" height="407" alt="" fetchpriority="high">
         </div>
       </div>
     </section>
@@ -103,7 +96,7 @@
           <p>Choose one setting and one task family. Every dataset remains a separate comparison—there is no aggregate score or overall rank.</p>
         </div>
 
-        <div class="leaderboard-controls" aria-label="Leaderboard filters">
+        <div class="leaderboard-controls" id="leaderboard-controls" role="group" aria-label="Leaderboard filters" tabindex="-1">
           <div class="control-block">
             <span class="control-label" id="setting-tabs-label">Experimental setting</span>
             <div class="tabs tabs-primary" id="setting-tabs" role="tablist" aria-labelledby="setting-tabs-label">
@@ -141,6 +134,10 @@
               <span>Only models with code</span>
             </label>
           </div>
+          <div class="filter-feedback" id="filter-feedback">
+            <p id="filter-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <button class="reset-filters" id="reset-filters" type="button" hidden disabled>Reset filters</button>
+          </div>
         </div>
 
         <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="setting-tab-RL task-tab-multiclass_node_classification" tabindex="0">
@@ -149,13 +146,14 @@
             <p class="metric-note" id="metric-note">Canonical metric: Accuracy · higher is better</p>
           </div>
 
-          <div class="table-scroll" tabindex="0" aria-label="Scrollable leaderboard table">
+          <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable leaderboard table">
             <table id="leaderboard-table">
               <caption class="visually-hidden">GraphLand leaderboard results</caption>
               <thead id="leaderboard-head"></thead>
               <tbody id="leaderboard-body"></tbody>
             </table>
           </div>
+          <p class="table-scroll-hint" id="table-scroll-hint" hidden>Scroll for more datasets <span aria-hidden="true">→</span></p>
 
           <div class="empty-state" id="empty-state" hidden>
             <span class="empty-state-mark" aria-hidden="true">GL</span>
@@ -301,17 +299,19 @@
 
   <footer class="site-footer">
     <div class="shell footer-inner">
-      <div>
-        <span class="footer-wordmark">Yandex Research</span>
-        <p>GraphLand evaluates graph machine learning on diverse industrial data.</p>
-      </div>
-      <div class="footer-links">
+      <nav class="footer-links" aria-label="GraphLand footer">
         <a href="#leaderboard">Leaderboard</a>
         <a href="#protocol">Protocol</a>
         <a href="#submit">Submit</a>
         <a href="https://github.com/ermakov-petr/graphland" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+      <div class="footer-bottom">
+        <p>GraphLand evaluates graph machine learning on diverse industrial data.</p>
+        <div class="footer-meta">
+          <a href="https://research.yandex.com/">Yandex Research</a>
+          <p>GraphLand dataset release · Apache-2.0</p>
+        </div>
       </div>
-      <p class="footer-meta">GraphLand dataset release · Apache-2.0</p>
     </div>
   </footer>
 

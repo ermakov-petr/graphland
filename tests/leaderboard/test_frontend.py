@@ -173,14 +173,15 @@ class FrontendContractTests(unittest.TestCase):
 
     def test_only_submit_results_uses_a_chromatic_accent(self) -> None:
         artifacts = self.css + self.html + self.favicon
-        yellow = (0xFE, 0xD4, 0x2B)
+        # The reference's Submit accent and its hover are the only chromatic tokens.
+        yellows = {(0xFE, 0xD4, 0x2B), (0xF5, 0xC4, 0x00)}
         for literal in re.findall(r"#[0-9a-fA-F]{3,8}\b", artifacts):
             value = literal[1:]
             if len(value) in {3, 4}:
                 value = "".join(character * 2 for character in value)
             red, green, blue = (int(value[index : index + 2], 16) for index in (0, 2, 4))
             self.assertTrue(
-                red == green == blue or (red, green, blue) == yellow,
+                red == green == blue or (red, green, blue) in yellows,
                 f"unexpected chromatic color {literal}",
             )
 
@@ -193,6 +194,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("--blue", self.css)
         self.assertNotIn("--yellow-soft", self.css)
         self.assertEqual(self.css.count("var(--yellow)"), 1)
+        self.assertEqual(self.css.count("var(--yellow-hover)"), 1)
         self.assertRegex(
             self.css,
             r"#submit-results-link\s*\{[^}]*background:\s*var\(--yellow\)",

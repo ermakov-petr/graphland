@@ -340,6 +340,68 @@ class BuildTests(unittest.TestCase):
         self.assertNotIn('href="/leaderboard.csv"', index)
         self.assertNotIn('src="/assets/', index)
 
+    def _write_asset_url_fixture(self, site: Path, location: str, expression: str) -> None:
+        css = f".example {{ background-image: {expression}; }}"
+        (site / "assets").mkdir(exist_ok=True)
+        (site / "assets" / "app.js").write_text("", encoding="utf-8")
+        (site / "assets" / "styles.css").write_text(
+            css if location == "stylesheet" else "", encoding="utf-8"
+        )
+        if location == "style_element":
+            html = f"<style>{css}</style>"
+        elif location == "style_attribute":
+            quote = "'" if '"' in expression else '"'
+            html = f"<div style={quote}background-image: {expression};{quote}></div>"
+        else:
+            html = "<html></html>"
+        (site / "index.html").write_text(html, encoding="utf-8")
+
+    def test_root_absolute_css_urls_are_rejected_in_stylesheet_and_inline_html(self) -> None:
+        expressions = (
+            "url(/fonts/example.woff2)",
+            'url("/fonts/example.woff2")',
+            "url('/assets/brand/example.svg')",
+            "url( /fonts/example.woff2 )",
+            'url(  "/assets/brand/example.svg"  )',
+            "url(\n\t'/fonts/example.woff2'\n)",
+            "URL( '/fonts/example.woff2' )",
+            'url(" /fonts/example.woff2")',
+            "url(' \t /assets/brand/example.svg ')",
+            'url("\t/fonts/example.woff2")',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            for location in ("stylesheet", "style_element", "style_attribute"):
+                for expression in expressions:
+                    with self.subTest(location=location, expression=expression):
+                        self._write_asset_url_fixture(site, location, expression)
+                        expected_path = "assets/styles.css" if location == "stylesheet" else "index.html"
+                        with self.assertRaisesRegex(
+                            self.build.LeaderboardValidationError, expected_path
+                        ):
+                            self.build._check_relative_asset_paths(site)
+
+    def test_relative_and_protocol_relative_css_urls_remain_allowed(self) -> None:
+        expressions = (
+            "url(assets/brand/ys-text-regular.woff2)",
+            'url("brand/merriweather-light.woff2")',
+            "url( './brand/research.svg' )",
+            'url( "../images/example.svg" )',
+            "url(//cdn.example.org/example.woff2)",
+            'url( "//cdn.example.org/example.svg" )',
+            "URL( '//cdn.example.org/example.woff2' )",
+            'url(" ./brand/research.svg")',
+            "url(' //cdn.example.org/example.woff2')",
+            'url("\u00a0/fonts/example.woff2")',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            for location in ("stylesheet", "style_element", "style_attribute"):
+                for expression in expressions:
+                    with self.subTest(location=location, expression=expression):
+                        self._write_asset_url_fixture(site, location, expression)
+                        self.build._check_relative_asset_paths(site)
+
     def test_unsafe_output_paths_are_refused(self) -> None:
         with self.assertRaisesRegex(self.build.LeaderboardValidationError, "unsafe build output"):
             self.build._safe_output_path(ROOT)

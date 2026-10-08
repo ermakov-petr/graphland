@@ -1,0 +1,67 @@
+{
+  "captured_on": "2026-10-08",
+  "reference": "https://research.yandex.com/",
+  "reference_build": "promo-yandex-research/11",
+  "font_css_url": "https://yastatic.net/s3/promohr/static/promo-yandex-research/11/_next/static/css/03dd10035835dbe0.css",
+  "font_css_sha256": "c908ac2cd821d2f8821b215b45bea2970215f5d2aac5b90e8c9fa252db5552de",
+  "assets": [
+    {
+      "asset": "ys-text-regular.woff2",
+      "family": "YSText",
+      "weight": 400,
+      "origin": "https://yastatic.net/s3/promohr/static/promo-yandex-research/11/_next/static/media/YSText-Regular-Web.20940a66.woff2",
+      "sha256": "de4fb43ce43b6134c3e063b137f3933c046f2d4829a8687127c6e49fa6248ecd",
+      "bytes": 37552
+    },
+    {
+      "asset": "ys-text-bold.woff2",
+      "family": "YSText",
+      "weight": 700,
+      "origin": "https://yastatic.net/s3/promohr/static/promo-yandex-research/11/_next/static/media/YSText-Bold-Web.49f8767e.woff2",
+      "sha256": "716caf675db710027ba82e1a6b4d0061b65b7e7bef28db3c669384d3c2fb7e88",
+      "bytes": 38664
+    },
+    {
+      "asset": "ys-text-medium.woff2",
+      "family": "YSText",
+      "weight": 500,
+      "origin": "embedded WOFF2 in official CSS",
+      "sha256": "f0aa37cda27c0a4cba5fa7dffe585cd358235ddf052afc950d7aa35f73d7b3f1",
+      "bytes": 38804
+    },
+    {
+      "asset": "ys-text-light.woff2",
+      "family": "YSText",
+      "weight": 300,
+      "origin": "https://yastatic.net/s3/promohr/static/promo-yandex-research/11/_next/static/media/YSText-Light-Web.38cc8d65.woff2",
+      "sha256": "e934364fca67fd714de1daf3b0f802da85500d52acbcc9489cead25ccbd98988",
+      "bytes": 38096
+    },
+    {
+      "asset": "merriweather-light.woff2",
+      "family": "Merriweather",
+      "weight": 300,
+      "origin": "embedded WOFF2 in official CSS",
+      "sha256": "1fcd5c0eeff57dc1cc85d599f7c414aedccd6149d16cc091e78c8ae376a28539",
+      "bytes": 61060
+    },
+    {
+      "asset": "yandex.svg",
+      "origin": "https://research.yandex.com/ inline header SVG",
+      "sha256": "93a74382f5ddd0a30e4a0c361b0423bc9736570a683b699e3ebd983f0dbe9878",
+      "bytes": 1413
+    },
+    {
+      "asset": "research.svg",
+      "origin": "https://research.yandex.com/ inline header SVG",
+      "sha256": "64bd46ae2e09751f50ba60668fb15e5008da2b61fcfc5f88cb7d6832cc79b74b",
+      "bytes": 2029
+    },
+    {
+      "asset": "research-circles.svg",
+      "origin": "https://research.yandex.com/publications inline hero SVG",
+      "sha256": "1d1dd27d0a7e81638d7ec4109eaa0e04f4dc89ad25a7ab3514db6ddbb7e4bf8b",
+      "bytes": 5974
+    }
+  ]
+}
