@@ -646,17 +646,53 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.with_payload(payload)
         self.open()
         self.assertEqual(self.page.locator('#empty-state h3').inner_text(), 'No results yet')
+        self.assertTrue(self.page.locator('#empty-state a').is_visible())
+        self.assertFalse(self.page.locator('#result-footnote').is_visible())
         self.page.unroute('**/data/leaderboard.json')
         payload['submissions'] = [copy.deepcopy(self.payload['submissions'][0])]
         payload['submissions'][0]['results'] = [{'setting': 'RL', 'dataset': 'city-reviews', 'value': .7}]
         self.with_payload(payload)
         self.open('?task=node_regression')
         self.assertIn('No results for this setting', self.page.locator('#empty-state h3').inner_text())
+        self.assertTrue(self.page.locator('#empty-state a').is_visible())
+        self.assertFalse(self.page.locator('#result-footnote').is_visible())
         self.page.unroute('**/data/leaderboard.json')
         self.open()
         self.page.locator('#model-search').fill('no-such-model')
         self.assertEqual(self.page.locator('#empty-state h3').inner_text(), 'No models match these filters')
         self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
+        self.assertFalse(self.page.locator('#empty-state a').is_visible(),
+                         'Hidden submission link must not be revealed by inline-flex styles')
+        self.assertFalse(self.page.locator('#result-footnote').is_visible())
+        self.page.locator('#reset-filters').click()
+        self.assertTrue(self.page.locator('#result-footnote').is_visible())
+        self.assertFalse(self.page.locator('#empty-state').is_visible())
+
+    def test_compact_controls_have_full_click_targets(self):
+        for width in (320, 375, 767, 1280, 1920):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.open()
+                toggle = self.page.locator('.toggle')
+                self.assertGreaterEqual(toggle.bounding_box()['height'], 44)
+                self.page.locator('#code-filter').uncheck()
+                # The padding above the visual track must also activate the label.
+                toggle.click(position={'x': 10, 'y': 2})
+                self.assertTrue(self.page.locator('#code-filter').is_checked())
+                self.page.locator('#model-search').fill('no-such-model')
+                reset = self.page.locator('#reset-filters')
+                self.assertGreaterEqual(reset.bounding_box()['height'], 44)
+                if width <= 767:
+                    self.assertGreaterEqual(self.page.locator('.search-field').bounding_box()['height'], 44)
+                reset.click(position={'x': 10, 'y': 2})
+                self.assertEqual(self.page.locator('#model-search').input_value(), '')
+                self.page.locator('.model-button').first.click()
+                close = self.page.locator('.dialog-close')
+                bounds = close.bounding_box()
+                self.assertGreaterEqual(bounds['width'], 44)
+                self.assertGreaterEqual(bounds['height'], 44)
+                close.click(position={'x': 22, 'y': 2})
+                self.assertFalse(self.page.locator('#model-dialog').is_visible())
 
     def test_missing_unavailable_and_negative_r2_are_distinct(self):
         self.open('?setting=TH&task=node_regression')
@@ -686,6 +722,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.route('**/data/leaderboard.json', fail_once)
         self.page.goto(self.base + 'leaderboard.html')
         self.page.wait_for_selector('#load-error', state='visible')
+        self.assertFalse(self.page.locator('#result-footnote').is_visible())
         self.assertEqual(self.page.locator('#load-error a[href="leaderboard.xlsx"]').count(), 1)
         self.assertEqual(self.page.locator('#load-error a[href="leaderboard.csv"]').count(), 1)
         self.page.locator('#retry-load').click()
@@ -693,6 +730,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator('#load-error').is_visible())
         self.assertTrue(self.page.locator('#leaderboard-body tr').count() > 0)
         self.assertEqual(len(requests), 2)
+        self.assertTrue(self.page.locator('#result-footnote').is_visible())
 
     def test_no_page_overflow_on_common_viewports(self):
         for width in (320, 375, 768, 1280):

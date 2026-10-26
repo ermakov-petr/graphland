@@ -44,6 +44,7 @@
     elements.metricNote = document.getElementById("metric-note");
     elements.tableScroll = document.querySelector(".table-scroll");
     elements.tableHint = document.getElementById("table-scroll-hint");
+    elements.resultFootnote = document.getElementById("result-footnote");
     elements.table = document.getElementById("leaderboard-table");
     elements.tableCaption = elements.table.querySelector("caption");
     elements.tableHead = document.getElementById("leaderboard-head");
@@ -520,6 +521,7 @@
     const hasAnySubmissions = Boolean(state.payload && state.payload.submissions.length);
     const isEmpty = submissionCount === 0;
     elements.tableScroll.hidden = isEmpty;
+    elements.resultFootnote.hidden = isEmpty;
     elements.emptyState.hidden = !isEmpty;
 
     if (!isEmpty) {
@@ -1029,6 +1031,7 @@
       state.loaded = false;
       elements.resultSummary.textContent = "Leaderboard unavailable";
       elements.tableScroll.hidden = true;
+      elements.resultFootnote.hidden = true;
       elements.emptyState.hidden = true;
       elements.loadError.hidden = false;
       elements.demoNotice.hidden = true;

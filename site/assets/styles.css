@@ -68,6 +68,11 @@
   box-sizing: border-box;
 }
 
+/* Component display rules must not reveal controls hidden by application state. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--header-height) + 24px);
@@ -587,9 +592,11 @@ button {
 }
 
 .toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
+  min-height: 44px;
   gap: 10px;
   font-size: 14px;
   cursor: pointer;
@@ -642,7 +649,7 @@ button {
 
 .filter-feedback {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   color: var(--gray-700);
@@ -661,7 +668,7 @@ button {
 
 .reset-filters {
   flex: 0 0 auto;
-  min-height: 32px;
+  min-height: 44px;
   padding: 6px 0;
   border: 0;
   background: transparent;
@@ -675,11 +682,6 @@ button {
 
 .reset-filters:hover {
   color: var(--gray-700);
-}
-
-.reset-filters[hidden],
-.table-scroll-hint[hidden] {
-  display: none;
 }
 
 .table-scroll-hint {
@@ -913,37 +915,23 @@ button {
 
 .empty-state,
 .load-error {
-  padding: 64px 24px;
+  padding: 32px 0;
+  border-top: 1px solid var(--black);
   border-bottom: 1px solid var(--gray-200);
-  text-align: center;
-}
-
-.empty-state-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: var(--black);
-  color: var(--white);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -.02em;
 }
 
 .empty-state h3,
 .load-error h3 {
-  margin-top: 22px;
-  font-size: 24px;
+  margin-top: 0;
+  font-size: var(--subheading-size);
   font-weight: 500;
-  letter-spacing: -.035em;
+  line-height: 1.2;
 }
 
 .empty-state p,
 .load-error p {
-  max-width: 580px;
-  margin: 10px auto 0;
+  max-width: var(--reading-width);
+  margin-top: 12px;
   color: var(--gray-700);
 }
 
@@ -1254,7 +1242,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
   margin-top: 24px;
 }
@@ -1324,8 +1312,8 @@ button:disabled {
 .dialog-close {
   position: relative;
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -1333,10 +1321,14 @@ button:disabled {
   cursor: pointer;
 }
 
+.dialog-close:hover {
+  background: var(--gray-200);
+}
+
 .dialog-close span {
   position: absolute;
-  top: 20px;
-  left: 12px;
+  top: 21px;
+  left: 13px;
   width: 18px;
   height: 1.5px;
   background: var(--black);
@@ -1666,13 +1658,16 @@ button:disabled {
   .filter-row {
     align-items: flex-start;
     flex-direction: column;
+    gap: 12px;
   }
 
   .search-field {
     width: 100%;
+    min-height: 44px;
   }
 
   .search-field input {
+    min-height: 42px;
     font-size: 16px;
   }
 
