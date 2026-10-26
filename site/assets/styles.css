@@ -2120,5 +2120,3 @@ button:disabled {
   .project-page { padding-bottom: 42px; }
 }
 
-.page-actions > .button:first-child { background: var(--yellow); border-color: var(--yellow); }
-.page-actions > .button:first-child:hover { background: var(--yellow-hover); border-color: var(--yellow-hover); }
