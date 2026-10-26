@@ -78,7 +78,29 @@ jobs:
         run: "python -m pip install --require-hashes --only-binary=:all: -r requirements-leaderboard.txt"
       - name: Install fixed browser test dependencies
         run: python -m pip install -r requirements-browser-test.txt
-      - name: Install Chromium and operating-system libraries
-        run: python -m playwright install --with-deps chromium
+      - name: Install pinned Chromium
+        run: python -m playwright install chromium
+      - name: Check Chromium runtime libraries
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          from playwright.sync_api import Error, sync_playwright
+
+          for attempt in range(2):
+              try:
+                  with sync_playwright() as playwright:
+                      browser = playwright.chromium.launch(timeout=15000)
+                      browser.close()
+                  break
+              except Error as error:
+                  missing_libraries = any(message in str(error) for message in (
+                      "Host system is missing dependencies",
+                      "error while loading shared libraries",
+                  ))
+                  if attempt or not missing_libraries:
+                      raise
+                  subprocess.run([sys.executable, "-m", "playwright", "install-deps", "chromium"], check=True)
+          PY
       - name: Run Chromium behavioral regressions
         run: python -m unittest discover -s tests/browser -v
