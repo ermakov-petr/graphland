@@ -1028,7 +1028,11 @@
     elements.panel.setAttribute("aria-busy", String(loading));
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
       elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
-    elements.retry.disabled = loading;
+    // Keep the retry target focused while its request is pending. The loading
+    // guard in loadLeaderboard prevents duplicate pointer or keyboard requests.
+    if (loading) elements.retry.setAttribute("aria-disabled", "true");
+    else elements.retry.removeAttribute("aria-disabled");
+    elements.retry.textContent = loading ? "Loading…" : "Retry loading";
     scheduleTableHint();
   }
 
@@ -1054,7 +1058,8 @@
     if (state.loading) return;
     setLoading(true);
     elements.resultSummary.textContent = "Loading leaderboard…";
-    elements.loadError.hidden = true;
+    // A retry keeps its controls and download fallbacks in place until it
+    // finishes, instead of removing the focused control during the request.
     try {
       state.payload = await loadData();
       state.datasetsById = new Map(state.payload.datasets.map((dataset) => [dataset.id, dataset]));
@@ -1064,8 +1069,12 @@
       readQueryState();
       applyConfiguredLinks();
       elements.demoNotice.hidden = !hasDemoSubmissions(state.payload);
+      const focusWasInError = elements.loadError.contains(document.activeElement);
       elements.loadError.hidden = true;
       render();
+      // Only replace focus that would disappear with the old error region.
+      // A user who moved elsewhere during the request keeps that location.
+      if (focusWasInError) elements.panel.focus();
       loadPublicationInfo();
     } catch (error) {
       state.payload = null;

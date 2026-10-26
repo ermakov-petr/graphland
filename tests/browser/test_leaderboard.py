@@ -972,6 +972,64 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.open()
                 self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
 
+    def hold_retry_after_failure(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        requests, pending = [], []
+        def respond(route):
+            requests.append(route.request.url)
+            if len(requests) == 1:
+                route.fulfill(status=503, body='unavailable')
+            else:
+                pending.append(route)
+        self.page.route('**/data/leaderboard.json', respond)
+        self.page.goto(self.base + 'leaderboard.html')
+        self.page.wait_for_selector('#load-error', state='visible')
+        self.page.locator('#retry-load').focus()
+        with self.page.expect_request('**/data/leaderboard.json'):
+            self.page.keyboard.press('Enter')
+        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'true'")
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'retry-load')
+        self.assertEqual(self.page.locator('#retry-load').get_attribute('aria-disabled'), 'true')
+        self.assertEqual(self.page.locator('#retry-load').inner_text(), 'Loading…')
+        self.assertTrue(self.page.locator('#load-error a[href="leaderboard.csv"]').is_visible())
+        self.assertEqual(len(pending), 1)
+        return requests, pending[0]
+
+    def test_retry_keeps_focus_pending_and_moves_it_to_loaded_results(self):
+        requests, pending = self.hold_retry_after_failure()
+        self.page.keyboard.press('Enter')
+        bounds = self.page.locator('#retry-load').bounding_box()
+        self.page.mouse.click(bounds['x'] + 10, bounds['y'] + 10)
+        self.page.evaluate('()=>new Promise(requestAnimationFrame)')
+        self.assertEqual(len(requests), 2)
+        pending.fulfill(json=self.payload)
+        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'leaderboard-panel')
+        self.assertFalse(self.page.locator('#load-error').is_visible())
+        self.page.keyboard.press('Tab')
+        self.assertTrue(self.page.evaluate("document.activeElement.closest('#leaderboard-panel') !== null"))
+        self.assertNotEqual(self.page.evaluate('document.activeElement.id'), 'leaderboard-panel')
+
+    def test_retry_failure_retains_usable_retry_and_downloads(self):
+        requests, pending = self.hold_retry_after_failure()
+        pending.fulfill(status=503, body='still unavailable')
+        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+        self.assertEqual(self.page.evaluate('document.activeElement.id'), 'retry-load')
+        self.assertIsNone(self.page.locator('#retry-load').get_attribute('aria-disabled'))
+        self.assertEqual(self.page.locator('#retry-load').inner_text(), 'Retry loading')
+        self.assertTrue(self.page.locator('#load-error a[href="leaderboard.csv"]').is_visible())
+        self.assertEqual(len(requests), 2)
+
+    def test_retry_does_not_take_focus_back_from_another_section(self):
+        _, pending = self.hold_retry_after_failure()
+        elsewhere = self.page.locator('.project-navigation a[href="datasets.html"]')
+        elsewhere.focus()
+        scroll_y = self.page.evaluate('scrollY')
+        pending.fulfill(json=self.payload)
+        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+        self.assertTrue(elsewhere.evaluate('(e)=>e===document.activeElement'))
+        self.assertEqual(self.page.evaluate('scrollY'), scroll_y)
+
     def test_footer_link_text_contrast_normal_and_hover_desktop_and_mobile(self):
         def channels(css_color):
             values = [float(value) for value in re.findall(r'[\d.]+', css_color)]
