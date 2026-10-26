@@ -33,16 +33,15 @@
     <section class="shell page-intro"><h1>Leaderboard</h1><p class="page-lead">Compare submitted models on the official GraphLand datasets and evaluation settings.</p><div class="page-actions hero-actions">
             <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
-            <a class="view-results-link" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
+            <a class="button button-secondary" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
           </div><p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p></section>
 
-    <section class="shell disclosure" aria-labelledby="disclosure-title">
-      <div class="disclosure-mark" aria-hidden="true">i</div>
+    <aside class="shell result-note" aria-labelledby="disclosure-title">
       <div>
         <h2 id="disclosure-title">How to read these results</h2>
         <p>Results are submitted by authors or added by maintainers and reviewed for format and protocol compliance. GraphLand has no hidden test set. Unless marked “Reproduced”, results have not been independently reproduced.</p>
       </div>
-    </section>
+    </aside>
 
     <section class="shell demo-notice" id="demo-data-notice" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="demo-data-notice-title" hidden>
       <div class="demo-notice-mark" aria-hidden="true">Demo</div>
@@ -73,7 +72,7 @@
           </div>
 
           <div class="control-block task-control">
-            <span class="control-label" id="task-tabs-label">Task family</span>
+            <span class="visually-hidden" id="task-tabs-label">Task family</span>
             <div class="tabs tabs-secondary" id="task-tabs" role="tablist" aria-labelledby="task-tabs-label">
               <button id="task-tab-multiclass_node_classification" type="button" role="tab" aria-selected="true" aria-controls="leaderboard-panel" tabindex="0" data-task="multiclass_node_classification">Multiclass node classification</button>
               <button id="task-tab-binary_node_classification" type="button" role="tab" aria-selected="false" aria-controls="leaderboard-panel" tabindex="-1" data-task="binary_node_classification">Binary node classification</button>
@@ -140,12 +139,8 @@
       </div>
     </section>
 
-    <section class="content-section legend-section" aria-labelledby="legend-title">
-      <div class="shell split-layout">
-        <div class="section-heading-compact">
-          <p class="eyebrow">Reading the table</p>
-          <h2 id="legend-title">Legend</h2>
-        </div>
+    <section class="shell page-section legend-section" aria-labelledby="legend-title">
+      <h2 id="legend-title">Reading the results</h2>
         <dl class="legend-list">
           <div><dt>Mean ± std</dt><dd>Mean performance and sample standard deviation across the reported runs. This is not a confidence interval.</dd></div>
           <div><dt>AP</dt><dd>Average Precision, displayed as a percentage. R² remains on its original coefficient scale.</dd></div>
@@ -153,11 +148,10 @@
           <div><dt>N/A</dt><dd>The dataset does not support the selected experimental setting.</dd></div>
           <div><dt>Reproduced</dt><dd>The result was independently reproduced, rather than only format-reviewed.</dd></div>
         </dl>
-      </div>
     </section>
 
-    <section class="content-section protocol-section" id="protocol" aria-labelledby="protocol-title">
-      <div class="shell"><details class="protocol-disclosure"><summary id="protocol-title">Benchmark protocol</summary>
+    <section class="shell page-section protocol-section" id="protocol" aria-labelledby="protocol-title">
+      <details class="protocol-disclosure"><summary id="protocol-title">Benchmark protocol</summary>
         <div class="protocol-grid">
           <article>
             <span class="protocol-code">RL</span>
@@ -185,22 +179,17 @@
           </article>
         </div>
 
-        <div class="protocol-callout">
+        <div class="article-copy protocol-callout">
           <strong>TH and THI use the same temporal split.</strong>
           <p>They differ only in information access. In THI, validation and test nodes and their incident edges are removed from the training graph, and test nodes and their incident edges are removed from the validation graph.</p>
           <p>THI preprocessing is fitted on training data only, then applied to validation and test snapshots. This includes categorical encoders, feature transforms, imputers, and regression-target transforms. <a class="text-link" href="https://github.com/ermakov-petr/graphland/blob/main/leaderboard/README.md#experimental-settings">Read the complete protocol</a>.</p>
         </div>
-      </details></div>
+      </details>
     </section>
 
-    <section class="content-section submit-section" id="submit" aria-labelledby="submit-title">
-      <div class="shell split-layout">
-        <div class="section-heading-compact">
-          <p class="eyebrow">Contribute</p>
-          <h2 id="submit-title">How to submit</h2>
-          <p>Authors may submit their own models; maintainers may add standard open baselines.</p>
-        </div>
-        <div>
+    <section class="shell page-section submit-section" id="submit" aria-labelledby="submit-title">
+      <h2 id="submit-title">How to submit</h2>
+      <p class="section-description">Authors may submit their own models; maintainers may add standard open baselines.</p>
           <ol class="steps-list">
             <li><span>01</span><p>Open the public submission form.</p></li>
             <li><span>02</span><p>Fill in model metadata and results.</p></li>
@@ -208,10 +197,8 @@
             <li><span>04</span><p>A draft pull request is created.</p></li>
             <li><span>05</span><p>After approval and merge, the result appears on the site.</p></li>
           </ol>
-          <p class="public-warning"><span aria-hidden="true">!</span> The GitHub Issue, draft pull request, and submission discussion are public. Format and protocol review is not independent reproduction.</p>
-          <a class="button button-inverse" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Open submission form <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
+          <p class="table-footnote public-warning">The GitHub Issue, draft pull request, and submission discussion are public. Format and protocol review is not independent reproduction.</p>
+      <div class="page-actions"><a class="button button-secondary" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Open submission form <span aria-hidden="true">↗</span></a></div>
     </section>
 
 

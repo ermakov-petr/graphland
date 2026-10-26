@@ -861,6 +861,65 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.wait_for_url(self.base + 'getting-started.html')
                 self.assertEqual(self.page.locator('.project-navigation [aria-current="page"]').inner_text(), 'Getting Started')
 
+    def test_editorial_sections_tables_and_actions_share_styles_across_pages(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        def style(selector):
+            return self.page.locator(selector).first.evaluate("""el => {
+                const s=getComputedStyle(el);
+                return {family:s.fontFamily,size:s.fontSize,weight:s.fontWeight,line:s.lineHeight,
+                    color:s.color,background:s.backgroundColor,radius:s.borderRadius,
+                    border:s.borderTopColor,borderWidth:s.borderTopWidth,height:s.minHeight};
+            }""")
+
+        for width in (375, 1280, 1920):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.page.goto(self.base + 'index.html')
+                self.page.evaluate('async()=>{await document.fonts.ready}')
+                body_style = style('.article-copy > p')
+                action_style = style('.page-actions .button')
+                table_style = style('.dataset-catalog thead th')
+                self.page.locator('.page-actions .button').first.hover()
+                self.page.wait_for_function("getComputedStyle(document.querySelector('.page-actions .button')).backgroundColor==='rgb(26, 26, 26)'")
+                hover_style = style('.page-actions .button')
+                self.open()
+                download = '.page-actions a[download]'
+                self.page.mouse.move(0, 0)
+                self.assertEqual(style(download), action_style)
+                self.assertEqual(style('#view-results-link'), action_style)
+                self.page.locator(download).hover()
+                self.page.wait_for_function("getComputedStyle(document.querySelector('.page-actions a[download]')).backgroundColor==='rgb(26, 26, 26)'")
+                self.assertEqual(style(download), hover_style)
+                self.page.keyboard.press('Tab')
+                self.page.locator(download).focus()
+                focus = self.page.locator(download).evaluate('(el)=>getComputedStyle(el).outlineStyle')
+                self.assertNotEqual(focus, 'none')
+                self.page.mouse.move(0, 0)
+                self.page.locator('.protocol-disclosure > summary').click()
+                for selector in ('.legend-list dd', '.protocol-grid p', '.protocol-callout p', '.steps-list p'):
+                    actual = style(selector)
+                    for key in ('family', 'size', 'weight', 'line', 'color'):
+                        self.assertEqual(actual[key], body_style[key], (selector, key, width))
+                for selector in ('.legend-section', '.protocol-section', '.submit-section'):
+                    section = self.page.locator(selector)
+                    actual = style(selector)
+                    self.assertIn(actual['background'], ('rgba(0, 0, 0, 0)', 'rgb(255, 255, 255)'))
+                    self.assertEqual(actual['color'], body_style['color'])
+                    self.assertEqual(section.evaluate('(el)=>getComputedStyle(el).marginTop'),
+                                     self.page.locator('.legend-section').evaluate('(el)=>getComputedStyle(el).marginTop'))
+                for selector in ('#leaderboard-table thead th', '#leaderboard-table th.metadata-column'):
+                    if self.page.locator(selector).first.is_visible():
+                        actual = style(selector)
+                        for key in ('family', 'size', 'weight', 'color', 'background'):
+                            self.assertEqual(actual[key], table_style[key], (selector, key, width))
+                primary = style('#setting-tabs [aria-selected="true"]')
+                secondary = style('#task-tabs [aria-selected="true"]')
+                self.assertEqual(primary, secondary)
+                self.assertEqual(self.page.locator('#task-tabs').get_attribute('aria-labelledby'), 'task-tabs-label')
+                self.brand_observations.append({'check':'full_page_shared_components','width':width,
+                    'prose':body_style,'action':action_style,'table_heading':table_style,
+                    'white_editorial_sections':True,'matching_filter_tab_styles':True})
+
     def test_metadata_columns_preserve_budget_unknown_zero_and_accessible_safe_links(self):
         payload = copy.deepcopy(self.payload)
         payload['submissions'] = payload['submissions'][:3]
