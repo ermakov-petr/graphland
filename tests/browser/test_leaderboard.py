@@ -693,7 +693,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(viewport.evaluate('(e)=>e.scrollTop'), 0)
         self.assertTrue(self.page.locator('.dialog-lead').is_visible())
 
-    def test_dialog_keyboard_links_are_visible_below_sticky_title(self):
+    def test_dialog_keyboard_links_are_visible_below_toolbar(self):
         for width, height in ((320, 568), (375, 400), (844, 390), (1280, 900)):
             with self.subTest(width=width, height=height):
                 self.page.set_viewport_size({'width': width, 'height': height})
@@ -731,7 +731,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                         self.page.locator('.dialog-close').focus()
                     link = self.page.locator('#dialog-content a').first
                     point = link.evaluate('''(link,edge)=>{
-                        const s=link.closest('.dialog-shell'),h=s.querySelector('.dialog-header');
+                        const s=link.closest('.dialog-shell'),h=link.closest('dialog').querySelector('.dialog-header');
                         window.dialogLinkClicks=0;
                         link.addEventListener('click',e=>{e.preventDefault();window.dialogLinkClicks++});
                         s.scrollTop=500;let r=link.getBoundingClientRect();
@@ -755,7 +755,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.locator('.dialog-close').focus()
         self.page.keyboard.press('Tab')
         result = self.page.evaluate('''()=>{
-            const s=document.querySelector('.dialog-shell'),link=s.querySelector('a'),close=s.querySelector('.dialog-close');
+            const s=document.querySelector('.dialog-shell'),link=s.querySelector('a'),close=document.querySelector('.dialog-close');
             const original=requestAnimationFrame,queue=[];
             window.requestAnimationFrame=cb=>{queue.push(cb);return 0};
             try {
@@ -767,6 +767,89 @@ class LeaderboardBrowserTests(unittest.TestCase):
         }''')
         self.assertGreater(result['queued'], 0)
         self.assertEqual(result['before'], result['after'])
+
+    def test_long_model_title_does_not_block_short_dialog_content(self):
+        payload = copy.deepcopy(self.payload)
+        name = 'LongModel' + 'W' * 111  # Maximum length accepted by the submission schema.
+        payload['submissions'][0]['model_name'] = name
+        self.with_payload(payload)
+        for width, height in ((320, 400), (375, 400), (844, 390), (1280, 900)):
+            with self.subTest(width=width, height=height):
+                self.page.set_viewport_size({'width': width, 'height': height})
+                self.open()
+                self.page.locator('.model-button').filter(has_text=name).click()
+                self.assertEqual(self.page.locator('#dialog-title').inner_text(), name)
+                close = self.page.locator('.dialog-close')
+                initial_top = close.bounding_box()['y']
+                viewport = self.page.locator('.dialog-shell')
+                self.assertGreaterEqual(viewport.bounding_box()['height'], 200)
+                self.assertFalse(viewport.evaluate('(e)=>e.scrollWidth>e.clientWidth'))
+                close.focus()
+                for _ in range(4):
+                    self.page.keyboard.press('Tab')
+                    if self.page.evaluate("document.activeElement.matches('#dialog-content a')"):
+                        break
+                self.assertTrue(self.page.evaluate("document.activeElement.matches('#dialog-content a')"))
+                self.page.wait_for_function('''()=>{
+                    const r=document.activeElement.getBoundingClientRect(),h=document.querySelector('.dialog-header').getBoundingClientRect(),d=document.querySelector('#model-dialog').getBoundingClientRect();
+                    return r.top>=h.bottom-1&&r.bottom<=d.bottom+1;
+                }''')
+                viewport.evaluate('(e)=>e.scrollTop=e.scrollHeight')
+                self.assertEqual(close.bounding_box()['y'], initial_top)
+                close.click()
+                self.assertFalse(self.page.locator('#model-dialog').is_visible())
+
+    def test_switch_and_current_page_survive_forced_colors(self):
+        self.page.set_viewport_size({'width': 375, 'height': 800})
+        for mode, scheme in (('none', 'light'), ('active', 'light'), ('active', 'dark')):
+            self.page.emulate_media(forced_colors=mode, color_scheme=scheme, reduced_motion='reduce')
+            self.open()
+            for checked in (False, True):
+                self.page.locator('#code-filter').set_checked(checked)
+                colors = self.page.locator('.toggle').evaluate('''e=>{
+                    const track=getComputedStyle(e.querySelector('.toggle-track')),thumb=getComputedStyle(e.querySelector('.toggle-track span'));
+                    return {track:track.backgroundColor,thumb:thumb.backgroundColor,canvas:getComputedStyle(document.body).backgroundColor,border:track.borderStyle,borderWidth:parseFloat(track.borderWidth)};
+                }''')
+                def composite(css, background):
+                    parts = [float(n) for n in re.findall(r'[\d.]+', css)]
+                    alpha = parts[3] if len(parts) > 3 else 1
+                    return [n*alpha+b*(1-alpha) for n,b in zip(parts[:3],background)]
+                def luminance(rgb):
+                    channels = [n/255 for n in rgb]
+                    linear = [n/12.92 if n <= .04045 else ((n+.055)/1.055)**2.4 for n in channels]
+                    return sum(n*w for n,w in zip(linear,(.2126,.7152,.0722)))
+                canvas = composite(colors['canvas'], [255,255,255])
+                track = composite(colors['track'], canvas)
+                thumb = composite(colors['thumb'], track)
+                lighter, darker = sorted([luminance(track), luminance(thumb)], reverse=True)
+                self.assertGreaterEqual((lighter+.05)/(darker+.05), 3)
+                if mode == 'active':
+                    self.assertEqual(colors['border'], 'solid')
+                    self.assertGreaterEqual(colors['borderWidth'], 1)
+            if mode == 'active':
+                self.assertEqual(self.page.locator('.wordmark').evaluate('(e)=>getComputedStyle(e).backgroundColor'), 'rgb(255, 255, 255)')
+                self.assertIn('underline', self.page.locator('.project-navigation [aria-current]').evaluate('(e)=>getComputedStyle(e).textDecorationLine'))
+                for link in self.page.locator('.project-navigation a:not([aria-current])').all():
+                    self.assertEqual(link.evaluate('(e)=>getComputedStyle(e).borderBottomWidth'), '0px')
+                    self.assertNotIn('underline', link.evaluate('(e)=>getComputedStyle(e).textDecorationLine'))
+                for tab in self.page.locator('#setting-tabs button').all():
+                    expected_width = '2px' if tab.get_attribute('aria-selected') == 'true' else '0px'
+                    self.assertEqual(tab.evaluate('(e)=>getComputedStyle(e).borderBottomWidth'), expected_width)
+                self.page.locator('#model-search').focus()
+                self.page.keyboard.press('Tab')
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'code-filter')
+                self.assertNotEqual(self.page.locator('.toggle-track').evaluate('(e)=>getComputedStyle(e).outlineStyle'), 'none')
+                self.page.keyboard.press('Space')
+                self.assertFalse(self.page.locator('#code-filter').is_checked())
+                self.page.locator('.model-button').first.click()
+                close_colors = self.page.locator('.dialog-close').evaluate('''e=>({background:getComputedStyle(e).backgroundColor,icon:getComputedStyle(e.querySelector('span')).backgroundColor,border:getComputedStyle(e).borderStyle})''')
+                close_background = composite(close_colors['background'], canvas)
+                close_icon = composite(close_colors['icon'], close_background)
+                lighter, darker = sorted([luminance(close_background), luminance(close_icon)], reverse=True)
+                self.assertGreaterEqual((lighter+.05)/(darker+.05), 3)
+                self.assertEqual(close_colors['border'], 'solid')
+                self.page.locator('.dialog-close').click()
+                self.assertFalse(self.page.locator('#model-dialog').is_visible())
 
     def test_three_empty_states_and_filter_focus(self):
         payload = copy.deepcopy(self.payload)
@@ -1380,7 +1463,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertLessEqual(bounds['scrollWidth'], bounds['innerWidth'])
                 self.assertGreaterEqual(bounds['dialog']['left'], 0)
                 self.assertLessEqual(bounds['dialog']['right'], width)
-                self.assertLessEqual(bounds['title']['right'], bounds['close']['left'])
+                self.assertLessEqual(bounds['title']['right'], bounds['dialog']['right'])
+                self.assertGreaterEqual(bounds['title']['top'], bounds['close']['bottom'])
                 self.assertLessEqual(bounds['close']['right'], bounds['dialog']['right'])
                 self.assertTrue(self.page.locator('.dialog-close').is_visible())
                 self.page.keyboard.press('Escape')
