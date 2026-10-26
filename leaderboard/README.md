@@ -114,7 +114,7 @@ leaderboard.xlsx is the primary spreadsheet download: text uses explicit OOXML s
 
 The stable CSV column order is submission_id,model_name,model_variant,setting,task,dataset,metric,value,std,num_runs,method_type,hparam_trials,code_availability,paper_url,code_url,provenance,verification,submitted_at,source_issue.
 
-The URL carries setting,task,q,code,sort,order,submission so a filtered view or result dialog can be shared. Back/Forward restores state. Failed data loads offer Retry and a canonical CSV fallback. Mobile menu and dialogs contain keyboard focus; resize closes the menu and restores the page at the same 768px breakpoint used in CSS.
+The URL carries setting,task,q,code,sort,order,submission so a filtered view or result dialog can be shared. Back/Forward restores state. Failed data loads offer Retry and a canonical CSV fallback. Model dialogs contain keyboard focus and restore it on close. The header contains only the original Yandex Research logo linking to the Research home page; it has no section navigation or mobile menu.
 
 ## Public Issue lifecycle and manual handover
 

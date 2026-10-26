@@ -124,7 +124,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.open()
         for name in ('ys-text-regular.woff2', 'ys-text-medium.woff2', 'merriweather-light.woff2'):
             self.assertEqual(responses.get(name), 200, responses)
-        expected = {'h1': 'YSText-Medium', '#primary-navigation a': 'YSText-Regular',
+        expected = {'h1': 'YSText-Medium', '.breadcrumb a': 'YSText-Regular',
                     '.hero-intro': 'Merriweather-Light'}
         fonts = self.actual_platform_fonts(expected)
         for selector, postscript_name in expected.items():
@@ -206,27 +206,39 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.brand_observations.append({'check': 'reference_geometry', 'width': width, 'header': header,
                                                 'shell': shell, 'lockup': logo, 'svg_parts': parts})
 
-    def test_header_search_anchor_focuses_visible_native_search_desktop_and_mobile(self):
+    def test_header_contains_only_logo_and_navigates_to_its_external_destination(self):
+        destination = 'https://research.yandex.com/'
+        requested_urls = []
+
+        def official_destination_fixture(route):
+            requested_urls.append(route.request.url)
+            route.fulfill(status=200, content_type='text/html; charset=utf-8',
+                          body='<!doctype html><title>Destination fixture</title><main>External logo destination</main>')
+
+        self.page.route(destination, official_destination_fixture)
         for width in (1280, 375):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.open()
-                if width == 375:
-                    self.page.locator('.menu-button').click()
-                    self.assertTrue(self.page.locator('#main-content').evaluate('(el) => el.inert'))
-                self.page.locator('.header-search').click()
-                self.page.wait_for_function("() => document.activeElement.id === 'model-search'")
-                self.page.wait_for_function('''() => {
-                    const input=document.getElementById('model-search').getBoundingClientRect();
-                    const header=document.querySelector('.site-header').getBoundingClientRect();
-                    return input.top >= header.bottom && input.bottom <= innerHeight;
-                }''')
-                self.assertTrue(self.page.url.endswith('#model-search'), self.page.url)
-                self.assertFalse(self.page.locator('#main-content').evaluate('(el) => el.inert'))
-                self.assertFalse(self.page.locator('.site-header').evaluate('(el) => el.classList.contains("nav-open")'))
-                self.brand_observations.append({'check': 'native_header_search', 'width': width,
-                    'focused_id': self.page.evaluate('document.activeElement.id'),
-                    'search_bounds': self.page.locator('#model-search').bounding_box()})
+                header = self.page.locator('.site-header')
+                logo = header.locator('.wordmark')
+                self.assertEqual(header.locator('a').count(), 1)
+                self.assertEqual(header.locator('button, nav, input, select, textarea').count(), 0)
+                self.assertEqual(header.locator('.header-inner > *').count(), 1)
+                self.assertEqual(header.inner_text().strip(), '')
+                self.assertEqual(logo.get_attribute('href'), destination)
+                self.assertIn('Yandex Research', logo.get_attribute('aria-label'))
+                self.assertIsNone(logo.get_attribute('target'))
+                self.assertTrue(logo.is_visible())
+                previous_requests = len(requested_urls)
+                logo.click()
+                self.page.wait_for_url(destination)
+                self.assertEqual(self.page.url, destination)
+                self.assertEqual(self.page.locator('main').inner_text(), 'External logo destination')
+                self.assertEqual(requested_urls[previous_requests:], [destination])
+                self.brand_observations.append({'check': 'logo_only_header_external_navigation',
+                    'width': width, 'destination': self.page.url, 'header_links': 1,
+                    'navigation_fixture': True})
 
     def test_keyboard_skip_link_focuses_main_and_continues_inside_content(self):
         for width in (1280, 375):
@@ -521,19 +533,41 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertTrue(self.page.locator('[data-sort-key="city-reviews"]').is_disabled())
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'model')
 
-    def test_mobile_menu_contains_focus_and_unlocks_at_768(self):
-        self.page.set_viewport_size({'width': 740, 'height': 800})
+    def test_logo_header_keyboard_order_and_content_remain_available_across_breakpoints(self):
         self.open()
-        self.page.locator('.menu-button').click()
-        self.assertTrue(self.page.locator('#main-content').evaluate('(element) => element.inert'))
-        last = self.page.locator('#primary-navigation a').last
-        last.focus()
         self.page.keyboard.press('Tab')
-        self.assertEqual(self.page.evaluate('document.activeElement.className'), 'menu-button')
-        self.page.set_viewport_size({'width': 768, 'height': 800})
-        self.page.wait_for_function("!document.body.classList.contains('nav-open')")
-        self.assertFalse(self.page.locator('#main-content').evaluate('(element) => element.inert'))
-        self.assertEqual(self.page.locator('.menu-button').get_attribute('aria-expanded'), 'false')
+        self.assertEqual(self.page.evaluate('document.activeElement.className'), 'skip-link')
+        self.page.keyboard.press('Tab')
+        self.assertTrue(self.page.locator('.wordmark').evaluate('(el) => el === document.activeElement'))
+        for index, width in enumerate((320, 375, 767, 768, 999, 1000, 1600, 1601, 1920)):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.page.evaluate('async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); }')
+                if index:
+                    self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
+                self.assertFalse(self.page.locator('#main-content').evaluate('(el) => el.inert'))
+                self.assertFalse(self.page.locator('.site-footer').evaluate('(el) => el.inert'))
+                self.assertFalse(self.page.locator('body').evaluate('(el) => el.classList.contains("nav-open")'))
+                self.assertEqual(self.page.locator('.site-header button, .site-header nav').count(), 0)
+                self.page.locator('.wordmark').focus()
+                self.page.keyboard.press('Tab')
+                self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
+                self.page.keyboard.press('Shift+Tab')
+                self.assertTrue(self.page.locator('.wordmark').evaluate('(el) => el === document.activeElement'))
+                outline = self.page.locator('.wordmark').evaluate('''(el) => {
+                    const style=getComputedStyle(el);
+                    return {style:style.outlineStyle,width:parseFloat(style.outlineWidth)};
+                }''')
+                self.assertNotEqual(outline['style'], 'none')
+                self.assertGreater(outline['width'], 0)
+                self.page.keyboard.press('Tab')
+                self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
+                self.page.locator('#model-search').focus()
+                self.page.keyboard.press('Escape')
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
+                self.brand_observations.append({'check': 'logo_header_keyboard_no_inert', 'width': width,
+                    'tab_order': 'skip link → logo → breadcrumb Home', 'logo_focus_outline': outline,
+                    'focused_content_id': 'model-search', 'content_inert': False})
 
     def test_three_empty_states_and_filter_focus(self):
         payload = copy.deepcopy(self.payload)

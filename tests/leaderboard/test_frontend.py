@@ -66,6 +66,20 @@ class FrontendContractTests(unittest.TestCase):
         self.assertEqual(self.document.by_id["setting-tabs"][1].get("role"), "tablist")
         self.assertEqual(self.document.by_id["task-tabs"][1].get("role"), "tablist")
 
+    def test_header_contains_only_the_accessible_external_logo_link(self) -> None:
+        header_match = re.search(r"<header\b[^>]*>.*?</header>", self.html, re.DOTALL | re.IGNORECASE)
+        self.assertIsNotNone(header_match)
+        header = DocumentInventory()
+        header.feed(header_match.group())
+        links = [attrs for tag, attrs in header.elements if tag == "a"]
+        self.assertEqual(len(links), 1)
+        self.assertIn("wordmark", str(links[0].get("class", "")).split())
+        self.assertEqual(links[0].get("href"), "https://research.yandex.com/")
+        self.assertIn("Yandex Research", str(links[0].get("aria-label", "")))
+        self.assertIsNone(links[0].get("target"))
+        self.assertFalse(any(tag in {"nav", "button", "input", "select", "textarea"} for tag, _ in header.elements))
+        self.assertNotIn("primary-navigation", self.document.by_id)
+
     def test_static_assets_data_and_csv_use_base_path_safe_relative_urls(self) -> None:
         self.assertIn('href="assets/styles.css"', self.html)
         self.assertIn('src="assets/app.js"', self.html)
@@ -138,7 +152,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertEqual(dialog_attrs.get("aria-labelledby"), "dialog-title")
         self.assertEqual(self.document.by_id["load-error"][1].get("role"), "alert")
         self.assertIn('event.key === "ArrowRight"', self.javascript)
-        self.assertIn('event.key === "Escape"', self.javascript)
+        self.assertIn('elements.dialog.addEventListener("close"', self.javascript)
         self.assertIn("state.dialogTrigger.focus()", self.javascript)
         self.assertIn("@media (prefers-reduced-motion: reduce)", self.css)
 

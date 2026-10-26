@@ -30,9 +30,6 @@
   let tableHintFrame = 0;
 
   function cacheElements() {
-    elements.header = document.querySelector("[data-site-header]");
-    elements.menuButton = document.querySelector(".menu-button");
-    elements.navigation = document.getElementById("primary-navigation");
     elements.settingTabs = document.getElementById("setting-tabs");
     elements.taskTabs = document.getElementById("task-tabs");
     elements.settingDescription = document.getElementById("setting-description");
@@ -62,8 +59,6 @@
     elements.dialogClose = document.querySelector("[data-dialog-close]");
     elements.retry = document.getElementById("retry-load");
     elements.buildInfo = document.getElementById("build-info");
-    elements.main = document.getElementById("main-content");
-    elements.footer = document.querySelector(".site-footer");
   }
 
   function createElement(tagName, className, text) {
@@ -614,49 +609,6 @@
     });
   }
 
-  function closeNavigation() {
-    elements.header.classList.remove("nav-open");
-    elements.menuButton.setAttribute("aria-expanded", "false");
-    document.body.classList.remove("nav-open");
-    elements.main.inert = false;
-    elements.footer.inert = false;
-  }
-
-  function bindNavigation() {
-    elements.menuButton.addEventListener("click", () => {
-      const opening = !elements.header.classList.contains("nav-open");
-      elements.header.classList.toggle("nav-open", opening);
-      elements.menuButton.setAttribute("aria-expanded", String(opening));
-      document.body.classList.toggle("nav-open", opening);
-      elements.main.inert = opening;
-      elements.footer.inert = opening;
-    });
-    elements.navigation.addEventListener("click", (event) => {
-      if (event.target.closest("a")) {
-        closeNavigation();
-      }
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && elements.header.classList.contains("nav-open")) {
-        closeNavigation();
-        elements.menuButton.focus();
-      }
-      if (event.key === "Tab" && elements.header.classList.contains("nav-open")) {
-        const controls = [elements.menuButton, ...elements.navigation.querySelectorAll("a")];
-        const current = controls.indexOf(document.activeElement);
-        if (current < 0 || (event.shiftKey && current === 0) || (!event.shiftKey && current === controls.length - 1)) {
-          event.preventDefault();
-          controls[event.shiftKey ? controls.length - 1 : 0].focus();
-        }
-      }
-    });
-    window.matchMedia("(min-width: 768px)").addEventListener("change", (event) => {
-      if (event.matches) {
-        closeNavigation();
-      }
-    });
-  }
-
   function addBadge(container, label, variant) {
     const badge = createElement("span", `badge${variant ? ` ${variant}` : ""}`, label);
     container.append(badge);
@@ -882,7 +834,6 @@
       render();
     });
     window.addEventListener("popstate", () => {
-      closeNavigation();
       readQueryState();
       render();
     });
@@ -992,7 +943,6 @@
     cacheElements();
     readQueryState();
     setActiveTabs();
-    bindNavigation();
     bindControls();
     bindTableHint();
     bindDialog();
