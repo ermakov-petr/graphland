@@ -778,6 +778,12 @@ class LeaderboardBrowserTests(unittest.TestCase):
                         const link=document.querySelector('.project-navigation [aria-current="page"]').getBoundingClientRect();
                         return link.left>=Math.max(0,nav.left)-1 && link.right<=Math.min(innerWidth,nav.right)+1;
                     }''', timeout=5000)
+                    if width <= 560:
+                        links = self.page.locator('.project-navigation a').evaluate_all(
+                            '(nodes)=>nodes.map(el=>el.getBoundingClientRect().toJSON())')
+                        self.assertEqual(len(links), 4)
+                        self.assertTrue(all(rect['left'] >= 0 and rect['right'] <= width and rect['height'] >= 44
+                                            for rect in links), 'Every mobile section link must be fully visible and tappable')
                     self.assertLessEqual(abs(self.page.evaluate('scrollY')), 1,
                                          'Revealing the current section must not jump vertically')
                     self.assertEqual(self.page.locator('h1').count(), 1)
@@ -919,6 +925,39 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.brand_observations.append({'check':'full_page_shared_components','width':width,
                     'prose':body_style,'action':action_style,'table_heading':table_style,
                     'white_editorial_sections':True,'matching_filter_tab_styles':True})
+
+    def test_model_dialog_uses_shared_typography_and_keeps_long_titles_inside(self):
+        payload = copy.deepcopy(self.payload)
+        payload['submissions'][0]['model_name'] = 'LongModel' + 'X' * 150
+        self.with_payload(payload)
+        for width in (320, 560, 561, 1280, 1920):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.open()
+                shared = self.page.locator('#legend-title').evaluate("""el=>{
+                    const s=getComputedStyle(el);return [s.fontSize,s.lineHeight,s.letterSpacing,s.fontWeight];
+                }""")
+                self.page.locator('.model-button').filter(has_text='LongModel').click()
+                dialog = self.page.locator('#model-dialog')
+                self.assertTrue(dialog.is_visible())
+                actual = self.page.locator('#dialog-title').evaluate("""el=>{
+                    const s=getComputedStyle(el);return [s.fontSize,s.lineHeight,s.letterSpacing,s.fontWeight];
+                }""")
+                self.assertEqual(actual, shared)
+                bounds = self.page.evaluate("""()=>{
+                    const d=document.querySelector('#model-dialog'),h=document.querySelector('#dialog-title'),
+                        c=document.querySelector('.dialog-close');
+                    return {dialog:d.getBoundingClientRect().toJSON(),title:h.getBoundingClientRect().toJSON(),
+                        close:c.getBoundingClientRect().toJSON(),innerWidth:d.clientWidth,scrollWidth:d.scrollWidth};
+                }""")
+                self.assertLessEqual(bounds['scrollWidth'], bounds['innerWidth'])
+                self.assertGreaterEqual(bounds['dialog']['left'], 0)
+                self.assertLessEqual(bounds['dialog']['right'], width)
+                self.assertLessEqual(bounds['title']['right'], bounds['close']['left'])
+                self.assertLessEqual(bounds['close']['right'], bounds['dialog']['right'])
+                self.assertTrue(self.page.locator('.dialog-close').is_visible())
+                self.page.keyboard.press('Escape')
+                self.assertFalse(dialog.is_visible())
 
     def test_metadata_columns_preserve_budget_unknown_zero_and_accessible_safe_links(self):
         payload = copy.deepcopy(self.payload)

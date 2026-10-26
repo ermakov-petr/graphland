@@ -343,15 +343,6 @@ button {
   background: var(--yellow-hover);
 }
 
-.button-inverse {
-  background: var(--white);
-  color: var(--black);
-}
-
-.button-inverse:hover {
-  background: var(--gray-200);
-}
-
 .review-note {
   display: flex;
   align-items: flex-start;
@@ -1287,7 +1278,9 @@ th:first-child .sort-label {
 
 .result-details-heading {
   margin-top: 32px;
-  font-size: 17px;
+  font-size: var(--subheading-size);
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .mini-badge.synthetic,
@@ -1322,11 +1315,14 @@ button:disabled {
 
 .dialog-header h2 {
   margin-top: 8px;
-  font-size: 32px;
+  font-size: var(--section-heading-size);
   font-weight: 500;
-  letter-spacing: -.008em;
-  line-height: 1.2;
+  letter-spacing: var(--section-heading-tracking);
+  line-height: var(--section-heading-line);
+  overflow-wrap: anywhere;
 }
+
+.dialog-header > div { min-width: 0; }
 
 .dialog-close {
   position: relative;
@@ -1365,7 +1361,7 @@ button:disabled {
   padding: 7px 11px;
   background: var(--gray-100);
   color: var(--gray-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -1380,9 +1376,8 @@ button:disabled {
 }
 
 .dialog-lead {
-  margin-top: 28px;
+  margin-top: 24px;
   color: var(--gray-700);
-  font-size: 16px;
 }
 
 .detail-list {
@@ -1400,7 +1395,7 @@ button:disabled {
 
 .detail-list dt {
   color: var(--gray-500);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .detail-list dd {
@@ -1910,10 +1905,6 @@ button:disabled {
     padding: 22px;
   }
 
-  .dialog-header h2 {
-    font-size: 28px;
-  }
-
   .detail-list > div {
     grid-template-columns: 1fr;
     gap: 5px;
@@ -1988,7 +1979,8 @@ button:disabled {
 .guide-notes li,
 .legend-list dd,
 .protocol-grid p,
-.steps-list p {
+.steps-list p,
+.dialog-lead {
   max-width: 920px;
   font-family: var(--font-serif);
   font-size: var(--prose-size);
@@ -2000,7 +1992,8 @@ button:disabled {
 .article-copy > p a,
 .section-description a,
 .dataset-description > p:not(.dataset-tags) a,
-.guide-notes li a {
+.guide-notes li a,
+.table-footnote a {
   display: inline;
   margin-top: 0;
   font-weight: inherit;
@@ -2024,6 +2017,8 @@ button:disabled {
 .project-page h3 { font-size: var(--subheading-size); font-weight: 500; line-height: 1.2; }
 .project-resources { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 28px; margin-bottom: 20px; }
 .project-resources li { padding-block: 18px; border-bottom: 1px solid var(--gray-200); }
+.project-resources .text-link { margin-top: 0; }
+.text-link:hover { color: var(--gray-700); }
 .catalog-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--black); }
 .dataset-catalog { width: 100%; min-width: 1000px; border-collapse: collapse; font-size: 14px; }
 .dataset-catalog caption { text-align: left; padding: 14px 0; font-size: 14px; color: var(--gray-700); }
@@ -2084,4 +2079,19 @@ button:disabled {
   .dataset-description { padding-block: 24px; }
   .code-block { font-size: 12px; padding: 16px; }
   .project-page { padding-bottom: 40px; }
+}
+
+@media (max-width: 560px) {
+  .project-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 24px;
+    overflow: visible;
+  }
+  .project-navigation a {
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }
