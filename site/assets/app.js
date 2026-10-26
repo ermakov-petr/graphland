@@ -357,12 +357,14 @@
     const directionText = active
       ? (state.sortDirection === "asc" ? "descending" : "ascending")
       : (key === "model" ? "ascending" : "descending");
-    button.setAttribute("aria-label", `Sort by ${label}, ${directionText}`);
+    const visibleLabel = [label, secondaryLabel].filter(Boolean).join(" ");
+    button.setAttribute("aria-label", `${visibleLabel}: sort ${directionText}`);
     button.addEventListener("click", () => setSort(key));
 
     const labelContainer = createElement("span", "sort-label");
     labelContainer.append(createElement("span", null, label));
     if (secondaryLabel) {
+      labelContainer.append(document.createTextNode(" "));
       labelContainer.append(createElement("small", null, secondaryLabel));
     }
     const indicator = createElement(
@@ -416,6 +418,7 @@
     button.setAttribute("aria-label", `View details for ${submissionName(submission)}`);
     button.append(
       createElement("strong", null, submission.model_name),
+      document.createTextNode(" "),
       createElement("span", null, submission.model_variant),
     );
     button.addEventListener("click", () => openDialog(submission, button));

@@ -488,9 +488,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_sort_keeps_keyboard_focus_and_numeric_order(self):
         self.open()
-        header = self.page.locator('[data-sort-key="hm-categories"]')
+        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
         header.focus()
         header.press('Space')
+        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort ascending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'descending')
         names = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
@@ -499,6 +500,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             item['model_name']))
         self.assertEqual(names, [item['model_name'] for item in expected])
         header.press('Enter')
+        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'ascending')
 
@@ -1572,6 +1574,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
         for dataset in self.payload['datasets']:
             self.assertIn(tasks[dataset['task']]['metric_label'],
                           self.page.locator(f'[data-sort-key="{dataset["id"]}"]').inner_text())
+            name = f"{dataset['display_name']} {tasks[dataset['task']]['metric_label']}: sort descending"
+            self.assertEqual(self.page.get_by_role('button', name=name, exact=True).count(), 1)
+        self.assertEqual(self.page.get_by_role('button', name='Model Name / variant: sort descending', exact=True).count(), 1)
         setting_tabs = self.page.get_by_role('tablist', name='Experimental setting', exact=True)
         self.assertEqual(setting_tabs.get_by_role('tab').all_text_contents(), ['RL', 'RH', 'TH', 'THI'])
         hidden_label = self.page.locator('#setting-tabs-label').bounding_box()
