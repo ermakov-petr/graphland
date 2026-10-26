@@ -2120,3 +2120,6 @@ button:disabled {
   .project-page { padding-bottom: 42px; }
 }
 
+
+.protocol-disclosure > summary, .citation-disclosure > summary { cursor: pointer; padding-block: 16px; font-size: 18px; font-weight: 500; }
+.protocol-disclosure[open] > summary { margin-bottom: 24px; }

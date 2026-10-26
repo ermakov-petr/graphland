@@ -803,7 +803,7 @@
       details,
       "Training code",
       submission.code_availability === "available" ? submission.training_code_url : "Not published",
-      submission.training_code_url,
+      submission.code_availability === "available" ? submission.training_code_url : null,
     );
     appendDetail(
       details,

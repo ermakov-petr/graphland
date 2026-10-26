@@ -8,7 +8,7 @@
 
     const query = new URLSearchParams(window.location.search);
     const leaderboardKeys = ["setting", "task", "q", "code", "sort", "order", "submission"];
-    const leaderboardHashes = ["#leaderboard", "#leaderboard-controls"];
+    const leaderboardHashes = ["#leaderboard", "#leaderboard-controls", "#protocol", "#submit", "#model-search"];
     if (!leaderboardKeys.some((key) => query.has(key))
         && !leaderboardHashes.includes(window.location.hash)) return;
 
