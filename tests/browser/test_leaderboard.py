@@ -960,6 +960,64 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     'prose':body_style,'action':action_style,'table_heading':table_style,
                     'white_editorial_sections':True,'matching_filter_tab_styles':True})
 
+    def test_horizontal_scroll_keys_do_not_capture_descendant_controls_or_shortcuts(self):
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.open()
+        viewport = self.page.locator('.table-scroll')
+        viewport.focus()
+        self.page.keyboard.press('ArrowRight')
+        self.page.wait_for_function("document.querySelector('.table-scroll').scrollLeft > 0")
+        self.page.keyboard.press('ArrowLeft')
+        self.page.wait_for_function("document.querySelector('.table-scroll').scrollLeft === 0")
+        # These events must retain their native behavior; the handler owns only
+        # plain horizontal arrows targeted at the scroll region itself.
+        for modifier in ('altKey', 'ctrlKey', 'metaKey', 'shiftKey', 'isComposing'):
+            self.assertTrue(viewport.evaluate("""(el, modifier) => el.dispatchEvent(
+                new KeyboardEvent('keydown', {key:'ArrowRight',bubbles:true,cancelable:true,[modifier]:true}))""", modifier))
+        control = self.page.locator('.sort-button').first
+        self.assertTrue(control.evaluate("""el=>el.dispatchEvent(new KeyboardEvent(
+            'keydown',{key:'ArrowRight',bubbles:true,cancelable:true}))"""))
+        self.page.locator('#model-search').fill('no-such-model')
+        self.assertTrue(self.page.locator('#empty-state').is_visible())
+
+    def test_documentation_navigation_and_code_remain_readable_and_keyboard_accessible(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        for width in (320, 767, 768, 1280, 1920):
+            self.page.set_viewport_size({'width': width, 'height': 900})
+            self.page.goto(self.base + 'datasets.html')
+            self.page.evaluate('document.fonts.ready')
+            links = self.page.locator('.dataset-index a')
+            self.assertEqual(links.count(), 9)
+            for link in links.all():
+                bounds = link.bounding_box()
+                self.assertGreaterEqual(bounds['height'], 44)
+                self.assertGreaterEqual(bounds['x'], 0)
+                self.assertLessEqual(bounds['x'] + bounds['width'], width)
+                self.assertTrue(link.get_attribute('aria-label').startswith(link.inner_text()))
+            target = self.page.locator('.dataset-index a[href="#hm"]')
+            target.focus()
+            self.page.keyboard.press('Enter')
+            self.page.wait_for_url('**/datasets.html#hm')
+            top = self.page.locator('#hm').bounding_box()['y']
+            header_bottom = self.page.locator('.site-header').bounding_box()['height']
+            self.assertGreaterEqual(top, header_bottom)
+            self.assertLess(top, 900)
+            self.page.goto(self.base + 'getting-started.html')
+            self.page.evaluate('document.fonts.ready')
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            blocks = self.page.locator('.code-block')
+            for block in blocks.all():
+                self.assertGreaterEqual(block.evaluate('(el)=>parseFloat(getComputedStyle(el).fontSize)'), 13)
+                if width >= 1280:
+                    self.assertTrue(block.evaluate('(el)=>el.scrollWidth <= el.clientWidth'))
+                block.focus()
+                self.assertNotEqual(block.evaluate('(el)=>getComputedStyle(el).outlineStyle'), 'none')
+                if block.evaluate('(el)=>el.scrollWidth>el.clientWidth'):
+                    self.page.keyboard.press('ArrowRight')
+                    self.page.wait_for_function('(el)=>el.scrollLeft>0', arg=block.element_handle())
+            self.assertEqual(self.page.locator('#transductive-loading p code').all_text_contents(),
+                             ['Data', 'train_mask', 'val_mask', 'test_mask'])
+
     def test_model_dialog_uses_shared_typography_and_keeps_long_titles_inside(self):
         payload = copy.deepcopy(self.payload)
         payload['submissions'][0]['model_name'] = 'LongModel' + 'X' * 150

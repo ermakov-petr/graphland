@@ -56,9 +56,25 @@
     update();
   }
 
+  function initializeHorizontalKeyboardScroll() {
+    // WebKit does not natively scroll focused overflow regions with arrow keys.
+    // Keep descendant controls and text-selection/browser shortcuts untouched.
+    document.querySelectorAll('.catalog-scroll, .table-scroll, .code-block').forEach((viewport) => {
+      viewport.addEventListener('keydown', (event) => {
+        if (event.target !== viewport || event.defaultPrevented || event.isComposing
+            || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
+            || !['ArrowLeft', 'ArrowRight'].includes(event.key)
+            || viewport.scrollWidth <= viewport.clientWidth + 1) return;
+        event.preventDefault();
+        viewport.scrollLeft += event.key === 'ArrowRight' ? 40 : -40;
+      });
+    });
+  }
+
   function initializeNavigation() {
     redirectLegacyLeaderboardUrl();
     initializeCatalogScrollHint();
+    initializeHorizontalKeyboardScroll();
     window.requestAnimationFrame(revealCurrentSection);
     if (document.fonts) document.fonts.ready.then(revealCurrentSection);
     window.addEventListener('resize', revealCurrentSection, { passive: true });
