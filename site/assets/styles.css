@@ -2015,6 +2015,13 @@ button:disabled {
 .dataset-tags a:hover { color: var(--black); }
 .code-block { max-width: var(--code-width); margin: 20px 0; padding: 24px; overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 0; background: var(--gray-100); font-size: 14px; line-height: 1.7; tab-size: 4; }
 .code-block code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: inherit; }
+.code-example { max-width: var(--code-width); margin: 20px 0; border: 1px solid var(--gray-200); background: var(--gray-100); }
+.code-example .code-block { margin: 0; border: 0; padding-top: 8px; }
+.code-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 4px 24px 0; }
+.copy-code { flex: 0 0 auto; min-height: 44px; border: 0; padding: 8px 0; background: transparent; color: var(--black); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.copy-code:hover { color: var(--gray-700); }
+.copy-code[aria-disabled="true"] { color: var(--gray-700); cursor: wait; }
+.copy-status { min-width: 0; margin-right: auto; color: var(--gray-700); font-size: 13px; line-height: 1.4; }
 .syntax-keyword { color: #6f42c1; }
 .syntax-string { color: #0b7250; }
 .syntax-comment { color: #666; }
@@ -2057,6 +2064,7 @@ button:disabled {
   .project-resources { grid-template-columns: 1fr; }
   .dataset-description { padding-block: 24px; }
   .code-block { font-size: 13px; padding: 16px; }
+  .code-toolbar { padding-inline: 16px; }
   .dataset-index { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
   .project-page { padding-bottom: 40px; }
 }

@@ -101,9 +101,54 @@
     initializeCatalogScrollHint();
     initializeHorizontalKeyboardScroll();
     initializeTableFocusScroll();
+    initializeCodeCopy();
     window.requestAnimationFrame(revealCurrentSection);
     if (document.fonts) document.fonts.ready.then(revealCurrentSection);
     window.addEventListener('resize', revealCurrentSection, { passive: true });
+  }
+
+  function initializeCodeCopy() {
+    // Keep the original selectable examples when the Clipboard API is absent.
+    if (!navigator.clipboard?.writeText) return;
+    document.querySelectorAll('.code-block').forEach((block) => {
+      const code = block.querySelector('code');
+      if (!code) return;
+      const citation = code.classList.contains('language-bibtex');
+      const heading = block.closest('section')?.querySelector('h2')?.textContent;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-example';
+      const toolbar = document.createElement('div');
+      toolbar.className = 'code-toolbar';
+      const status = document.createElement('span');
+      status.className = 'copy-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-code';
+      button.textContent = citation ? 'Copy citation' : 'Copy code';
+      button.setAttribute('aria-label', `${button.textContent}${heading ? ': ' + heading : ''}`);
+      toolbar.append(status, button);
+      block.before(wrapper);
+      wrapper.append(toolbar, block);
+      let pending = false;
+      button.addEventListener('click', async () => {
+        if (pending) return;
+        pending = true;
+        // aria-disabled keeps keyboard focus while the permission request runs.
+        button.setAttribute('aria-disabled', 'true');
+        status.textContent = 'Copying…';
+        try {
+          await navigator.clipboard.writeText(code.textContent);
+          status.textContent = 'Copied';
+        } catch (_) {
+          status.textContent = 'Could not copy. Select the text and copy it manually.';
+        } finally {
+          pending = false;
+          button.removeAttribute('aria-disabled');
+        }
+      });
+    });
   }
 
   if (document.readyState === "loading") {

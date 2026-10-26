@@ -1270,6 +1270,89 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(self.page.locator('#transductive-loading p code').all_text_contents(),
                              ['Data', 'train_mask', 'val_mask', 'test_mask'])
 
+    def test_copy_actions_preserve_exact_code_and_citation_text(self):
+        self.page.add_init_script('''Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+            writeText:async text=>{window.copyWrites=(window.copyWrites||[]).concat(text)}
+        }});''')
+        for route in ('getting-started.html', 'index.html'):
+            self.page.goto(self.base + route)
+            if route == 'index.html':
+                self.page.locator('.citation-disclosure summary').click()
+            blocks = self.page.locator('.code-example')
+            self.assertEqual(blocks.count(), 3 if route == 'getting-started.html' else 1)
+            for index, block in enumerate(blocks.all()):
+                expected = block.locator('code').text_content()
+                button = block.locator('.copy-code')
+                self.assertGreaterEqual(button.bounding_box()['height'], 44)
+                self.assertTrue(button.get_attribute('aria-label').startswith('Copy'))
+                button.focus()
+                self.page.keyboard.press('Enter')
+                self.page.wait_for_function('(index)=>window.copyWrites?.length===index+1', arg=index)
+                self.assertEqual(self.page.evaluate('window.copyWrites.at(-1)'), expected)
+                self.assertEqual(block.locator('.copy-status').inner_text(), 'Copied')
+                self.assertTrue(button.evaluate('(e)=>document.activeElement===e'))
+                self.assertIsNone(button.get_attribute('aria-disabled'))
+                if route == 'getting-started.html' and index == 0:
+                    self.assertEqual(expected, 'python -m pip install torch-geometric pandas scikit-learn PyYAML')
+                if route == 'index.html':
+                    self.assertEqual(button.inner_text(), 'Copy citation')
+                    self.assertTrue(expected.startswith('@inproceedings{bazhenov2025graphland,'))
+
+    def test_copy_pending_blocks_duplicates_without_stealing_focus(self):
+        self.page.add_init_script('''Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+            writeText:text=>{window.copyCalls=(window.copyCalls||0)+1;return new Promise(resolve=>window.resolveCopy=resolve)}
+        }});''')
+        self.page.goto(self.base + 'getting-started.html')
+        block = self.page.locator('.code-example').first
+        button = block.locator('.copy-code')
+        button.focus()
+        self.page.keyboard.press('Space')
+        self.assertEqual(block.locator('.copy-status').inner_text(), 'Copying…')
+        self.assertEqual(button.get_attribute('aria-disabled'), 'true')
+        self.assertTrue(button.evaluate('(e)=>document.activeElement===e'))
+        self.page.keyboard.press('Enter')
+        self.assertEqual(self.page.evaluate('window.copyCalls'), 1)
+        self.page.keyboard.press('Tab')
+        self.assertTrue(block.locator('.code-block').evaluate('(e)=>document.activeElement===e'))
+        self.page.evaluate('window.resolveCopy()')
+        self.page.wait_for_function("document.querySelector('.copy-status').textContent==='Copied'")
+        self.assertTrue(block.locator('.code-block').evaluate('(e)=>document.activeElement===e'))
+        self.assertIsNone(button.get_attribute('aria-disabled'))
+
+    def test_copy_failure_preserves_selection_and_allows_retry(self):
+        self.page.set_viewport_size({'width': 320, 'height': 800})
+        self.page.add_init_script('''Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+            writeText:async text=>{window.copyCalls=(window.copyCalls||0)+1;if(window.copyCalls===1)throw new Error('Denied')}
+        }});''')
+        self.page.goto(self.base + 'getting-started.html')
+        block = self.page.locator('.code-example').first
+        expected = block.locator('code').text_content()
+        block.locator('code').evaluate('''e=>{const r=document.createRange();r.selectNodeContents(e);getSelection().removeAllRanges();getSelection().addRange(r)}''')
+        button = block.locator('.copy-code')
+        button.focus()
+        self.page.keyboard.press('Enter')
+        self.page.wait_for_function("document.querySelector('.copy-status').textContent.startsWith('Could not copy.')")
+        self.assertEqual(self.page.evaluate('getSelection().toString()'), expected)
+        self.assertTrue(button.evaluate('(e)=>document.activeElement===e'))
+        self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth>innerWidth'))
+        self.page.keyboard.press('Enter')
+        self.page.wait_for_function("document.querySelector('.copy-status').textContent==='Copied'")
+        self.assertEqual(self.page.evaluate('window.copyCalls'), 2)
+
+    def test_code_remains_usable_without_clipboard_or_javascript(self):
+        self.page.add_init_script("Object.defineProperty(navigator,'clipboard',{value:undefined})")
+        self.page.goto(self.base + 'getting-started.html')
+        self.assertEqual(self.page.locator('.copy-code').count(), 0)
+        expected = self.page.locator('.code-block code').all_text_contents()
+        self.assertEqual(len(expected), 3)
+        no_js = self.browser.new_page(java_script_enabled=False)
+        try:
+            no_js.goto(self.base + 'getting-started.html')
+            self.assertEqual(no_js.locator('.code-block code').all_text_contents(), expected)
+            self.assertEqual(no_js.locator('.copy-code').count(), 0)
+        finally:
+            no_js.close()
+
     def test_model_dialog_uses_shared_typography_and_keeps_long_titles_inside(self):
         payload = copy.deepcopy(self.payload)
         payload['submissions'][0]['model_name'] = 'LongModel' + 'X' * 150
