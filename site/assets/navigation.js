@@ -18,9 +18,30 @@
     window.location.replace(target.href);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", redirectLegacyLeaderboardUrl, { once: true });
-  } else {
+  function revealCurrentSection() {
+    const navigation = document.querySelector('.project-navigation');
+    const current = navigation?.querySelector('[aria-current="page"]');
+    if (!navigation || !current) return;
+    const container = navigation.getBoundingClientRect();
+    const item = current.getBoundingClientRect();
+    const padding = parseFloat(getComputedStyle(navigation).paddingLeft) || 0;
+    if (item.right > container.right - padding) {
+      navigation.scrollLeft += item.right - container.right + padding;
+    } else if (item.left < container.left + padding) {
+      navigation.scrollLeft -= container.left + padding - item.left;
+    }
+  }
+
+  function initializeNavigation() {
     redirectLegacyLeaderboardUrl();
+    window.requestAnimationFrame(revealCurrentSection);
+    if (document.fonts) document.fonts.ready.then(revealCurrentSection);
+    window.addEventListener('resize', revealCurrentSection, { passive: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeNavigation, { once: true });
+  } else {
+    initializeNavigation();
   }
 })();

@@ -58,7 +58,15 @@ class SectionsContractTests(unittest.TestCase):
                 self.assertEqual(bodies[0].get("data-page"), marker)
                 h1s = re.findall(r"<h1\b[^>]*>(.*?)</h1>", source, re.DOTALL | re.IGNORECASE)
                 self.assertEqual(len(h1s), 1)
-                self.assertIn(heading, re.sub(r"<[^>]+>", "", h1s[0]))
+                self.assertEqual(heading, re.sub(r"<[^>]+>", "", h1s[0]).strip())
+                intro = re.search(r'<section\b[^>]*class="[^"]*page-intro[^\"]*"[^>]*>.*?</section>', source, re.DOTALL)
+                self.assertIsNotNone(intro)
+                self.assertEqual(len(re.findall(r"<h1\b", intro.group())), 1)
+                intro_inventory = DocumentInventory()
+                intro_inventory.feed(intro.group())
+                leads = [attrs for tag, attrs in intro_inventory.elements
+                         if tag == "p" and "page-lead" in str(attrs.get("class", "")).split()]
+                self.assertEqual(len(leads), 1)
                 nav = re.search(r'<nav\b[^>]*class="[^"]*project-navigation[^\"]*"[^>]*>.*?</nav>', source, re.DOTALL)
                 self.assertIsNotNone(nav)
                 header = re.search(r"<header\b[^>]*>.*?</header>", source, re.DOTALL)
