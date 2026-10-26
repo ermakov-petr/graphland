@@ -719,7 +719,7 @@ button {
   outline-offset: 4px;
 }
 
-table {
+#leaderboard-table {
   width: 100%;
   min-width: 860px;
   border-collapse: separate;
@@ -727,8 +727,8 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
-th,
-td {
+#leaderboard-table th,
+#leaderboard-table td {
   min-width: 145px;
   padding: 18px 16px;
   border-bottom: 1px solid var(--gray-200);
@@ -737,7 +737,7 @@ td {
   vertical-align: middle;
 }
 
-th {
+#leaderboard-table th {
   position: sticky;
   z-index: 4;
   top: 0;
@@ -749,8 +749,8 @@ th {
   line-height: 1.25;
 }
 
-th:first-child,
-td:first-child {
+#leaderboard-table th:first-child,
+#leaderboard-table td:first-child {
   position: sticky;
   left: 0;
   min-width: 235px;
@@ -758,21 +758,21 @@ td:first-child {
   text-align: left;
 }
 
-th:first-child {
+#leaderboard-table th:first-child {
   z-index: 6;
   box-shadow: 1px 0 0 var(--gray-200);
 }
 
-td:first-child {
+#leaderboard-table td:first-child {
   z-index: 2;
   box-shadow: 1px 0 0 var(--gray-200);
 }
 
-tbody tr:last-child td {
+#leaderboard-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
-tbody tr:hover td {
+#leaderboard-table tbody tr:hover td {
   background: var(--gray-100);
 }
 
@@ -789,7 +789,7 @@ tbody tr:hover td {
   cursor: pointer;
 }
 
-th:first-child .sort-button {
+#leaderboard-table th:first-child .sort-button {
   justify-content: flex-start;
   text-align: left;
 }
@@ -805,7 +805,7 @@ th:first-child .sort-button {
   gap: 2px;
 }
 
-th:first-child .sort-label {
+#leaderboard-table th:first-child .sort-label {
   align-items: flex-start;
 }
 
@@ -1796,23 +1796,23 @@ button:disabled {
     text-align: left;
   }
 
-  table {
+  #leaderboard-table {
     --model-column-width: min(165px, calc(100vw - 182px));
     table-layout: fixed;
     width: calc(var(--model-column-width) + var(--dataset-count, 3) * 150px);
     min-width: 0;
   }
 
-  th,
-  td {
+  #leaderboard-table th,
+  #leaderboard-table td {
     width: 150px;
     min-width: 150px;
     max-width: 150px;
     padding-inline: 12px;
   }
 
-  th:first-child,
-  td:first-child {
+  #leaderboard-table th:first-child,
+  #leaderboard-table td:first-child {
     width: var(--model-column-width);
     min-width: var(--model-column-width);
     max-width: var(--model-column-width);
@@ -2020,7 +2020,7 @@ button:disabled {
 .project-resources .text-link { margin-top: 0; }
 .text-link:hover { color: var(--gray-700); }
 .catalog-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--black); }
-.dataset-catalog { width: 100%; min-width: 1000px; border-collapse: collapse; font-size: 14px; }
+.dataset-catalog { width: 100%; min-width: 1000px; border-collapse: separate; border-spacing: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
 .dataset-catalog caption { text-align: left; padding: 14px 0; font-size: 14px; color: var(--gray-700); }
 .dataset-catalog th, .dataset-catalog td { padding: 15px 14px; border-bottom: 1px solid var(--gray-200); text-align: left; vertical-align: top; }
 .dataset-catalog thead th,
@@ -2030,7 +2030,9 @@ button:disabled {
   font-size: 13px;
   font-weight: 500;
 }
-.dataset-catalog tbody th { font-weight: 500; position: sticky; left: 0; background: var(--white); min-width: 150px; }
+.dataset-catalog th:first-child { position: sticky; left: 0; z-index: 1; min-width: 160px; box-shadow: 1px 0 0 var(--gray-200); }
+.dataset-catalog tbody th { font-weight: 500; background: var(--white); }
+.dataset-catalog tbody tr:hover > * { background: var(--gray-100); }
 .dataset-catalog tbody th a { text-decoration: underline; text-underline-offset: 3px; }
 .dataset-catalog td:nth-child(2), .dataset-catalog td:nth-child(3) { white-space: nowrap; }
 .table-footnote { margin-top: 14px; color: var(--gray-700); font-size: 13px; line-height: 1.6; }
@@ -2049,7 +2051,11 @@ button:disabled {
 .guide-notes { padding-left: 22px; }
 .guide-notes li { margin-bottom: 16px; }
 .protocol-disclosure, .citation-disclosure { border-top: 1px solid var(--black); border-bottom: 1px solid var(--gray-200); }
-.protocol-disclosure > summary, .citation-disclosure > summary { cursor: pointer; padding-block: 16px; font-size: var(--subheading-size); font-weight: 500; }
+.protocol-disclosure > summary, .citation-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; cursor: pointer; padding-block: 16px; list-style: none; font-size: var(--subheading-size); font-weight: 500; }
+.protocol-disclosure > summary::-webkit-details-marker, .citation-disclosure > summary::-webkit-details-marker { display: none; }
+.protocol-disclosure > summary::after, .citation-disclosure > summary::after { content: ""; flex: 0 0 8px; height: 8px; margin-right: 4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); }
+.protocol-disclosure[open] > summary::after, .citation-disclosure[open] > summary::after { transform: rotate(225deg); }
+.protocol-disclosure > summary:hover, .citation-disclosure > summary:hover { color: var(--gray-700); }
 .protocol-disclosure[open] > summary { margin-bottom: 24px; }
 @media (max-width: 1600px) {
   :root {

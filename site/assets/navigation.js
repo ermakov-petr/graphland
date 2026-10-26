@@ -32,8 +32,33 @@
     }
   }
 
+  function initializeCatalogScrollHint() {
+    const viewport = document.querySelector('.catalog-scroll');
+    const hint = document.getElementById('catalog-scroll-hint');
+    if (!viewport || !hint) return;
+    function update() {
+      const remaining = viewport.scrollWidth - viewport.clientWidth - viewport.scrollLeft;
+      hint.hidden = remaining <= 2;
+      const descriptions = new Set((viewport.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+      if (hint.hidden) descriptions.delete(hint.id);
+      else descriptions.add(hint.id);
+      if (descriptions.size) viewport.setAttribute('aria-describedby', [...descriptions].join(' '));
+      else viewport.removeAttribute('aria-describedby');
+    }
+    viewport.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    if (window.ResizeObserver) {
+      const observer = new ResizeObserver(update);
+      observer.observe(viewport);
+      observer.observe(viewport.querySelector('table'));
+    }
+    if (document.fonts) document.fonts.ready.then(update);
+    update();
+  }
+
   function initializeNavigation() {
     redirectLegacyLeaderboardUrl();
+    initializeCatalogScrollHint();
     window.requestAnimationFrame(revealCurrentSection);
     if (document.fonts) document.fonts.ready.then(revealCurrentSection);
     window.addEventListener('resize', revealCurrentSection, { passive: true });

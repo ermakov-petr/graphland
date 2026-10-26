@@ -392,6 +392,40 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
                                         'task_change_and_results_restore': True})
 
+    def test_catalog_scroll_and_native_disclosures_work_with_keyboard(self):
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.page.goto(self.base)
+        self.page.evaluate('document.fonts.ready')
+        viewport = self.page.locator('.catalog-scroll')
+        hint = self.page.locator('#catalog-scroll-hint')
+        self.page.wait_for_function("!document.getElementById('catalog-scroll-hint').hidden")
+        self.assertIn('catalog-scroll-hint', viewport.get_attribute('aria-describedby'))
+        label = self.page.locator('.dataset-catalog tbody th').first
+        left = label.bounding_box()['x']
+        viewport.focus()
+        self.page.keyboard.press('ArrowRight')
+        self.page.wait_for_function("document.querySelector('.catalog-scroll').scrollLeft > 0")
+        self.assertAlmostEqual(label.bounding_box()['x'], left, delta=1)
+        viewport.evaluate('(el) => el.scrollLeft = el.scrollWidth')
+        self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
+        self.assertFalse(hint.is_visible())
+        self.assertNotIn('catalog-scroll-hint', (viewport.get_attribute('aria-describedby') or '').split())
+        viewport.evaluate('(el) => el.scrollLeft = 0')
+        self.page.wait_for_function("!document.getElementById('catalog-scroll-hint').hidden")
+        self.page.set_viewport_size({'width': 1920, 'height': 900})
+        self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
+        self.assertTrue(viewport.evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'))
+        for route, selector in (('', '.citation-disclosure'), ('leaderboard.html', '.protocol-disclosure')):
+            self.page.goto(self.base + route)
+            disclosure = self.page.locator(selector)
+            summary = disclosure.locator('summary')
+            summary.focus()
+            self.page.keyboard.press('Enter')
+            self.assertIsNotNone(disclosure.get_attribute('open'))
+            self.page.keyboard.press('Space')
+            self.assertIsNone(disclosure.get_attribute('open'))
+            self.assertEqual(summary.evaluate('(el) => document.activeElement === el'), True)
+
     def test_legacy_section_fragments_redirect_without_losing_state(self):
         for fragment in ('protocol', 'submit', 'model-search'):
             for query in ('', '?setting=RH&task=all&code=0'):
