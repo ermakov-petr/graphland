@@ -8,7 +8,7 @@ This is the official repository for the paper [GraphLand: Evaluating Graph Machi
 
 ## Leaderboard
 
-The public [GraphLand Leaderboard](https://ermakov-petr.github.io/graphland/) compares submitted results across the official datasets and experimental settings. See the [leaderboard documentation](leaderboard/README.md) for the protocol, submission process, and local build instructions.
+The public [GraphLand website](https://ermakov-petr.github.io/graphland/) includes dataset documentation, getting-started examples and a [leaderboard](https://ermakov-petr.github.io/graphland/leaderboard.html) comparing submitted results across the official datasets and experimental settings. See the [leaderboard documentation](leaderboard/README.md) for the protocol, submission process, and local build instructions.
 
 ## How to use this repository
 

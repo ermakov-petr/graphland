@@ -6,6 +6,7 @@
     "multiclass_node_classification",
     "binary_node_classification",
     "node_regression",
+    "all",
   ];
 
   const state = {
@@ -102,6 +103,41 @@
     return submission.results.find(
       (result) => result.setting === setting && result.dataset === datasetId,
     ) || null;
+  }
+
+  function effectiveHparamTrials(submission, result) {
+    const value = result?.hparam_trials
+      ?? (submission.schema_version === "1.0" ? submission.hparam_trials : null);
+    return Number.isInteger(value) && value >= 0 ? value : null;
+  }
+
+  function summarizeHparamTrials(submission, datasets, setting) {
+    const reported = datasets.filter((dataset) => isSettingAvailable(dataset, setting))
+      .map((dataset) => ({ dataset, result: getResult(submission, setting, dataset.id) }))
+      .filter(({ result }) => Number.isFinite(result?.value));
+    const budgets = reported.map(({ result }) => effectiveHparamTrials(submission, result));
+    const known = new Set(budgets.filter((value) => value !== null));
+    const incomplete = budgets.some((value) => value === null);
+    const label = known.size > 1 ? "Varies"
+      : (incomplete || known.size === 0 ? "—" : String(known.values().next().value));
+    const details = reported.length ? reported.map(({ dataset, result }) =>
+      `${dataset.display_name || dataset.id}: ${effectiveHparamTrials(submission, result) ?? "unknown"}`,
+    ).join("; ") : "No reported results in this view";
+    return { label, details };
+  }
+
+  function bestReportedMeans(submissions, datasets, setting) {
+    const best = new Map();
+    for (const dataset of datasets) {
+      if (!isSettingAvailable(dataset, setting)) continue;
+      for (const submission of submissions) {
+        const value = getResult(submission, setting, dataset.id)?.value;
+        if (Number.isFinite(value) && (!best.has(dataset.id) || value > best.get(dataset.id))) {
+          best.set(dataset.id, value);
+        }
+      }
+    }
+    return best;
   }
 
   function formatMetric(result, dataset) {
@@ -250,9 +286,11 @@
 
   function updateMetricNote() {
     const task = state.tasksById.get(state.task);
-    if (!task) {
+    if (state.task === "all") {
+      elements.metricNote.textContent = "Dataset-specific metrics · higher is better";
       return;
     }
+    if (!task) return;
     elements.metricNote.textContent = `Canonical metric: ${task.metric_label} · higher is better`;
   }
 
@@ -260,7 +298,7 @@
     if (!state.payload) {
       return [];
     }
-    return state.payload.datasets.filter((dataset) => dataset.task === state.task);
+    return state.payload.datasets.filter((dataset) => state.task === "all" || dataset.task === state.task);
   }
 
   function filteredSubmissions() {
@@ -331,6 +369,14 @@
     elements.tableHead.replaceChildren();
     const row = document.createElement("tr");
     row.append(sortHeader("Model", "Name / variant", "model"));
+    for (const [key, label] of [["date", "Submission date"], ["hpo", "# HPO trials"],
+      ["paper", "Paper"], ["code", "Code"]]) {
+      const header = createElement("th", `metadata-column metadata-${key}`, label);
+      header.scope = "col";
+      header.dataset.metadataColumn = key;
+      if (key === "hpo") header.title = "Reported hyperparameter trials in the selected setting and task";
+      row.append(header);
+    }
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
       row.append(sortHeader(dataset.display_name, task ? task.metric_label : dataset.metric, dataset.id));
@@ -381,7 +427,57 @@
     row.append(cell);
   }
 
-  function renderResultCell(row, submission, dataset) {
+  function renderMetadataCells(row, submission, datasets) {
+    const dateCell = createElement("td", "metadata-column metadata-date");
+    dateCell.dataset.metadataColumn = "date";
+    if (typeof submission.submitted_at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(submission.submitted_at)) {
+      const time = createElement("time", null, submission.submitted_at);
+      time.dateTime = submission.submitted_at;
+      dateCell.append(time);
+    } else {
+      dateCell.textContent = "—";
+      dateCell.setAttribute("aria-label", "Submission date not provided");
+    }
+    row.append(dateCell);
+
+    const budget = summarizeHparamTrials(submission, datasets, state.setting);
+    const budgetCell = createElement("td", "metadata-column metadata-hpo", budget.label);
+    budgetCell.dataset.metadataColumn = "hpo";
+    budgetCell.title = budget.details;
+    budgetCell.setAttribute("aria-label", `Hyperparameter trials for ${submissionName(submission)}: ${budget.label}. ${budget.details}`);
+    row.append(budgetCell);
+
+    for (const [key, label, candidate] of [["paper", "Paper", submission.paper_url],
+      ["code", "Code", submission.code_availability === "available" ? submission.training_code_url : null]]) {
+      const cell = createElement("td", `metadata-column metadata-${key}`);
+      cell.dataset.metadataColumn = key;
+      const url = safeExternalUrl(candidate);
+      const accessibleLabel = `${label} for ${submissionName(submission)} (opens in a new tab)`;
+      if (url) {
+        const link = createElement("a", "metadata-link");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.setAttribute("aria-label", accessibleLabel);
+        link.title = accessibleLabel;
+        const icon = createElement("span", null, "↗");
+        icon.setAttribute("aria-hidden", "true");
+        link.append(icon);
+        cell.append(link);
+      } else {
+        const unavailable = createElement("span", "metadata-unavailable");
+        unavailable.setAttribute("role", "img");
+        unavailable.setAttribute("aria-label", `${label} unavailable for ${submissionName(submission)}`);
+        const icon = createElement("span", null, "×");
+        icon.setAttribute("aria-hidden", "true");
+        unavailable.append(icon);
+        cell.append(unavailable);
+      }
+      row.append(cell);
+    }
+  }
+
+  function renderResultCell(row, submission, dataset, bestMean) {
     const cell = document.createElement("td");
 
     // Availability takes precedence over the presence or absence of a submitted result.
@@ -398,7 +494,7 @@
     }
 
     const result = getResult(submission, state.setting, dataset.id);
-    if (!result) {
+    if (!result || !Number.isFinite(result.value)) {
       cell.className = "metric-missing";
       cell.dataset.state = "missing";
       cell.textContent = "—";
@@ -407,14 +503,16 @@
       return;
     }
 
-    cell.className = "metric-value";
+    const isBest = result.value === bestMean;
+    cell.className = `metric-value${isBest ? " metric-best" : ""}`;
     cell.dataset.state = "value";
+    cell.dataset.best = String(isBest);
     cell.textContent = formatMetric(result, dataset);
     const runs = result.num_runs ?? submission.num_runs;
-    const trials = result.hparam_trials ?? (submission.schema_version === "1.0" ? submission.hparam_trials : null);
+    const trials = effectiveHparamTrials(submission, result);
     const evidence = `Runs: ${runs ?? "unknown"}; hyperparameter trials: ${trials ?? "unknown"}`;
     cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; sample standard deviation: ${result.std}` : ""}; ${evidence}`;
-    cell.setAttribute("aria-label", `${dataset.display_name}: ${cell.textContent}. ${evidence}`);
+    cell.setAttribute("aria-label", `${dataset.display_name}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
     row.append(cell);
   }
 
@@ -523,19 +621,21 @@
       setting: state.setting,
       datasetsById: state.datasetsById,
     }));
+    const bestMeans = bestReportedMeans(submissions, datasets, state.setting);
 
     renderTableHeader(datasets);
     elements.tableBody.replaceChildren();
     submissions.forEach((submission) => {
       const row = document.createElement("tr");
       renderModelCell(row, submission);
-      datasets.forEach((dataset) => renderResultCell(row, submission, dataset));
+      renderMetadataCells(row, submission, datasets);
+      datasets.forEach((dataset) => renderResultCell(row, submission, dataset, bestMeans.get(dataset.id)));
       elements.tableBody.append(row);
     });
 
     const modelLabel = submissions.length === 1 ? "model" : "models";
-    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : ""} · ${state.payload.submissions.length} submissions overall`;
-    elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "GraphLand"} leaderboard`;
+    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : "All datasets"} · ${state.payload.submissions.length} submissions overall`;
+    elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "All datasets"} leaderboard`;
     updateEmptyState(submissions.length, matching.length, sliceCount);
     updateFilterFeedback(sliceSubmissions, submissions.length);
     scheduleTableHint();
@@ -724,6 +824,8 @@
       appendDetail(details, "Legacy GraphLand reference", submission.graphland_ref);
     }
     appendDetail(details, "Method type", methodLabel(submission.method_type));
+    const budgetSummary = summarizeHparamTrials(submission, taskDatasets(), state.setting);
+    appendDetail(details, "Hyperparameter trials in this view", `${budgetSummary.label}. ${budgetSummary.details}`);
     appendDetail(details, "Tuning protocol", submission.tuning_protocol);
     if (submission.schema_version === "1.0") {
       appendDetail(details, "Legacy hyperparameter trials", submission.hparam_trials);
@@ -753,12 +855,12 @@
     appendDetail(details, "Review notes", review.notes);
 
     const resultDetails = createElement("dl", "detail-list");
-    const resultHeading = createElement("h3", "result-details-heading", `Results in ${state.setting} · ${state.tasksById.get(state.task)?.label || state.task}`);
+    const resultHeading = createElement("h3", "result-details-heading", `Results in ${state.setting} · ${state.tasksById.get(state.task)?.label || "All datasets"}`);
     for (const dataset of taskDatasets()) {
       const result = getResult(submission, state.setting, dataset.id);
       if (!result || !isSettingAvailable(dataset, state.setting)) continue;
       const runs = result.num_runs ?? submission.num_runs;
-      const trials = result.hparam_trials ?? (submission.schema_version === "1.0" ? submission.hparam_trials : null);
+      const trials = effectiveHparamTrials(submission, result);
       appendDetail(resultDetails, dataset.display_name, `${formatMetric(result, dataset)} · ${runs ?? "unknown"} runs · hyperparameter trials: ${trials ?? "unknown"}`);
     }
     if (!resultDetails.childElementCount) appendDetail(resultDetails, "Coverage", "No results submitted in this view.");
@@ -950,11 +1052,14 @@
   }
 
   window.GraphLandLeaderboard = Object.freeze({
+    bestReportedMeans,
     compareRows,
+    effectiveHparamTrials,
     formatMetric,
     init,
     isSettingAvailable,
     safeExternalUrl,
+    summarizeHparamTrials,
   });
 
   if (document.readyState === "loading") {

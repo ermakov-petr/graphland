@@ -150,3 +150,9 @@ python -m unittest discover -s tests/leaderboard
 The importer fails on missing/ambiguous model rows or unrecognized cells and writes the source ledger with the file SHA. Review both JSON and original tables before merging. Different paper versions are a new review, not an implicit refresh.
 
 Official resources: [paper](https://arxiv.org/abs/2409.14500), [official code](https://github.com/yandex-research/graphland), [non-GNN baselines](https://github.com/gvbazhenov/graphland-baselines), [Zenodo](https://zenodo.org/records/16895532), [Kaggle](https://www.kaggle.com/datasets/bazhenovgleb/graphland), [PyG GraphLandDataset](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html).
+
+## Project pages
+
+The public site has four native static pages: Home (`index.html`), Datasets (`datasets.html`), Leaderboard (`leaderboard.html`) and Getting Started (`getting-started.html`). Each shares the original linked Research logo and a separate project navigation with `aria-current`. Source HTML remains readable without JavaScript on informational pages. The builder copies all flat HTML pages and adds deterministic content versions to CSS/JS URLs.
+
+Old root links carrying leaderboard query state or leaderboard anchors redirect to the new leaderboard route without dropping query parameters or the fragment. The All datasets view presents each dataset's own Accuracy/AP/R² column; it does not calculate an aggregate ranking. HPO metadata summarizes actual per-result budgets, with unknown values kept unknown and mixed budgets shown as Varies. Bold means the highest raw reported mean among currently displayed rows, including ties. Small screens keep the metadata in each model's detail card.

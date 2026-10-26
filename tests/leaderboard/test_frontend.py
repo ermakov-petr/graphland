@@ -25,7 +25,7 @@ class DocumentInventory(HTMLParser):
 class FrontendContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+        cls.html = (ROOT / "site" / "leaderboard.html").read_text(encoding="utf-8")
         cls.javascript = (ROOT / "site" / "assets" / "app.js").read_text(encoding="utf-8")
         cls.css = (ROOT / "site" / "assets" / "styles.css").read_text(encoding="utf-8")
         cls.favicon = (ROOT / "site" / "favicon.svg").read_text(encoding="utf-8")
@@ -54,17 +54,19 @@ class FrontendContractTests(unittest.TestCase):
         }
         self.assertEqual(required - self.document.by_id.keys(), set())
 
-    def test_page_has_exact_setting_and_task_tabs_without_aggregate_view(self) -> None:
+    def test_page_has_exact_setting_and_task_tabs_without_aggregate_score(self) -> None:
         settings = [attrs["data-setting"] for _, attrs in self.document.elements if "data-setting" in attrs]
         tasks = [attrs["data-task"] for _, attrs in self.document.elements if "data-task" in attrs]
         self.assertEqual(settings, ["RL", "RH", "TH", "THI"])
         self.assertEqual(
             tasks,
-            ["multiclass_node_classification", "binary_node_classification", "node_regression"],
+            ["multiclass_node_classification", "binary_node_classification", "node_regression", "all"],
         )
-        self.assertNotRegex(self.html, r'data-(?:setting|task)=["\']All["\']')
+        self.assertNotRegex(self.html, r'data-setting=["\']All["\']')
+        self.assertNotRegex(self.html, r'data-task=["\'](?:aggregate|overall_score)["\']')
         self.assertEqual(self.document.by_id["setting-tabs"][1].get("role"), "tablist")
         self.assertEqual(self.document.by_id["task-tabs"][1].get("role"), "tablist")
+        self.assertIn("visually-hidden", str(self.document.by_id["setting-tabs-label"][1].get("class", "")).split())
 
     def test_header_contains_only_the_accessible_external_logo_link(self) -> None:
         header_match = re.search(r"<header\b[^>]*>.*?</header>", self.html, re.DOTALL | re.IGNORECASE)
@@ -186,8 +188,11 @@ class FrontendContractTests(unittest.TestCase):
         )
 
     def test_only_submit_results_uses_a_chromatic_accent(self) -> None:
-        artifacts = self.css + self.html + self.favicon
-        # The reference's Submit accent and its hover are the only chromatic tokens.
+        # Syntax highlighting has semantic colors inside code blocks, separate
+        # from the Research shell and action palette.
+        shell_css = re.sub(r"\.syntax-(?:keyword|string|comment|number)\s*\{[^}]*\}", "", self.css)
+        artifacts = shell_css + self.html + self.favicon
+        # The reference's Submit accent and hover are the shell's chromatic tokens.
         yellows = {(0xFE, 0xD4, 0x2B), (0xF5, 0xC4, 0x00)}
         for literal in re.findall(r"#[0-9a-fA-F]{3,8}\b", artifacts):
             value = literal[1:]
@@ -220,7 +225,8 @@ class FrontendContractTests(unittest.TestCase):
         match = re.search(r"window\.GraphLandLeaderboard\s*=\s*Object\.freeze\(\{(?P<body>.*?)\}\);", self.javascript, re.DOTALL)
         self.assertIsNotNone(match)
         exported = {item.strip().rstrip(",") for item in match.group("body").splitlines() if item.strip()}
-        self.assertEqual(exported, {"compareRows", "formatMetric", "init", "isSettingAvailable", "safeExternalUrl"})
+        self.assertEqual(exported, {"bestReportedMeans", "compareRows", "effectiveHparamTrials", "formatMetric",
+                                    "init", "isSettingAvailable", "safeExternalUrl", "summarizeHparamTrials"})
 
 
 if __name__ == "__main__":

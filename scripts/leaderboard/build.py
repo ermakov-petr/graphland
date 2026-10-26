@@ -89,11 +89,14 @@ def _check_relative_asset_paths(site_source: Path) -> None:
     # URL parsing trims leading ASCII spaces/tabs inside CSS quotes, too.
     # NBSP is URL content, not trim whitespace; // remains protocol-relative.
     root_absolute_css_url = r"(?i:url)\(\s*(?:[\"'][ \t]*)?/(?!/)"
-    checks = {
-        "index.html": [r"(?:href|src)=[\"']/(?!/)", root_absolute_css_url],
+    html_patterns = [r"(?i:\b(?:href|src))\s*=\s*[\"'][ \t\r\n\f]*/(?!/)", root_absolute_css_url]
+    # Keep index mandatory and apply the same guard to every native flat page.
+    checks = {"index.html": html_patterns}
+    checks.update({page.name: html_patterns for page in sorted(site_source.glob("*.html"))})
+    checks.update({
         "assets/styles.css": [root_absolute_css_url],
         "assets/app.js": [r"fetch\(\s*[\"']/"],
-    }
+    })
     for relative_path, patterns in checks.items():
         path = site_source / relative_path
         text = path.read_text(encoding="utf-8")
@@ -258,7 +261,8 @@ def _write_versioned_html(source: Path, target: Path, site_source: Path) -> None
 
 def _write_artifact(output: Path, site_source: Path, validated: Mapping[str, Any]) -> None:
 
-    _write_versioned_html(site_source / "index.html", output / "index.html", site_source)
+    for page in sorted(site_source.glob("*.html")):
+        _write_versioned_html(page, output / page.name, site_source)
     shutil.copy2(site_source / "favicon.svg", output / "favicon.svg")
     shutil.copytree(site_source / "assets", output / "assets")
 
