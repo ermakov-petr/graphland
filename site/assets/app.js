@@ -954,6 +954,12 @@
     bindTablist(elements.taskTabs, "task", activateTask);
     window.addEventListener('resize', revealActiveTask, { passive: true });
     if (document.fonts) document.fonts.ready.then(revealActiveTask);
+    // User text-spacing or font overrides can resize the strip without a window
+    // resize. Observe its size, not scrolling, so manual browsing remains free.
+    if (typeof ResizeObserver === 'function') {
+      const taskSizeObserver = new ResizeObserver(revealActiveTask);
+      taskSizeObserver.observe(elements.taskTabs);
+    }
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
       writeQueryState();
