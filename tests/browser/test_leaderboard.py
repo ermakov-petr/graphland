@@ -51,7 +51,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
         site = cls.root / 'graphland'
         shutil.copytree(ROOT / 'site', site)
         cls.site_source_sha256 = {name: hashlib.sha256((site / name).read_bytes()).hexdigest()
-                                  for name in ('index.html', 'assets/styles.css', 'assets/app.js')}
+                                  for name in ('index.html', 'datasets.html', 'leaderboard.html', 'getting-started.html',
+                                               'assets/styles.css', 'assets/app.js', 'assets/navigation.js',
+                                               'assets/leaderboard-metadata.css')}
         (site / 'data').mkdir()
         cls.payload = {
             'config': json.loads((ROOT / 'leaderboard/config.json').read_text()),
@@ -88,7 +90,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(self.errors, [])
 
     def open(self, query=''):
-        self.page.goto(self.base + query)
+        self.page.goto(self.base + 'leaderboard.html' + query)
         self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
         self.page.evaluate('async () => { await document.fonts.ready; }')
         self.assertFalse(self.page.locator('#load-error').is_visible())
@@ -551,7 +553,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('.site-header button, .site-header nav').count(), 0)
                 self.page.locator('.wordmark').focus()
                 self.page.keyboard.press('Tab')
-                self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
+                self.assertTrue(self.page.locator('.project-navigation a').first.evaluate('(el) => el === document.activeElement'))
                 self.page.keyboard.press('Shift+Tab')
                 self.assertTrue(self.page.locator('.wordmark').evaluate('(el) => el === document.activeElement'))
                 outline = self.page.locator('.wordmark').evaluate('''(el) => {
@@ -560,13 +562,16 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 }''')
                 self.assertNotEqual(outline['style'], 'none')
                 self.assertGreater(outline['width'], 0)
+                for link in self.page.locator('.project-navigation a').all():
+                    self.page.keyboard.press('Tab')
+                    self.assertTrue(link.evaluate('(el) => el === document.activeElement'))
                 self.page.keyboard.press('Tab')
                 self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
                 self.page.locator('#model-search').focus()
                 self.page.keyboard.press('Escape')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
                 self.brand_observations.append({'check': 'logo_header_keyboard_no_inert', 'width': width,
-                    'tab_order': 'skip link → logo → breadcrumb Home', 'logo_focus_outline': outline,
+                    'tab_order': 'skip link → logo → project page links → breadcrumb Home', 'logo_focus_outline': outline,
                     'focused_content_id': 'model-search', 'content_inert': False})
 
     def test_three_empty_states_and_filter_focus(self):
@@ -613,7 +618,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             if len(requests) == 1: route.fulfill(status=503, body='unavailable')
             else: route.fulfill(json=self.payload)
         self.page.route('**/data/leaderboard.json', fail_once)
-        self.page.goto(self.base)
+        self.page.goto(self.base + 'leaderboard.html')
         self.page.wait_for_selector('#load-error', state='visible')
         self.assertEqual(self.page.locator('#load-error a[href="leaderboard.xlsx"]').count(), 1)
         self.assertEqual(self.page.locator('#load-error a[href="leaderboard.csv"]').count(), 1)
@@ -689,7 +694,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.open()
                 row = self.page.locator('#leaderboard-body tr').first
                 model = row.locator('td').nth(0).bounding_box()
-                cell = row.locator('td').nth(1)
+                cell = row.locator('td[data-state]').first
                 score = cell.bounding_box()
                 metric = cell.evaluate('''(el) => {
                     const range=document.createRange();
@@ -706,6 +711,183 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertLessEqual(metric['right'], min(container['x'] + container['width'], score['x'] + score['width']) + 1)
                 self.brand_observations.append({'check': 'mobile_first_metric_visible', 'width': width,
                     'model': model, 'score_cell': score, 'metric_text': metric, 'container': container})
+
+    def test_project_pages_navigate_natively_and_restore_current_page_with_history(self):
+        pages = [('index.html', 'Home', 'home', 'GraphLand'),
+                 ('datasets.html', 'Datasets', 'datasets', 'Datasets'),
+                 ('leaderboard.html', 'Leaderboard', 'leaderboard', 'Leaderboard'),
+                 ('getting-started.html', 'Getting Started', 'getting-started', 'Getting Started')]
+        visits = []
+        for width in (320, 375, 1280):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.open()
+                for path, label, marker, heading in pages:
+                    nav = self.page.locator('.project-navigation')
+                    self.assertEqual(nav.locator('a').all_text_contents(), [entry[1] for entry in pages])
+                    self.assertEqual(self.page.locator('.site-header .project-navigation').count(), 0)
+                    self.page.evaluate('window.__nativeProjectDocumentMarker = true')
+                    with self.page.expect_navigation(wait_until='domcontentloaded') as navigation:
+                        nav.get_by_role('link', name=label, exact=True).click()
+                    self.assertEqual(navigation.value.status, 200)
+                    self.page.evaluate('async () => { await document.fonts.ready; }')
+                    if marker == 'leaderboard':
+                        self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+                    self.assertEqual(self.page.url, self.base + path)
+                    self.assertEqual(self.page.evaluate('typeof window.__nativeProjectDocumentMarker'), 'undefined')
+                    self.assertEqual(self.page.locator('body').get_attribute('data-page'), marker)
+                    current = self.page.locator('.project-navigation [aria-current="page"]')
+                    self.assertEqual(current.count(), 1)
+                    self.assertEqual(current.inner_text(), label)
+                    self.assertEqual(self.page.locator('h1').count(), 1)
+                    self.assertIn(heading, self.page.locator('h1').inner_text())
+                    self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+                    if marker == 'home':
+                        self.assertEqual(self.page.locator('.dataset-catalog tbody tr').count(), 14)
+                        self.assertEqual(self.page.locator('.dataset-catalog thead th').count(), 9)
+                    elif marker == 'datasets':
+                        self.assertEqual(self.page.locator('article.dataset-description').count(), 9)
+                    elif marker == 'getting-started':
+                        self.assertEqual(self.page.locator('pre code.language-python').count(), 2)
+                    visits.append({'width': width, 'page': marker, 'native_navigation_status': 200, 'current': label})
+                self.page.go_back()
+                self.page.wait_for_url(self.base + 'leaderboard.html')
+                self.assertEqual(self.page.locator('.project-navigation [aria-current="page"]').inner_text(), 'Leaderboard')
+                self.page.go_forward()
+                self.page.wait_for_url(self.base + 'getting-started.html')
+                self.assertEqual(self.page.locator('.project-navigation [aria-current="page"]').inner_text(), 'Getting Started')
+        self.brand_observations.append({'check': 'four_native_pages_and_history', 'visits': visits})
+
+    def test_metadata_columns_preserve_budget_unknown_zero_and_accessible_safe_links(self):
+        payload = copy.deepcopy(self.payload)
+        payload['submissions'] = payload['submissions'][:3]
+        payload['config']['default_filters']['only_models_with_code'] = False
+        for index, submission in enumerate(payload['submissions']):
+            submission.update(schema_version='2.0', data_release='v1', evaluator_ref='fixture-evaluator')
+            submission.pop('hparam_trials', None)
+            submission.pop('num_runs', None)
+            for result in submission['results']:
+                result['num_runs'] = 3
+                result.pop('hparam_trials', None)
+                if index == 0:
+                    result['hparam_trials'] = 11 if result['dataset'] == 'pokec-regions' else 5
+                elif index == 2:
+                    result['hparam_trials'] = 0
+        payload['submissions'][1]['paper_url'] = None
+        payload['submissions'][1]['training_code_url'] = 'javascript:alert(1)'
+        payload['submissions'][2]['method_type'] = 'in_context'
+        payload['submissions'][2]['paper_url'] = 'http://example.test/insecure-paper'
+        payload['submissions'][2]['code_availability'] = 'unavailable'
+        self.with_payload(payload)
+        self.open()
+        headers = self.page.locator('#leaderboard-head th[data-metadata-column]')
+        self.assertEqual(headers.evaluate_all('(cells) => cells.map(el => el.dataset.metadataColumn)'), ['date', 'hpo', 'paper', 'code'])
+        budgets = []
+        for index, expected_budget in enumerate(('Varies', '—', '0')):
+            name = payload['submissions'][index]['model_name']
+            row = self.page.locator('#leaderboard-body tr').filter(has_text=name)
+            self.assertEqual(row.count(), 1)
+            hpo = row.locator('[data-metadata-column="hpo"]')
+            self.assertEqual(hpo.inner_text(), expected_budget)
+            if index == 1:
+                self.assertIn('unknown', hpo.get_attribute('aria-label'))
+            time = row.locator('[data-metadata-column="date"] time')
+            self.assertEqual(time.get_attribute('datetime'), payload['submissions'][index]['submitted_at'])
+            for kind in ('paper', 'code'):
+                cell = row.locator(f'[data-metadata-column="{kind}"]')
+                if index == 0:
+                    link = cell.locator('a')
+                    expected_url = payload['submissions'][index]['paper_url' if kind == 'paper' else 'training_code_url']
+                    self.assertEqual(link.get_attribute('href'), expected_url)
+                    self.assertEqual(link.get_attribute('target'), '_blank')
+                    self.assertEqual(set(link.get_attribute('rel').split()), {'noopener', 'noreferrer'})
+                    label = link.get_attribute('aria-label')
+                    self.assertIn(f'{kind.title()} for {name}', label)
+                    self.assertIn('opens in a new tab', label)
+                else:
+                    self.assertEqual(cell.locator('a').count(), 0)
+                    self.assertIn(f'{kind.title()} unavailable for {name}', cell.locator('[role="img"]').get_attribute('aria-label'))
+            budgets.append({'model': name, 'budget': hpo.inner_text(), 'details': hpo.get_attribute('aria-label')})
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.page.wait_for_function("[...document.querySelectorAll('.metadata-column')].every(el => getComputedStyle(el).display === 'none')")
+        self.page.locator('#leaderboard-body .model-button').first.click()
+        self.assertTrue(self.page.locator('#model-dialog').is_visible())
+        self.assertIn('Varies', self.page.locator('#dialog-content').inner_text())
+        self.brand_observations.append({'check': 'metadata_budget_and_links', 'budgets': budgets,
+                                        'mobile_metadata_hidden_details_available': True})
+
+    def test_best_reported_means_include_negative_ties_and_recompute_after_filtering(self):
+        payload = copy.deepcopy(self.payload)
+        payload['config']['default_filters']['only_models_with_code'] = False
+        means = (-.8, -.2, -.2, -.20001)
+        for submission, mean in zip(payload['submissions'], means):
+            submission['results'] = [{'setting': setting, 'dataset': 'hm-prices', 'value': mean,
+                                      'std': .01, 'num_runs': 3} for setting in ('RL', 'TH')]
+        payload['submissions'][0]['results'].append({'setting': 'TH', 'dataset': 'city-roads-M', 'value': 999, 'num_runs': 3})
+        self.with_payload(payload)
+        self.open('?task=node_regression&setting=TH')
+        expected_best = {submission['model_name'] for submission in payload['submissions'][1:3]}
+        highlighted = set()
+        for submission in payload['submissions']:
+            row = self.page.locator('#leaderboard-body tr').filter(has_text=submission['model_name'])
+            cell = row.locator('td[data-state="value"]').first
+            best = submission['model_name'] in expected_best
+            self.assertEqual(cell.get_attribute('data-best'), str(best).lower())
+            weight = cell.evaluate('(el) => Number(getComputedStyle(el).fontWeight)')
+            self.assertEqual(weight, 700 if best else 400)
+            if best:
+                self.assertIn('Highest reported mean in this view', cell.get_attribute('aria-label'))
+                highlighted.add(submission['model_name'])
+        self.assertEqual(highlighted, expected_best)
+        self.assertEqual(self.page.locator('[data-state="missing"].metric-best, [data-state="unavailable"].metric-best').count(), 0)
+        self.page.locator('#model-search').fill(payload['submissions'][0]['model_name'])
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 1)
+        self.assertEqual(self.page.locator('#leaderboard-body td[data-state="value"]').first.get_attribute('data-best'), 'true')
+        self.page.locator('#model-search').fill('')
+        self.assertEqual(self.page.locator('#leaderboard-body .metric-best').count(), 2)
+        self.brand_observations.append({'check': 'negative_r2_best_means', 'raw_means': means,
+                                        'tied_best_models': sorted(expected_best), 'refilter_recomputes_best': True,
+                                        'missing_and_unavailable_excluded': True})
+
+    def test_all_datasets_keep_individual_metrics_sorting_history_and_four_settings(self):
+        self.open('?setting=RL&task=all')
+        self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
+        self.assertIn('Dataset-specific metrics', self.page.locator('#metric-note').inner_text())
+        keys = self.page.locator('#leaderboard-head [data-sort-key]').evaluate_all('(buttons) => buttons.map(el => el.dataset.sortKey)')
+        self.assertEqual(keys, ['model'] + [dataset['id'] for dataset in self.payload['datasets']])
+        self.assertEqual(len(keys) - 1, 14)
+        tasks = {task['id']: task for task in self.payload['config']['task_families']}
+        for dataset in self.payload['datasets']:
+            self.assertIn(tasks[dataset['task']]['metric_label'],
+                          self.page.locator(f'[data-sort-key="{dataset["id"]}"]').inner_text())
+        setting_tabs = self.page.get_by_role('tablist', name='Experimental setting', exact=True)
+        self.assertEqual(setting_tabs.get_by_role('tab').all_text_contents(), ['RL', 'RH', 'TH', 'THI'])
+        hidden_label = self.page.locator('#setting-tabs-label').bounding_box()
+        self.assertLessEqual(hidden_label['width'], 1)
+        self.assertLessEqual(hidden_label['height'], 1)
+        self.page.locator('[data-sort-key="city-reviews"]').click()
+        expected = sorted(self.payload['submissions'], key=lambda submission: (
+            -next((result['value'] for result in submission['results'] if result['dataset'] == 'city-reviews' and result['setting'] == 'RL'), -float('inf')),
+            submission['model_name']))
+        self.assertEqual(self.page.locator('#leaderboard-body .model-button strong').all_text_contents(),
+                         [submission['model_name'] for submission in expected])
+        self.page.locator('#task-tab-node_regression').click()
+        self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
+        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 1, 7)
+        self.page.go_back()
+        self.page.wait_for_function("document.getElementById('task-tab-all').getAttribute('aria-selected') === 'true'")
+        self.assertEqual(self.page.locator('[data-sort-key="city-reviews"]').locator('..').get_attribute('aria-sort'), 'descending')
+        query = self.page.evaluate('Object.fromEntries(new URL(location.href).searchParams)')
+        self.assertEqual(query['task'], 'all')
+        self.assertEqual(query['sort'], 'city-reviews')
+        self.page.go_forward()
+        self.page.wait_for_function("document.getElementById('task-tab-node_regression').getAttribute('aria-selected') === 'true'")
+        self.page.locator('#task-tab-all').click()
+        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 1, 14)
+        self.brand_observations.append({'check': 'all_datasets_individual_metrics', 'dataset_columns': 14,
+                                        'settings': ['RL', 'RH', 'TH', 'THI'], 'sort_dataset': 'city-reviews',
+                                        'history_preserved': True, 'separate_view_return': True,
+                                        'visible_setting_label_hidden_accessible_name_retained': True})
 
 
 if __name__ == '__main__': unittest.main()

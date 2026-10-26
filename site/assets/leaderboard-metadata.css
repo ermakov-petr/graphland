@@ -1,0 +1,76 @@
+/* Additional result metadata; loaded after the shared Research styling. */
+#leaderboard-table .metadata-column {
+  width: 72px;
+  min-width: 72px;
+  max-width: 136px;
+  padding-inline: 12px;
+  text-align: center;
+}
+
+#leaderboard-table th.metadata-column {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#leaderboard-table td.metadata-column {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+#leaderboard-table .metadata-date {
+  width: 136px;
+  min-width: 136px;
+}
+
+#leaderboard-table .metadata-date time {
+  white-space: nowrap;
+}
+
+#leaderboard-table .metadata-hpo {
+  width: 104px;
+  min-width: 104px;
+}
+
+.metadata-link,
+.metadata-unavailable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.metadata-link {
+  border-radius: 50%;
+  color: var(--black);
+  text-decoration: none;
+}
+
+.metadata-link:hover {
+  background: var(--gray-200);
+}
+
+.metadata-link:focus-visible {
+  outline: 2px solid var(--black);
+  outline-offset: 3px;
+}
+
+.metadata-unavailable {
+  color: #b42318;
+}
+
+#leaderboard-table .metric-value {
+  font-weight: 400;
+}
+
+#leaderboard-table .metric-best {
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  #leaderboard-table .metadata-column {
+    display: none;
+  }
+}

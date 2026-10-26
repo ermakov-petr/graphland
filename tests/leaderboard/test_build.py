@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 import os
+import shutil
 import zipfile
 from unittest import mock
 from xml.etree import ElementTree as ET
@@ -44,6 +45,11 @@ class BuildTests(unittest.TestCase):
             second = target.read_text(encoding="utf-8")
             self.assertNotEqual(first, second)
             self.assertEqual(first.split('<script')[0], second.split('<script')[0])
+
+    @staticmethod
+    def leaderboard_page(site: Path) -> Path:
+        page = site / "leaderboard.html"
+        return page if page.is_file() else site / "index.html"
 
     def test_source_overlap_and_unowned_output_are_refused_without_mutation(self) -> None:
         for output in (ROOT, ROOT.parent, ROOT / "site", ROOT / "leaderboard", ROOT / ".git", ROOT / "site/nested"):
@@ -277,7 +283,7 @@ class BuildTests(unittest.TestCase):
             with (output / "leaderboard.csv").open("r", encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
             self.assertEqual(rows, [])
-            self.assertIn("No results yet", (output / "index.html").read_text(encoding="utf-8"))
+            self.assertIn("No results yet", self.leaderboard_page(output).read_text(encoding="utf-8"))
 
     def test_temporary_demo_data_is_removable_without_build_or_config_changes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -350,17 +356,69 @@ class BuildTests(unittest.TestCase):
                 self.assertEqual(list(csv.DictReader(handle)), [])
             self.assertIn(
                 "No results yet",
-                (removed_output / "index.html").read_text(encoding="utf-8"),
+                self.leaderboard_page(removed_output).read_text(encoding="utf-8"),
             )
 
     def test_site_sources_pass_project_pages_asset_check(self) -> None:
         self.build._check_relative_asset_paths(ROOT / "site")
-        index = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
-        self.assertIn('href="leaderboard.csv"', index)
-        self.assertIn('src="assets/app.js"', index)
-        self.assertIn('href="assets/styles.css"', index)
-        self.assertNotIn('href="/leaderboard.csv"', index)
-        self.assertNotIn('src="/assets/', index)
+        leaderboard = self.leaderboard_page(ROOT / "site").read_text(encoding="utf-8")
+        self.assertIn('href="leaderboard.csv"', leaderboard)
+        self.assertIn('src="assets/app.js"', leaderboard)
+        for page in (ROOT / "site").glob("*.html"):
+            with self.subTest(page=page.name):
+                html = page.read_text(encoding="utf-8")
+                self.assertIn('href="assets/styles.css"', html)
+                self.assertNotIn('href="/leaderboard.csv"', html)
+                self.assertNotIn('src="/assets/', html)
+
+    def test_every_flat_html_page_is_copied_without_changing_its_contents(self) -> None:
+        validated = self.build.validate_repository(root=ROOT)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            site = root / "site"
+            shutil.copytree(ROOT / "site", site)
+            for name in ("index.html", "datasets.html", "leaderboard.html", "getting-started.html"):
+                (site / name).write_text(f"<!doctype html><title>{name}</title>", encoding="utf-8")
+            output = root / "artifact"
+            output.mkdir()
+            self.build._check_relative_asset_paths(site)
+            self.build._write_artifact(output, site, validated)
+            source_pages = {page.name: page.read_bytes() for page in site.glob("*.html")}
+            copied_pages = {page.name: page.read_bytes() for page in output.glob("*.html")}
+            self.assertEqual(copied_pages, source_pages)
+
+    def test_root_absolute_assets_on_each_new_html_page_are_rejected(self) -> None:
+        examples = (
+            '<a href="/leaderboard.csv">Download</a>',
+            "<img SRC = ' /assets/brand/research.svg'>",
+            '<style>.logo { background: url(" /assets/brand/research.svg"); }</style>',
+            '<div style="background: url( /assets/brand/research.svg )"></div>',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            self._write_asset_url_fixture(site, "stylesheet", "url(brand/research.svg)")
+            for name in ("datasets.html", "leaderboard.html", "getting-started.html"):
+                for html in examples:
+                    with self.subTest(page=name, html=html):
+                        page = site / name
+                        page.write_text(html, encoding="utf-8")
+                        with self.assertRaisesRegex(self.build.LeaderboardValidationError, name):
+                            self.build._check_relative_asset_paths(site)
+                        page.write_text("<!doctype html><title>Relative assets</title>", encoding="utf-8")
+
+    def test_new_html_pages_allow_relative_and_protocol_relative_assets(self) -> None:
+        html = '''<!doctype html>
+<a href="leaderboard.html?setting=RH#leaderboard-controls">Results</a>
+<a HREF = " //example.org/reference">External reference</a>
+<img src="assets/brand/research.svg">
+<style>.logo { background: url(" ./assets/brand/research.svg"); }</style>
+<div style="background: url( '//example.org/research.svg' )"></div>'''
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            self._write_asset_url_fixture(site, "stylesheet", "url(brand/research.svg)")
+            for name in ("datasets.html", "leaderboard.html", "getting-started.html"):
+                (site / name).write_text(html, encoding="utf-8")
+            self.build._check_relative_asset_paths(site)
 
     def _write_asset_url_fixture(self, site: Path, location: str, expression: str) -> None:
         css = f".example {{ background-image: {expression}; }}"
