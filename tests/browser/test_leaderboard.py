@@ -670,6 +670,26 @@ class LeaderboardBrowserTests(unittest.TestCase):
         }''')
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
+    def test_selected_task_remains_visible_after_text_spacing_changes(self):
+        self.page.set_viewport_size({'width': 320, 'height': 800})
+        self.open('?task=all')
+        self.page.add_style_tag(content='''
+            * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
+            p { margin-bottom: 2em !important; }
+        ''')
+        self.page.wait_for_function('''()=>{
+            const tab=document.querySelector('#task-tab-all').getBoundingClientRect();
+            const view=document.querySelector('.task-control').getBoundingClientRect();
+            return tab.left>=view.left-1&&tab.right<=view.right+1;
+        }''')
+        self.assertEqual(self.page.evaluate('scrollY'), 0)
+        self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
+        # Looking back through other tasks must not snap to the selected one.
+        self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft=0')
+        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
+        self.assertEqual(self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft'), 0)
+        self.assertEqual(self.page.evaluate('scrollY'), 0)
+
     def test_tablist_preserves_modified_keys(self):
         self.open()
         tab = self.page.locator('#task-tab-multiclass_node_classification')
