@@ -999,6 +999,26 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(table.locator('caption').count(),1)
                 self.assertEqual(table.locator('caption').evaluate('(e)=>e.getBoundingClientRect().width'),1)
 
+    def test_keyboard_table_controls_stay_visible_beside_sticky_column(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        for width in (320, 560, 561, 1280):
+            self.page.set_viewport_size({'width':width,'height':900})
+            self.open('?task=all')
+            controls = self.page.locator('#leaderboard-table button:visible,#leaderboard-table a:visible')
+            for direction in ('Tab','Shift+Tab'):
+                (controls.first if direction=='Tab' else controls.last).focus()
+                for _ in range(controls.count()):
+                    self.page.wait_for_function("""()=>{
+                        const e=document.activeElement,cell=e.closest('th,td');
+                        if(!cell||!e.closest('#leaderboard-table'))return false;
+                        const viewport=document.querySelector('.table-scroll'),box=viewport.getBoundingClientRect();
+                        const first=cell.parentElement.cells[0],r=e.getBoundingClientRect();
+                        const left=cell===first?box.left:Math.max(box.left,first.getBoundingClientRect().right);
+                        const at=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+                        return r.left>=left-1&&r.right<=box.left+viewport.clientWidth+1&&(at===e||e.contains(at));
+                    }""")
+                    self.page.keyboard.press(direction)
+
     def test_horizontal_scroll_keys_do_not_capture_descendant_controls_or_shortcuts(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.open()
