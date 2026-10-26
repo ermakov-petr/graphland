@@ -29,32 +29,12 @@
   </header>
 <nav class="project-navigation shell" aria-label="GraphLand sections"><a href="index.html">Home</a><a href="datasets.html">Datasets</a><a href="leaderboard.html" aria-current="page">Leaderboard</a><a href="getting-started.html">Getting Started</a></nav>
 
-  <main id="main-content" tabindex="-1">
-    <section class="hero">
-      <div class="shell hero-shell">
-        <nav class="breadcrumb" aria-label="Breadcrumb">
-          <a href="index.html">Home</a>
-          <span aria-hidden="true">|</span>
-          <span aria-current="page">GraphLand</span>
-        </nav>
-
-        <div class="hero-copy">
-          <h1>GraphLand Leaderboard</h1>
-          <p class="hero-intro">Compare graph learning methods across 14 industrial datasets and four realistic experimental settings—without collapsing distinct tasks into a single score.</p>
-
-          <div class="hero-actions">
+  <main id="main-content" class="project-page" tabindex="-1">
+    <section class="shell page-intro"><h1>Leaderboard</h1><p class="page-lead">Compare submitted models on the official GraphLand datasets and evaluation settings.</p><div class="page-actions hero-actions">
             <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
             <a class="view-results-link" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
-          </div>
-          <p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p>
-        </div>
-
-        <div class="hero-art" aria-hidden="true">
-          <img src="assets/brand/research-circles.svg" width="660" height="407" alt="" fetchpriority="high">
-        </div>
-      </div>
-    </section>
+          </div><p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p></section>
 
     <section class="shell disclosure" aria-labelledby="disclosure-title">
       <div class="disclosure-mark" aria-hidden="true">i</div>
@@ -74,13 +54,7 @@
 
     <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
       <div class="shell">
-        <div class="section-heading section-heading-wide">
-          <div>
-            <p class="eyebrow">Benchmark results</p>
-            <h2 id="leaderboard-title">Leaderboard</h2>
-          </div>
-          <p>Choose one setting and one task family. Choose a task family or view all datasets. Each column reports its own metric; sort by a dataset to compare methods.</p>
-        </div>
+        <h2 id="leaderboard-title" class="visually-hidden">Results</h2>
 
         <div class="leaderboard-controls" id="leaderboard-controls" role="group" aria-label="Leaderboard filters" tabindex="-1">
           <div class="control-block">

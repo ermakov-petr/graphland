@@ -126,8 +126,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.open()
         for name in ('ys-text-regular.woff2', 'ys-text-medium.woff2', 'merriweather-light.woff2'):
             self.assertEqual(responses.get(name), 200, responses)
-        expected = {'h1': 'YSText-Medium', '.breadcrumb a': 'YSText-Regular',
-                    '.hero-intro': 'Merriweather-Light'}
+        expected = {'h1': 'YSText-Medium', '.project-navigation a[href="index.html"]': 'YSText-Regular',
+                    '.page-lead': 'Merriweather-Light'}
         fonts = self.actual_platform_fonts(expected)
         for selector, postscript_name in expected.items():
             self.assert_custom_glyph_font(fonts[selector], postscript_name)
@@ -137,9 +137,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.route('**/assets/brand/merriweather-light.woff2',
                         lambda route: route.fulfill(status=404, body='missing-font'))
         self.open()
-        declared = self.page.locator('.hero-intro').evaluate('(el) => getComputedStyle(el).fontFamily')
+        declared = self.page.locator('.page-lead').evaluate('(el) => getComputedStyle(el).fontFamily')
         self.assertIn('Merriweather', declared)
-        fonts = self.actual_platform_fonts(['.hero-intro'])['.hero-intro']
+        fonts = self.actual_platform_fonts(['.page-lead'])['.page-lead']
         with self.assertRaisesRegex(AssertionError, 'Expected custom Merriweather-Light'):
             self.assert_custom_glyph_font(fonts, 'Merriweather-Light')
         faces = self.page.evaluate("() => [...document.fonts].filter(f => f.family === 'Merriweather').map(f => f.status)")
@@ -169,12 +169,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
             actual = hashlib.sha256(json.dumps(geometry, separators=(',', ':')).encode()).hexdigest()
             self.assertEqual(actual, expected, name)
             measured[name] = {'status': response.status, 'geometry_sha256': actual}
-        images = self.page.locator('.wordmark img, .hero-art img').evaluate_all(
+        images = self.page.locator('.wordmark img').evaluate_all(
             '''(nodes) => nodes.map(el => ({src:el.getAttribute("src"),complete:el.complete,
               naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight}))''')
-        self.assertEqual(len(images), 3)
+        self.assertEqual(len(images), 2)
         self.assertTrue(all(item['complete'] and item['naturalWidth'] > 0 and item['naturalHeight'] > 0 for item in images), images)
-        self.assertEqual({item['src'].rsplit('/', 1)[-1] for item in images}, set(REFERENCE_SVG_GEOMETRY_SHA256))
+        self.assertEqual({item['src'].rsplit('/', 1)[-1] for item in images}, {'yandex.svg', 'research.svg'})
+        self.assertEqual(self.page.locator('.hero-art').count(), 0)
         self.brand_observations.append({'check': 'served_asset_identity', 'assets': measured, 'rendered_images': images})
 
     def test_brand_header_container_and_svg_lockup_match_reference_boundaries(self):
@@ -256,10 +257,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(observation['target_focus'], 'main-content')
                 self.assertTrue(self.page.url.endswith('#main-content'), self.page.url)
                 self.page.keyboard.press('Tab')
-                self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
-                self.page.keyboard.press('Tab')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'submit-results-link')
-                observation['next_content_focus'] = 'breadcrumb Home then submit-results-link'
+                observation['next_content_focus'] = 'submit-results-link'
 
     def test_code_filter_feedback_explains_unchanged_rows_and_filters_mixed_code(self):
         payload = copy.deepcopy(self.payload)
@@ -426,13 +425,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 if availability == 'unavailable':
                     self.assertIn('Not published', row.inner_text())
 
-    def test_hero_view_results_anchor_focuses_visible_controls(self):
+    def test_view_results_anchor_focuses_visible_controls(self):
         for width in (1280, 375):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.open('?setting=RH&task=binary_node_classification')
                 link = self.page.locator('#view-results-link')
-                self.assertEqual(link.count(), 1, 'The hero needs a direct route to the comparison controls')
+                self.assertEqual(link.count(), 1, 'The page intro needs a direct route to the comparison controls')
                 self.assertEqual(link.get_attribute('href'), '#leaderboard-controls')
                 link.focus()
                 link.press('Enter')
@@ -448,7 +447,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#task-tab-binary_node_classification').get_attribute('aria-selected'), 'true')
                 self.page.keyboard.press('Tab')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'setting-tab-RH')
-                self.brand_observations.append({'check': 'hero_view_results_anchor', 'width': width,
+                self.brand_observations.append({'check': 'view_results_anchor', 'width': width,
                                                 'focused_controls_id': 'leaderboard-controls',
                                                 'next_tab_focus': self.page.evaluate('document.activeElement.id'),
                                                 'controls': controls_bounds})
@@ -599,12 +598,12 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.page.keyboard.press('Tab')
                     self.assertTrue(link.evaluate('(el) => el === document.activeElement'))
                 self.page.keyboard.press('Tab')
-                self.assertTrue(self.page.locator('.breadcrumb a').evaluate('(el) => el === document.activeElement'))
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'submit-results-link')
                 self.page.locator('#model-search').focus()
                 self.page.keyboard.press('Escape')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'model-search')
                 self.brand_observations.append({'check': 'logo_header_keyboard_no_inert', 'width': width,
-                    'tab_order': 'skip link → logo → project page links → breadcrumb Home', 'logo_focus_outline': outline,
+                    'tab_order': 'skip link → logo → project page links → Submit', 'logo_focus_outline': outline,
                     'focused_content_id': 'model-search', 'content_inert': False})
 
     def test_three_empty_states_and_filter_focus(self):
@@ -751,8 +750,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
                  ('leaderboard.html', 'Leaderboard', 'leaderboard', 'Leaderboard'),
                  ('getting-started.html', 'Getting Started', 'getting-started', 'Getting Started')]
         visits = []
-        for width in (320, 375, 1280):
+        self.brand_observations.append({'check': 'four_native_pages_and_history', 'visits': visits})
+        for width in (320, 375, 1280, 1920):
             with self.subTest(width=width):
+                shared_styles = None
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.open()
                 for path, label, marker, heading in pages:
@@ -772,9 +773,80 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     current = self.page.locator('.project-navigation [aria-current="page"]')
                     self.assertEqual(current.count(), 1)
                     self.assertEqual(current.inner_text(), label)
+                    self.page.wait_for_function('''() => {
+                        const nav=document.querySelector('.project-navigation').getBoundingClientRect();
+                        const link=document.querySelector('.project-navigation [aria-current="page"]').getBoundingClientRect();
+                        return link.left>=Math.max(0,nav.left)-1 && link.right<=Math.min(innerWidth,nav.right)+1;
+                    }''', timeout=5000)
+                    self.assertLessEqual(abs(self.page.evaluate('scrollY')), 1,
+                                         'Revealing the current section must not jump vertically')
                     self.assertEqual(self.page.locator('h1').count(), 1)
-                    self.assertIn(heading, self.page.locator('h1').inner_text())
+                    self.assertEqual(heading, self.page.locator('h1').inner_text())
                     self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+                    h2_selector = {'home': '.page-section > h2', 'datasets': '.dataset-description h2',
+                                   'leaderboard': '#legend-title', 'getting-started': '.page-section > h2'}[marker]
+                    styles = self.page.evaluate(r'''(h2Selector) => {
+                        const measure=el=>{
+                            const s=getComputedStyle(el);
+                            return {family:s.fontFamily,size:parseFloat(s.fontSize),line:parseFloat(s.lineHeight),
+                                weight:Number(s.fontWeight),tracking:s.letterSpacing};
+                        };
+                        const intro=document.querySelector('.page-intro');
+                        const introStyle=getComputedStyle(intro);
+                        const nav=document.querySelector('.project-navigation');
+                        const normal=nav.querySelector('a:not([aria-current="page"])');
+                        const active=nav.querySelector('[aria-current="page"]');
+                        const activeStyle=getComputedStyle(active);
+                        const h2=document.querySelector(h2Selector);
+                        const h2Bounds=h2.getBoundingClientRect();
+                        const leadStyle=getComputedStyle(intro.querySelector('.page-lead'));
+                        const borderColor=activeStyle.borderBottomColor;
+                        const transparentBorder=borderColor==='transparent'
+                            || /^rgba\([^)]*,\s*0(?:\.0+)?\)$/.test(borderColor);
+                        return {h1:measure(intro.querySelector('h1')),lead:measure(intro.querySelector('.page-lead')),
+                            h2:measure(h2),h2Selector,h2Renderable:h2Bounds.width>1 && h2Bounds.height>1
+                                && getComputedStyle(h2).visibility==='visible',
+                            nav:measure(normal),activeNav:measure(active),
+                            introPadding:{top:introStyle.paddingTop,bottom:introStyle.paddingBottom},
+                            leadMargin:{top:leadStyle.marginTop,bottom:leadStyle.marginBottom},
+                            activeColor:activeStyle.color,normalColor:getComputedStyle(normal).color,
+                            activeDecoration:activeStyle.textDecorationLine,
+                            activeBorderWidth:parseFloat(activeStyle.borderBottomWidth),
+                            activeBorderColor:borderColor,
+                            activeBorderVisible:parseFloat(activeStyle.borderBottomWidth)>0
+                                && activeStyle.borderBottomStyle!=='none' && !transparentBorder,
+                            activeBounds:active.getBoundingClientRect().toJSON()};
+                    }''', h2_selector)
+                    visits.append({'width': width, 'page': marker, 'native_navigation_status': 200, 'current': label,
+                                   'current_section_visible_without_vertical_jump': True, 'styles': styles})
+                    h1_size, h1_line, lead_size, nav_size, h2_size = (
+                        (48, 48, 22, 20, 32) if width > 1600 else
+                        (40, 40, 17, 16, 24) if width >= 768 else (30, 32.4, 15, 16, 24))
+                    self.assertAlmostEqual(styles['h1']['size'], h1_size, delta=.05)
+                    self.assertAlmostEqual(styles['h1']['line'], h1_line, delta=.05)
+                    self.assertEqual(styles['h1']['weight'], 500)
+                    self.assertAlmostEqual(styles['lead']['size'], lead_size, delta=.05)
+                    self.assertIn('Merriweather', styles['lead']['family'])
+                    self.assertTrue(styles['h2Renderable'], 'Compare rendered content headings, not visually hidden labels')
+                    self.assertAlmostEqual(styles['h2']['size'], h2_size, delta=.05)
+                    self.assertAlmostEqual(styles['nav']['size'], nav_size, delta=.05)
+                    self.assertEqual(styles['nav']['weight'], 400)
+                    self.assertEqual(styles['activeNav']['weight'], 400)
+                    self.assertEqual(styles['activeDecoration'], 'none')
+                    self.assertFalse(styles['activeBorderVisible'])
+                    active_rgb = [int(number) for number in re.findall(r'\d+', styles['activeColor'])[:3]]
+                    normal_rgb = [int(number) for number in re.findall(r'\d+', styles['normalColor'])[:3]]
+                    self.assertEqual(len(set(active_rgb)), 1, 'The current section uses neutral gray')
+                    self.assertGreater(active_rgb[0], normal_rgb[0])
+                    self.assertLess(active_rgb[0], 255)
+                    self.assertEqual(styles['leadMargin']['top'], '32px' if width > 1600 else '20px')
+                    parity = {key: styles[key] for key in ('h1', 'lead', 'h2', 'nav', 'activeNav', 'introPadding', 'leadMargin')}
+                    if shared_styles is None:
+                        shared_styles = parity
+                    else:
+                        for component, metrics in parity.items():
+                            self.assertEqual(metrics, shared_styles[component],
+                                             f'Shared {component} style differs on {path} at {width}px')
                     if marker == 'home':
                         self.assertEqual(self.page.locator('.dataset-catalog tbody tr').count(), 14)
                         self.assertEqual(self.page.locator('.dataset-catalog thead th').count(), 9)
@@ -782,14 +854,12 @@ class LeaderboardBrowserTests(unittest.TestCase):
                         self.assertEqual(self.page.locator('article.dataset-description').count(), 9)
                     elif marker == 'getting-started':
                         self.assertEqual(self.page.locator('pre code.language-python').count(), 2)
-                    visits.append({'width': width, 'page': marker, 'native_navigation_status': 200, 'current': label})
                 self.page.go_back()
                 self.page.wait_for_url(self.base + 'leaderboard.html')
                 self.assertEqual(self.page.locator('.project-navigation [aria-current="page"]').inner_text(), 'Leaderboard')
                 self.page.go_forward()
                 self.page.wait_for_url(self.base + 'getting-started.html')
                 self.assertEqual(self.page.locator('.project-navigation [aria-current="page"]').inner_text(), 'Getting Started')
-        self.brand_observations.append({'check': 'four_native_pages_and_history', 'visits': visits})
 
     def test_metadata_columns_preserve_budget_unknown_zero_and_accessible_safe_links(self):
         payload = copy.deepcopy(self.payload)
