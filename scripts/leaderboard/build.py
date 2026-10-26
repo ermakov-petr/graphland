@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import copy
 import os
@@ -242,9 +243,22 @@ def build_site(
     return validated
 
 
+def _write_versioned_html(source: Path, target: Path, site_source: Path) -> None:
+    """Give changed CSS/JS fresh browser cache keys alongside the new HTML."""
+    html = source.read_text(encoding="utf-8")
+
+    def version(match: re.Match) -> str:
+        asset = site_source / match.group(2)
+        digest = hashlib.sha256(asset.read_bytes()).hexdigest()[:16]
+        return f"{match.group(1)}{match.group(2)}?v={digest}{match.group(3)}"
+
+    html = re.sub(r'''((?:href|src)=["'])(assets/[^"'?]+\.(?:css|js))(?:\?v=[a-f0-9]+)?(["'])''', version, html)
+    target.write_text(html, encoding="utf-8")
+
+
 def _write_artifact(output: Path, site_source: Path, validated: Mapping[str, Any]) -> None:
 
-    shutil.copy2(site_source / "index.html", output / "index.html")
+    _write_versioned_html(site_source / "index.html", output / "index.html", site_source)
     shutil.copy2(site_source / "favicon.svg", output / "favicon.svg")
     shutil.copytree(site_source / "assets", output / "assets")
 

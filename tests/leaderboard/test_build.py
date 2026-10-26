@@ -23,6 +23,28 @@ def tree_digest(root: Path) -> dict[str, str]:
 
 
 class BuildTests(unittest.TestCase):
+    def test_asset_cache_keys_change_only_when_the_referenced_content_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory) / "site"
+            assets = site / "assets"
+            assets.mkdir(parents=True)
+            (assets / "app.js").write_text("window.version = 1;", encoding="utf-8")
+            (assets / "styles.css").write_text("body { color: black; }", encoding="utf-8")
+            source = site / "index.html"
+            source.write_text('<link href="assets/styles.css"><script src="assets/app.js"></script>', encoding="utf-8")
+            target = Path(directory) / "page.html"
+            self.build._write_versioned_html(source, target, site)
+            first = target.read_text(encoding="utf-8")
+            self.assertIn("assets/app.js?v=", first)
+            self.assertIn("assets/styles.css?v=", first)
+            self.build._write_versioned_html(source, target, site)
+            self.assertEqual(first, target.read_text(encoding="utf-8"))
+            (assets / "app.js").write_text("window.version = 2;", encoding="utf-8")
+            self.build._write_versioned_html(source, target, site)
+            second = target.read_text(encoding="utf-8")
+            self.assertNotEqual(first, second)
+            self.assertEqual(first.split('<script')[0], second.split('<script')[0])
+
     def test_source_overlap_and_unowned_output_are_refused_without_mutation(self) -> None:
         for output in (ROOT, ROOT.parent, ROOT / "site", ROOT / "leaderboard", ROOT / ".git", ROOT / "site/nested"):
             with self.assertRaisesRegex(self.build.LeaderboardValidationError, "unsafe build output"):
