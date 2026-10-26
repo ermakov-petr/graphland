@@ -3,7 +3,7 @@
   width: 72px;
   min-width: 72px;
   max-width: 136px;
-  padding-inline: 12px;
+  padding-inline: var(--table-cell-inline);
   text-align: center;
 }
 

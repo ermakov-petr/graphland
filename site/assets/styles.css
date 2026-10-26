@@ -715,40 +715,51 @@ button {
   scrollbar-color: var(--gray-300) transparent;
 }
 
-.table-scroll:focus-visible {
+.table-scroll:focus-visible,
+.catalog-scroll:focus-visible {
   outline-offset: 4px;
 }
 
-#leaderboard-table {
+.data-table {
+  --table-cell-inline: 14px;
   width: 100%;
-  min-width: 860px;
   border-collapse: separate;
   border-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
 
-#leaderboard-table th,
-#leaderboard-table td {
-  min-width: 145px;
-  padding: 18px 16px;
+.data-table th,
+.data-table td {
+  padding: 16px var(--table-cell-inline);
   border-bottom: 1px solid var(--gray-200);
   background: var(--white);
-  text-align: right;
   vertical-align: middle;
 }
 
-#leaderboard-table th {
-  position: sticky;
-  z-index: 4;
-  top: 0;
+.data-table thead th {
+  height: 72px;
   padding-block: 14px;
-  background: #fafafa;
+  background: var(--gray-100);
   color: var(--gray-700);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.35;
 }
 
+.data-table tbody tr:last-child > * { border-bottom: 0; }
+.data-table tbody tr:hover > *,
+.data-table tbody tr:focus-within > * { background: var(--gray-100); }
+.data-table tbody th a,
+.data-table .model-button strong { text-decoration: underline; text-underline-offset: 3px; }
+.data-table tbody th a:hover { color: var(--gray-700); }
+
+#leaderboard-table { min-width: 860px; }
+#leaderboard-table th,
+#leaderboard-table td { min-width: 145px; text-align: right; }
+#leaderboard-table thead th { position: sticky; z-index: 4; top: 0; }
 #leaderboard-table th:first-child,
 #leaderboard-table td:first-child {
   position: sticky;
@@ -756,31 +767,17 @@ button {
   min-width: 235px;
   max-width: 280px;
   text-align: left;
-}
-
-#leaderboard-table th:first-child {
-  z-index: 6;
   box-shadow: 1px 0 0 var(--gray-200);
 }
-
-#leaderboard-table td:first-child {
-  z-index: 2;
-  box-shadow: 1px 0 0 var(--gray-200);
-}
-
-#leaderboard-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-#leaderboard-table tbody tr:hover td {
-  background: var(--gray-100);
-}
+#leaderboard-table th:first-child { z-index: 6; }
+#leaderboard-table td:first-child { z-index: 2; }
 
 .sort-button {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   width: 100%;
+  min-height: 44px;
   padding: 3px 0;
   border: 0;
   background: transparent;
@@ -811,7 +808,7 @@ button {
 
 .sort-label small {
   color: var(--gray-500);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -838,7 +835,7 @@ button {
 .model-button strong {
   overflow: hidden;
   color: var(--black);
-  font-size: 18px;
+  font-size: inherit;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -854,7 +851,7 @@ button {
   overflow: hidden;
   max-width: 220px;
   color: var(--gray-700);
-  font-size: 14px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -897,7 +894,7 @@ button {
 
 .metric-value {
   color: var(--black);
-  font-size: 18px;
+  font-size: inherit;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -909,7 +906,7 @@ button {
 }
 
 .metric-na {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: .04em;
 }
@@ -1490,14 +1487,6 @@ button:disabled {
     font-size: 14px;
   }
 
-  .model-button strong {
-    font-size: 16px;
-  }
-
-  .metric-value {
-    font-size: 16px;
-  }
-
   .site-footer {
     padding-block: 24px 12px;
   }
@@ -1808,7 +1797,6 @@ button:disabled {
     width: 150px;
     min-width: 150px;
     max-width: 150px;
-    padding-inline: 12px;
   }
 
   #leaderboard-table th:first-child,
@@ -1828,14 +1816,6 @@ button:disabled {
 
   .model-button span {
     font-size: 12px;
-  }
-
-  .metric-value {
-    font-size: 14px;
-  }
-
-  .model-button strong {
-    font-size: 16px;
   }
 
   .protocol-grid {
@@ -2022,21 +2002,12 @@ button:disabled {
 .project-resources li { padding-block: 18px; border-bottom: 1px solid var(--gray-200); }
 .project-resources .text-link { margin-top: 0; font-size: var(--resource-size); font-weight: 400; }
 .text-link:hover { color: var(--gray-700); }
-.catalog-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--black); }
-.dataset-catalog { width: 100%; min-width: 1000px; border-collapse: separate; border-spacing: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
-.dataset-catalog caption { text-align: left; padding: 14px 0; font-size: 14px; color: var(--gray-700); }
-.dataset-catalog th, .dataset-catalog td { padding: 15px 14px; border-bottom: 1px solid var(--gray-200); text-align: left; vertical-align: top; }
-.dataset-catalog thead th,
-#leaderboard-table thead th {
-  background: var(--gray-100);
-  color: var(--gray-700);
-  font-size: 13px;
-  font-weight: 500;
-}
+.catalog-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--black); border-bottom: 1px solid var(--gray-200); scrollbar-color: var(--gray-300) transparent; }
+.dataset-catalog { min-width: 1000px; }
+.dataset-catalog th, .dataset-catalog td { text-align: left; }
 .dataset-catalog th:first-child { position: sticky; left: 0; z-index: 1; min-width: 160px; box-shadow: 1px 0 0 var(--gray-200); }
-.dataset-catalog tbody th { font-weight: 500; background: var(--white); }
-.dataset-catalog tbody tr:hover > * { background: var(--gray-100); }
-.dataset-catalog tbody th a { text-decoration: underline; text-underline-offset: 3px; }
+.dataset-catalog tbody th { font-weight: 500; }
+.dataset-catalog :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(5), :nth-child(6)) { text-align: right; }
 .dataset-catalog td:nth-child(2), .dataset-catalog td:nth-child(3) { white-space: nowrap; }
 .table-footnote, .section-note { margin-top: 14px; color: var(--gray-700); font-size: 13px; line-height: 1.6; }
 .dataset-index { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; padding-block: 0 28px; }
@@ -2096,6 +2067,7 @@ button:disabled {
 }
 
 @media (max-width: 560px) {
+  .data-table { --table-cell-inline: 12px; }
   .project-navigation {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

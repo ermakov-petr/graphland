@@ -71,10 +71,36 @@
     });
   }
 
+  function initializeTableFocusScroll() {
+    const viewport = document.querySelector('.table-scroll');
+    if (!viewport) return;
+    viewport.addEventListener('focusin', (event) => {
+      const target = event.target;
+      const cell = target.closest('th, td');
+      if (!cell || !viewport.contains(cell)) return;
+      // Native keyboard focus may leave a control behind the sticky column.
+      // Do not move pointer-focused controls between pointerdown and click.
+      window.requestAnimationFrame(() => {
+        if (document.activeElement !== target || !target.matches(':focus-visible')) return;
+        const bounds = viewport.getBoundingClientRect();
+        const firstCell = cell.parentElement.cells[0];
+        const left = cell === firstCell
+          ? bounds.left + viewport.clientLeft
+          : Math.max(bounds.left + viewport.clientLeft, firstCell.getBoundingClientRect().right);
+        const right = bounds.left + viewport.clientLeft + viewport.clientWidth;
+        const control = target.getBoundingClientRect();
+        const gap = 6;
+        if (control.left < left + gap) viewport.scrollLeft += control.left - left - gap;
+        else if (control.right > right - gap) viewport.scrollLeft += control.right - right + gap;
+      });
+    });
+  }
+
   function initializeNavigation() {
     redirectLegacyLeaderboardUrl();
     initializeCatalogScrollHint();
     initializeHorizontalKeyboardScroll();
+    initializeTableFocusScroll();
     window.requestAnimationFrame(revealCurrentSection);
     if (document.fonts) document.fonts.ready.then(revealCurrentSection);
     window.addEventListener('resize', revealCurrentSection, { passive: true });
