@@ -960,6 +960,45 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     'prose':body_style,'action':action_style,'table_heading':table_style,
                     'white_editorial_sections':True,'matching_filter_tab_styles':True})
 
+    def test_catalog_and_leaderboard_share_table_styles_and_focus_highlighting(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        def styles(locator):
+            return locator.evaluate("""e=>{const s=getComputedStyle(e);return {
+                font:s.fontFamily,size:s.fontSize,line:s.lineHeight,weight:s.fontWeight,
+                color:s.color,background:s.backgroundColor,padding:s.padding,
+                border:s.borderBottom,vertical:s.verticalAlign}}""")
+        for width in (320, 560, 561, 1280, 1920):
+            self.page.set_viewport_size({'width':width,'height':900})
+            baseline = None
+            for route, selector in (('index.html','.dataset-catalog'), ('leaderboard.html','#leaderboard-table')):
+                self.page.goto(self.base + route)
+                self.page.evaluate('document.fonts.ready')
+                table = self.page.locator(selector)
+                table.locator('tbody tr').first.wait_for()
+                self.page.mouse.move(0, 0)
+                header = styles(table.locator('thead th').first)
+                value = styles(table.locator('tbody td:nth-child(2)' if route=='index.html' else 'tbody .metric-value').first)
+                first_cell = styles(table.locator('tbody tr').first.locator('th,td').first)
+                if baseline is None:
+                    baseline = (header, value, first_cell)
+                    for column in (2,3,5,6):
+                        self.assertEqual(table.locator(f'thead th:nth-child({column})').evaluate('(e)=>getComputedStyle(e).textAlign'),'right')
+                else:
+                    self.assertEqual(header, baseline[0])
+                    for key in ('font','size','line','color','padding','border','vertical'):
+                        self.assertEqual(value[key], baseline[1][key], (key,width))
+                        self.assertEqual(first_cell[key], baseline[2][key], (key,width))
+                    for sort in table.locator('.sort-button').all():
+                        self.assertGreaterEqual(sort.bounding_box()['height'],44)
+                action = table.locator('tbody th a' if route=='index.html' else '.model-button').first
+                action.focus()
+                self.page.wait_for_function("(e)=>[...e.closest('tr').children].every(c=>getComputedStyle(c).backgroundColor==='rgb(245, 245, 245)')",arg=action.element_handle(),timeout=3000)
+                colors = table.locator('tbody tr').first.locator('th,td').evaluate_all('(cells)=>cells.map(e=>getComputedStyle(e).backgroundColor)')
+                self.assertTrue(all(color=='rgb(245, 245, 245)' for color in colors), (route,width,colors))
+                self.assertNotEqual(action.evaluate('(e)=>getComputedStyle(e).outlineStyle'),'none')
+                self.assertEqual(table.locator('caption').count(),1)
+                self.assertEqual(table.locator('caption').evaluate('(e)=>e.getBoundingClientRect().width'),1)
+
     def test_horizontal_scroll_keys_do_not_capture_descendant_controls_or_shortcuts(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.open()
