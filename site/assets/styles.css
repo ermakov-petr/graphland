@@ -2090,6 +2090,15 @@ button:disabled {
   line-height: 1.5;
 }
 .page-lead { margin-top: 32px; max-width: 760px; }
+.page-lead a,
+.article-copy > p a,
+.section-description a,
+.dataset-description > p:not(.dataset-tags) a,
+.guide-notes li a {
+  display: inline;
+  margin-top: 0;
+  font-weight: inherit;
+}
 .article-copy > p, .section-description { margin-bottom: 20px; }
 .page-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-block: 28px 0; }
 .page-intro .review-note { margin-top: 16px; max-width: 760px; }
