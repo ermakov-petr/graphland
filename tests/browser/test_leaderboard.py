@@ -701,6 +701,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.locator('.model-button').first.click()
                 self.page.locator('.dialog-close').focus()
                 count = self.page.locator('#model-dialog button,#model-dialog a').count()
+                link_count = self.page.locator('#model-dialog a').count()
+                visited_links = set()
                 for direction in ('Tab', 'Shift+Tab'):
                     for _ in range(count + 1):
                         self.page.keyboard.press(direction)
@@ -710,7 +712,61 @@ class LeaderboardBrowserTests(unittest.TestCase):
                             const r=e.getBoundingClientRect(),h=d.querySelector('.dialog-header'),b=d.getBoundingClientRect();
                             return r.top>=(h.contains(e)?b.top:h.getBoundingClientRect().bottom)-1&&r.bottom<=b.bottom+1;
                         }''')
+                        index = self.page.evaluate("Array.from(document.querySelectorAll('#model-dialog a')).indexOf(document.activeElement)")
+                        if index >= 0:
+                            visited_links.add(index)
+                self.assertEqual(visited_links, set(range(link_count)), 'Every dialog link must actually receive keyboard focus')
                 self.page.keyboard.press('Escape')
+
+    def test_dialog_pointer_hold_keeps_edge_links_stationary(self):
+        self.page.set_viewport_size({'width': 375, 'height': 400})
+        for keyboard_first in (False, True):
+            for edge in ('top', 'bottom'):
+                with self.subTest(keyboard_first=keyboard_first, edge=edge):
+                    self.open()
+                    self.page.locator('.model-button').first.click()
+                    if keyboard_first:
+                        self.page.locator('.dialog-close').focus()
+                        self.page.keyboard.press('Tab')
+                        self.page.locator('.dialog-close').focus()
+                    link = self.page.locator('#dialog-content a').first
+                    point = link.evaluate('''(link,edge)=>{
+                        const s=link.closest('.dialog-shell'),h=s.querySelector('.dialog-header');
+                        window.dialogLinkClicks=0;
+                        link.addEventListener('click',e=>{e.preventDefault();window.dialogLinkClicks++});
+                        s.scrollTop=500;let r=link.getBoundingClientRect();
+                        const desired=edge==='top'?h.getBoundingClientRect().bottom-r.height+4:s.getBoundingClientRect().bottom-4;
+                        s.scrollTop+=r.top-desired;r=link.getBoundingClientRect();
+                        return {x:r.left+30,y:edge==='top'?r.bottom-2:r.top+2,top:r.top,scroll:s.scrollTop};
+                    }''', edge)
+                    self.page.mouse.move(point['x'], point['y'])
+                    self.page.mouse.down()
+                    self.page.wait_for_timeout(180)
+                    self.assertEqual(self.page.locator('.dialog-shell').evaluate('(e)=>e.scrollTop'), point['scroll'])
+                    self.assertEqual(link.bounding_box()['y'], point['top'])
+                    self.page.mouse.up()
+                    self.assertEqual(self.page.evaluate('window.dialogLinkClicks'), 1)
+                    self.page.keyboard.press('Escape')
+
+    def test_dialog_focus_correction_ignores_stale_callbacks(self):
+        self.page.set_viewport_size({'width': 375, 'height': 400})
+        self.open()
+        self.page.locator('.model-button').first.click()
+        self.page.locator('.dialog-close').focus()
+        self.page.keyboard.press('Tab')
+        result = self.page.evaluate('''()=>{
+            const s=document.querySelector('.dialog-shell'),link=s.querySelector('a'),close=s.querySelector('.dialog-close');
+            const original=requestAnimationFrame,queue=[];
+            window.requestAnimationFrame=cb=>{queue.push(cb);return 0};
+            try {
+                close.focus({preventScroll:true});link.focus();
+                s.scrollTop=70;close.focus({preventScroll:true});
+                const before=s.scrollTop;queue.forEach(cb=>cb());
+                return {queued:queue.length,before,after:s.scrollTop};
+            } finally {window.requestAnimationFrame=original;}
+        }''')
+        self.assertGreater(result['queued'], 0)
+        self.assertEqual(result['before'], result['after'])
 
     def test_three_empty_states_and_filter_focus(self):
         payload = copy.deepcopy(self.payload)
