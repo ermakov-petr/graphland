@@ -271,6 +271,18 @@
       "aria-labelledby",
       `setting-tab-${state.setting} task-tab-${state.task}`,
     );
+    revealActiveTask();
+  }
+
+  function revealActiveTask() {
+    const selected = elements.taskTabs.querySelector('[aria-selected="true"]');
+    if (!selected) return;
+    const viewport = elements.taskTabs.parentElement;
+    const bounds = viewport.getBoundingClientRect();
+    const tab = selected.getBoundingClientRect();
+    // Change only horizontal scroll: deep links must not jump down the page.
+    if (tab.left < bounds.left) viewport.scrollLeft += tab.left - bounds.left;
+    else if (tab.right > bounds.right) viewport.scrollLeft += tab.right - bounds.right;
   }
 
   function updateSettingDescription() {
@@ -687,6 +699,7 @@
     });
 
     tablist.addEventListener("keydown", (event) => {
+      if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
         return;
       }
@@ -870,6 +883,8 @@
     if (!elements.dialog.open) {
       elements.dialog.showModal();
     }
+    // A closed native dialog has no scroll layout; reset only after opening it.
+    elements.dialog.querySelector('.dialog-shell').scrollTop = 0;
     if (updateUrl) writeQueryState("push");
   }
 
@@ -890,6 +905,21 @@
   }
 
   function bindDialog() {
+    const viewport = elements.dialog.querySelector('.dialog-shell');
+    const header = elements.dialog.querySelector('.dialog-header');
+    viewport.addEventListener('focusin', (event) => {
+      const target = event.target;
+      if (header.contains(target)) return;
+      window.requestAnimationFrame(() => {
+        if (!elements.dialog.open || document.activeElement !== target || !target.matches(':focus-visible')) return;
+        const bounds = viewport.getBoundingClientRect();
+        const top = Math.max(bounds.top, header.getBoundingClientRect().bottom) + 6;
+        const bottom = bounds.top + viewport.clientHeight - 6;
+        const control = target.getBoundingClientRect();
+        if (control.top < top) viewport.scrollTop += control.top - top;
+        else if (control.bottom > bottom) viewport.scrollTop += control.bottom - bottom;
+      });
+    });
     elements.dialogClose.addEventListener("click", () => closeDialog());
     elements.dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
@@ -919,6 +949,8 @@
   function bindControls() {
     bindTablist(elements.settingTabs, "setting", activateSetting);
     bindTablist(elements.taskTabs, "task", activateTask);
+    window.addEventListener('resize', revealActiveTask, { passive: true });
+    if (document.fonts) document.fonts.ready.then(revealActiveTask);
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
       writeQueryState();
