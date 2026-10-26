@@ -128,6 +128,9 @@ class SectionsContractTests(unittest.TestCase):
         self.assertEqual(seen_splits, {"RL", "THI"})
 
     def test_only_leaderboard_loads_the_interactive_app(self):
+        self.assertNotIn('href="leaderboard.xlsx"', self.pages["index.html"])
+        self.assertFalse(any(tag == "a" and "download" in attrs for tag, attrs in self.inventories["index.html"].elements))
+        self.assertIn('href="leaderboard.xlsx"', self.pages["leaderboard.html"])
         for path, inventory in self.inventories.items():
             with self.subTest(page=path):
                 scripts = [attrs.get("src") for tag, attrs in inventory.elements if tag == "script"]

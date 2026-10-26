@@ -393,6 +393,39 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
                                         'task_change_and_results_restore': True})
 
+    def test_legacy_section_fragments_redirect_without_losing_state(self):
+        for fragment in ('protocol', 'submit', 'model-search'):
+            for query in ('', '?setting=RH&task=all&code=0'):
+                with self.subTest(fragment=fragment, query=query):
+                    self.page.goto(self.base + query + '#' + fragment)
+                    self.page.wait_for_url('**/leaderboard.html*')
+                    self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
+                    self.assertTrue(self.page.url.endswith(query + '#' + fragment))
+                    self.assertEqual(self.page.locator('#' + fragment).count(), 1)
+        self.page.goto(self.base + '#main-content')
+        self.assertEqual(self.page.locator('body').get_attribute('data-page'), 'home')
+
+    def test_unavailable_training_code_is_not_a_link_in_model_details(self):
+        for availability, url, linked in (
+            ('available', 'https://example.org/training', True),
+            ('unavailable', 'https://example.org/training', False),
+            ('unavailable', None, False),
+            ('available', 'javascript:alert(1)', False),
+        ):
+            with self.subTest(availability=availability, url=url):
+                self.page.unroute('**/data/leaderboard.json')
+                payload = copy.deepcopy(self.payload)
+                payload['submissions'][0]['code_availability'] = availability
+                payload['submissions'][0]['training_code_url'] = url
+                self.with_payload(payload)
+                self.open()
+                name = payload['submissions'][0]['model_name']
+                self.page.get_by_role('button', name='View details for ' + name, exact=False).first.click()
+                row = self.page.locator('#dialog-content dt').filter(has_text=re.compile('^Training code$')).locator('..')
+                self.assertEqual(row.locator('a').count(), int(linked))
+                if availability == 'unavailable':
+                    self.assertIn('Not published', row.inner_text())
+
     def test_hero_view_results_anchor_focuses_visible_controls(self):
         for width in (1280, 375):
             with self.subTest(width=width):

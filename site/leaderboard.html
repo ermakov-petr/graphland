@@ -183,15 +183,7 @@
     </section>
 
     <section class="content-section protocol-section" id="protocol" aria-labelledby="protocol-title">
-      <div class="shell">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Evaluation</p>
-            <h2 id="protocol-title">Benchmark protocol</h2>
-          </div>
-          <p>All tracks use public GraphLand splits. Validation performance selects the checkpoint; the corresponding public-test metric is reported.</p>
-        </div>
-
+      <div class="shell"><details class="protocol-disclosure"><summary id="protocol-title">Benchmark protocol</summary>
         <div class="protocol-grid">
           <article>
             <span class="protocol-code">RL</span>
@@ -224,7 +216,7 @@
           <p>They differ only in information access. In THI, validation and test nodes and their incident edges are removed from the training graph, and test nodes and their incident edges are removed from the validation graph.</p>
           <p>THI preprocessing is fitted on training data only, then applied to validation and test snapshots. This includes categorical encoders, feature transforms, imputers, and regression-target transforms. <a class="text-link" href="https://github.com/ermakov-petr/graphland/blob/main/leaderboard/README.md#experimental-settings">Read the complete protocol</a>.</p>
         </div>
-      </div>
+      </details></div>
     </section>
 
     <section class="content-section submit-section" id="submit" aria-labelledby="submit-title">
@@ -248,40 +240,8 @@
       </div>
     </section>
 
-    <section class="content-section release-section" aria-labelledby="release-title">
-      <div class="shell">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Dataset release</p>
-            <h2 id="release-title">Open by design</h2>
-          </div>
-          <p>All features, targets, and split masks are published. GraphLand has no hidden test set and does not plan to add datasets to this release.</p>
-        </div>
-        <dl class="release-grid">
-          <div><dt>Release</dt><dd>v1</dd></div>
-          <div><dt>Datasets</dt><dd>14</dd></div>
-          <div><dt>License</dt><dd>Apache-2.0</dd></div>
-          <div><dt>DOI</dt><dd><a href="https://doi.org/10.5281/zenodo.16895532" target="_blank" rel="noopener noreferrer">10.5281/zenodo.16895532 <span aria-hidden="true">↗</span></a></dd></div>
-        </dl>
-        <p class="build-info" id="build-info" hidden></p>
-      </div>
-    </section>
 
-    <section class="content-section resources-section" aria-labelledby="resources-title">
-      <div class="shell">
-        <div class="section-heading-compact">
-          <p class="eyebrow">Explore further</p>
-          <h2 id="resources-title">Resources</h2>
-        </div>
-        <ul class="resource-list">
-          <li><a href="https://zenodo.org/records/16895532" target="_blank" rel="noopener noreferrer"><span>Dataset archive</span><strong>Zenodo</strong><span aria-hidden="true">↗</span></a></li>
-          <li><a href="https://www.kaggle.com/datasets/bazhenovgleb/graphland" target="_blank" rel="noopener noreferrer"><span>Dataset mirror</span><strong>Kaggle</strong><span aria-hidden="true">↗</span></a></li>
-          <li><a href="https://github.com/yandex-research/graphland" target="_blank" rel="noopener noreferrer"><span>Reference implementation</span><strong>GraphLand repository</strong><span aria-hidden="true">↗</span></a></li>
-          <li><a href="https://arxiv.org/abs/2409.14500" target="_blank" rel="noopener noreferrer"><span>Research paper</span><strong>GraphLand on arXiv</strong><span aria-hidden="true">↗</span></a></li>
-          <li><a href="https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.datasets.GraphLandDataset.html" target="_blank" rel="noopener noreferrer"><span>Dataset loader</span><strong>PyTorch Geometric</strong><span aria-hidden="true">↗</span></a></li>
-        </ul>
-      </div>
-    </section>
+    <p class="shell build-info" id="build-info" hidden></p>
   </main>
 
   <footer class="site-footer">
@@ -290,7 +250,8 @@
         <a href="#leaderboard">Leaderboard</a>
         <a href="#protocol">Protocol</a>
         <a href="#submit">Submit</a>
-        <a href="https://github.com/ermakov-petr/graphland" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+        <a href="https://arxiv.org/abs/2409.14500" target="_blank" rel="noopener noreferrer">Paper <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/yandex-research/graphland" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <div class="footer-bottom">
         <p>GraphLand evaluates graph machine learning on diverse industrial data.</p>
