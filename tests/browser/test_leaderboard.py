@@ -999,6 +999,33 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(table.locator('caption').count(),1)
                 self.assertEqual(table.locator('caption').evaluate('(e)=>e.getBoundingClientRect().width'),1)
 
+    def test_held_pointer_click_on_clipped_table_controls_is_not_lost(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        for kind in ('sort','link'):
+            for edge in ('left','right'):
+                self.open('?task=all')
+                viewport = self.page.locator('.table-scroll')
+                viewport.evaluate("e=>{e.style.width='400px';scrollTo(0,scrollY+e.getBoundingClientRect().top-80)}")
+                control = self.page.locator('.sort-button').nth(8) if kind=='sort' else self.page.locator('.metadata-link').first
+                key = control.get_attribute('data-sort-key')
+                control.evaluate("""e=>{window.probeClicks=0;e.addEventListener('click',ev=>{
+                    window.probeClicks++;if(e.tagName==='A')ev.preventDefault()})}""")
+                point = control.evaluate("""(e,edge)=>{
+                    document.activeElement.blur();const v=document.querySelector('.table-scroll'),b=v.getBoundingClientRect();
+                    const first=e.closest('tr').cells[0],r=e.getBoundingClientRect();
+                    const boundary=edge==='left'?first.getBoundingClientRect().right:b.left+v.clientWidth;
+                    v.scrollLeft+=r.left-(edge==='left'?boundary-r.width+4:boundary-4);
+                    const q=e.getBoundingClientRect();return{x:edge==='left'?boundary+2:boundary-2,y:q.y+q.height/2,scroll:v.scrollLeft};
+                }""",edge)
+                self.page.mouse.move(point['x'],point['y'])
+                self.page.mouse.down()
+                self.page.wait_for_timeout(180)  # Deliberately hold across multiple animation frames.
+                self.assertEqual(viewport.evaluate('(e)=>e.scrollLeft'),point['scroll'])
+                self.page.mouse.up()
+                self.assertEqual(self.page.evaluate('window.probeClicks'),1)
+                if kind=='sort':
+                    self.assertEqual(self.page.locator(f'.sort-button[data-sort-key="{key}"]').locator('..').get_attribute('aria-sort'),'descending')
+
     def test_keyboard_table_controls_stay_visible_beside_sticky_column(self):
         self.page.emulate_media(reduced_motion='reduce')
         for width in (320, 560, 561, 1280):

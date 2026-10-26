@@ -78,10 +78,10 @@
       const target = event.target;
       const cell = target.closest('th, td');
       if (!cell || !viewport.contains(cell)) return;
-      // Native focus scrolling may leave a control behind the sticky first
-      // column or partly outside the viewport. Adjust after the native scroll.
+      // Native keyboard focus may leave a control behind the sticky column.
+      // Do not move pointer-focused controls between pointerdown and click.
       window.requestAnimationFrame(() => {
-        if (document.activeElement !== target) return;
+        if (document.activeElement !== target || !target.matches(':focus-visible')) return;
         const bounds = viewport.getBoundingClientRect();
         const firstCell = cell.parentElement.cells[0];
         const left = cell === firstCell
