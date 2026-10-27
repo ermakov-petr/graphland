@@ -90,3 +90,5 @@ Keyboard focus also reveals table controls vertically within the usable scroll a
 After printing, a focused source control is restored only if the browser dropped focus to the document body. Page interaction or a different focus target cancels the return. Removed, hidden and disabled controls are not restored, and a newer print cycle cancels an older scheduled return.
 
 The return also checks the original URL, history length and history state, so programmatic same-document navigation can cancel it without relying on browser navigation events.
+
+Keyboard-focused table controls are revealed again when the table or its viewport changes size, including enlarged text. The reveal waits for the sticky-header mode to settle, leaves focus and history unchanged, and is not triggered by manual scrolling. Pointer, touch and wheel input cancel a pending reveal and suppress later layout callbacks until focus or keyboard interaction returns to the table.

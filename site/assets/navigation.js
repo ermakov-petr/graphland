@@ -74,14 +74,17 @@
   function initializeTableFocusScroll() {
     const viewport = document.querySelector('.table-scroll');
     if (!viewport) return;
-    viewport.addEventListener('focusin', (event) => {
-      const target = event.target;
+    let focusFrame = 0;
+    let layoutFrame = 0;
+    let layoutFocusAllowed = true;
+    function reveal(target) {
       const cell = target.closest('th, td');
       if (!cell || !viewport.contains(cell)) return;
       // Native keyboard focus may leave a control behind the sticky column.
       // Do not move pointer-focused controls between pointerdown and click.
-      window.requestAnimationFrame(() => {
-        if (document.activeElement !== target || !target.matches(':focus-visible')) return;
+      window.cancelAnimationFrame(focusFrame);
+      focusFrame = window.requestAnimationFrame(() => {
+        if (!layoutFocusAllowed || document.activeElement !== target || !target.matches(':focus-visible')) return;
         const bounds = viewport.getBoundingClientRect();
         const firstCell = cell.parentElement.cells[0];
         const left = cell === firstCell
@@ -111,7 +114,32 @@
         if (visible.height > pageBottom - pageTop || visible.top < pageTop) window.scrollBy(0, visible.top - pageTop);
         else if (visible.bottom > pageBottom) window.scrollBy(0, visible.bottom - pageBottom);
       });
+    }
+    viewport.addEventListener('focusin', (event) => {
+      layoutFocusAllowed = true;
+      reveal(event.target);
     });
+    viewport.addEventListener('keydown', () => { layoutFocusAllowed = true; });
+    function revealAfterLayout() {
+      if (!layoutFocusAllowed) return;
+      window.cancelAnimationFrame(layoutFrame);
+      // Let the table's header mode settle before measuring the usable area.
+      layoutFrame = window.requestAnimationFrame(() => reveal(document.activeElement));
+    }
+    window.addEventListener('resize', revealAfterLayout, { passive: true });
+    if (window.ResizeObserver) {
+      const observer = new ResizeObserver(revealAfterLayout);
+      observer.observe(viewport);
+      observer.observe(viewport.querySelector('table'));
+    }
+    // A new pointer/scroll action owns the viewport while a reveal is pending.
+    for (const type of ['pointerdown', 'touchstart', 'wheel']) {
+      window.addEventListener(type, () => {
+        layoutFocusAllowed = false;
+        window.cancelAnimationFrame(layoutFrame);
+        window.cancelAnimationFrame(focusFrame);
+      }, { passive: true, capture: true });
+    }
   }
 
   function initializeNavigation() {
