@@ -92,6 +92,24 @@
         const gap = 6;
         if (control.left < left + gap) viewport.scrollLeft += control.left - left - gap;
         else if (control.right > right - gap) viewport.scrollLeft += control.right - right + gap;
+
+        // Firefox can leave a focused control clipped by the table viewport.
+        // Reserve the sticky header for body controls, unless it scrolls away.
+        const header = viewport.querySelector('thead');
+        const pinnedHeader = header && !header.contains(target)
+          && !viewport.classList.contains('free-table-header') ? header.getBoundingClientRect().height : 0;
+        const top = bounds.top + viewport.clientTop + pinnedHeader + gap;
+        const bottom = bounds.top + viewport.clientTop + viewport.clientHeight - gap;
+        if (control.height > bottom - top || control.top < top) viewport.scrollTop += control.top - top;
+        else if (control.bottom > bottom) viewport.scrollTop += control.bottom - bottom;
+
+        // The outer document can also have scrolled past the fixed site header.
+        const visible = target.getBoundingClientRect();
+        const siteHeader = document.querySelector('.site-header');
+        const pageTop = (siteHeader?.getBoundingClientRect().bottom || 0) + gap;
+        const pageBottom = window.innerHeight - gap;
+        if (visible.height > pageBottom - pageTop || visible.top < pageTop) window.scrollBy(0, visible.top - pageTop);
+        else if (visible.bottom > pageBottom) window.scrollBy(0, visible.bottom - pageBottom);
       });
     });
   }

@@ -84,3 +84,5 @@ The not-found page uses the same header, four-section navigation, heading, prose
 Below 497px, the nine-column dataset catalog uses equal-width cells capped at 160px and at half the available table viewport. One complete field stays visible next to the sticky dataset name, including enlarged text; long headings and task names wrap within their cells. Wider layouts retain their existing density.
 
 If the leaderboard header occupies more than half of its scroll viewport, it scrolls vertically with the rows rather than covering them. The first column stays pinned horizontally. The normal sticky header returns when the viewport or text dimensions allow enough space; no filter, focus or history state changes.
+
+Keyboard focus also reveals table controls vertically within the usable scroll area and below the fixed site header. Oversized controls align at their start so their names remain readable. Pointer-focused controls are excluded, preserving the pressed click target.

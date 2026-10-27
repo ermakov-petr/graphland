@@ -392,6 +392,29 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
                                         'task_change_and_results_restore': True})
 
+    def test_keyboard_table_focus_reveals_clipped_model_name_vertically(self):
+        self.page.set_viewport_size({'width': 375, 'height': 240})
+        self.open('?task=all')
+        self.page.evaluate("""() => {
+            const nodes = [...document.querySelectorAll('.data-table, .data-table *')];
+            const sizes = nodes.map(e => parseFloat(getComputedStyle(e).fontSize));
+            nodes.forEach((e, i) => e.style.fontSize = sizes[i] * 2 + 'px');
+        }""")
+        self.page.wait_for_function('document.querySelector(".table-scroll").classList.contains("free-table-header")')
+        self.page.locator('.table-scroll').focus()
+        self.page.keyboard.press('Tab')
+        self.page.locator('.model-button').first.evaluate('e => e.focus({preventScroll:true})')
+        self.page.wait_for_function("""() => {
+            const e = document.activeElement, name = e.querySelector('strong');
+            if (!name) return false;
+            const r = name.getBoundingClientRect(), v = e.closest('.table-scroll').getBoundingClientRect();
+            const h = document.querySelector('.site-header').getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+            return r.top >= Math.max(v.top, h.bottom) && r.bottom <= Math.min(v.bottom, innerHeight)
+                && (hit === e || e.contains(hit));
+        }""")
+        self.assertEqual(self.page.locator(':focus').get_attribute('class'), 'model-button')
+
     def test_large_table_header_yields_space_in_a_short_viewport(self):
         self.page.set_viewport_size({'width': 375, 'height': 240})
         self.open('?task=all')
