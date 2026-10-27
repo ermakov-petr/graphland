@@ -46,6 +46,21 @@ class BuildTests(unittest.TestCase):
             self.assertNotEqual(first, second)
             self.assertEqual(first.split('<script')[0], second.split('<script')[0])
 
+    def test_not_found_links_resolve_from_project_mount_without_changing_fragments(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "404.html"
+            self.build._write_versioned_html(ROOT / "site/404.html", output, ROOT / "site")
+            html = output.read_text(encoding="utf-8")
+            self.assertIn('href="/graphland/assets/styles.css?v=', html)
+            self.assertIn('src="/graphland/assets/navigation.js?v=', html)
+            self.assertIn('href="/graphland/index.html"', html)
+            self.assertIn('href="/graphland/leaderboard.html#protocol"', html)
+            self.assertIn('src="/graphland/assets/brand/yandex.svg"', html)
+            self.assertIn('href="#main-content"', html)
+            self.assertIn('href="https://research.yandex.com/"', html)
+            self.assertNotIn('<base', html)
+            self.assertIn('name="robots" content="noindex"', html)
+
     @staticmethod
     def leaderboard_page(site: Path) -> Path:
         page = site / "leaderboard.html"
@@ -377,7 +392,7 @@ class BuildTests(unittest.TestCase):
             root = Path(directory)
             site = root / "site"
             shutil.copytree(ROOT / "site", site)
-            for name in ("index.html", "datasets.html", "leaderboard.html", "getting-started.html"):
+            for name in ("index.html", "datasets.html", "leaderboard.html", "getting-started.html", "404.html"):
                 (site / name).write_text(f"<!doctype html><title>{name}</title>", encoding="utf-8")
             output = root / "artifact"
             output.mkdir()

@@ -246,7 +246,7 @@ def build_site(
     return validated
 
 
-def _write_versioned_html(source: Path, target: Path, site_source: Path) -> None:
+def _write_versioned_html(source: Path, target: Path, site_source: Path, *, base_path: str = "/graphland/") -> None:
     """Give changed CSS/JS fresh browser cache keys alongside the new HTML."""
     html = source.read_text(encoding="utf-8")
 
@@ -256,13 +256,22 @@ def _write_versioned_html(source: Path, target: Path, site_source: Path) -> None
         return f"{match.group(1)}{match.group(2)}?v={digest}{match.group(3)}"
 
     html = re.sub(r'''((?:href|src)=["'])(assets/[^"'?]+\.(?:css|js))(?:\?v=[a-f0-9]+)?(["'])''', version, html)
+    if source.name == "404.html":
+        # Pages serves this document at the requested, possibly nested URL.
+        # Resolve local assets/links from the project mount, without <base>
+        # (which would send the skip link to a different document).
+        html = re.sub(
+            r'''((?:href|src)=["'])(?![a-zA-Z][a-zA-Z0-9+.-]*:|/|#)([^"']+)(["'])''',
+            lambda match: f"{match.group(1)}{base_path}{match.group(2)}{match.group(3)}",
+            html,
+        )
     target.write_text(html, encoding="utf-8")
 
 
 def _write_artifact(output: Path, site_source: Path, validated: Mapping[str, Any]) -> None:
 
     for page in sorted(site_source.glob("*.html")):
-        _write_versioned_html(page, output / page.name, site_source)
+        _write_versioned_html(page, output / page.name, site_source, base_path=validated["config"]["site"]["base_path"])
     shutil.copy2(site_source / "favicon.svg", output / "favicon.svg")
     shutil.copytree(site_source / "assets", output / "assets")
 
