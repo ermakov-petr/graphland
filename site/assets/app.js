@@ -29,6 +29,9 @@
 
   const elements = {};
   let tableHintFrame = 0;
+  let queryReplaceTimer = 0;
+  let pendingReplaceUrl = null;
+  let lastQueryReplaceWrite = -Infinity;
 
   function cacheElements() {
     elements.settingTabs = document.getElementById("setting-tabs");
@@ -244,7 +247,7 @@
     state.dialogSubmissionId = submission && /^[a-z0-9-]{1,128}$/.test(submission) ? submission : null;
   }
 
-  function writeQueryState(mode = "replace") {
+  function queryStateUrl() {
     const url = new URL(window.location.href);
     url.searchParams.set("setting", state.setting);
     url.searchParams.set("task", state.task);
@@ -255,6 +258,38 @@
       if (value === null || value === "") url.searchParams.delete(key);
       else url.searchParams.set(key, value);
     }
+    return url;
+  }
+
+  function cancelQueryReplace() {
+    window.clearTimeout(queryReplaceTimer);
+    queryReplaceTimer = 0;
+    pendingReplaceUrl = null;
+  }
+
+  function flushQueryReplace() {
+    const url = pendingReplaceUrl;
+    cancelQueryReplace();
+    if (url && url.href !== window.location.href) {
+      window.history.replaceState(null, "", url);
+      lastQueryReplaceWrite = performance.now();
+    }
+  }
+
+  function scheduleQueryReplace() {
+    pendingReplaceUrl = queryStateUrl();
+    window.clearTimeout(queryReplaceTimer);
+    // Filter immediately, but coalesce address updates during continuous input.
+    // WebKit limits history writes; a held key must not stop table rendering.
+    const delay = Math.max(0, 250 - (performance.now() - lastQueryReplaceWrite));
+    if (delay === 0) flushQueryReplace();
+    else queryReplaceTimer = window.setTimeout(flushQueryReplace, delay);
+  }
+
+  function writeQueryState(mode = "replace") {
+    // Preserve the preceding search entry before a tab/dialog pushes a new one.
+    flushQueryReplace();
+    const url = queryStateUrl();
     const method = mode === "push" ? "pushState" : "replaceState";
     if (url.href !== window.location.href) window.history[method](null, "", url);
   }
@@ -731,7 +766,15 @@
         next = tabs.length - 1;
       }
       tabs[next].focus();
-      activate(tabs[next].dataset[dataKey]);
+      // One held-key gesture owns one history entry; repeat events replace it.
+      activate(tabs[next].dataset[dataKey], !event.repeat);
+      if (event.repeat) scheduleQueryReplace();
+    });
+    tablist.addEventListener("keyup", (event) => {
+      if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) flushQueryReplace();
+    });
+    tablist.addEventListener("focusout", (event) => {
+      if (!tablist.contains(event.relatedTarget)) flushQueryReplace();
     });
   }
 
@@ -971,9 +1014,11 @@
     }
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
-      writeQueryState();
       renderTable();
+      scheduleQueryReplace();
     });
+    elements.search.addEventListener("blur", flushQueryReplace);
+    elements.search.addEventListener("change", flushQueryReplace);
     elements.codeFilter.addEventListener("change", () => {
       state.codeOnly = elements.codeFilter.checked;
       writeQueryState();
@@ -988,6 +1033,7 @@
       render();
     });
     window.addEventListener("popstate", () => {
+      cancelQueryReplace();
       readQueryState();
       render();
     });

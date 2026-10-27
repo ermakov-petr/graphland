@@ -1854,6 +1854,74 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertIn('1 model with results', self.page.locator('#result-summary').inner_text())
         self.assertTrue(self.page.locator('#result-summary').inner_text().endswith('1 submission overall'))
 
+    def test_continuous_search_filters_immediately_and_coalesces_history_writes(self):
+        self.open('?task=all')
+        self.page.evaluate('''() => {
+            window.searchHistoryWrites=[];
+            const replace=history.replaceState.bind(history);
+            history.replaceState=(state,title,url)=>{searchHistoryWrites.push(String(url));replace(state,title,url)};
+            const input=document.querySelector('#model-search');
+            for(let i=1;i<=180;i++) {input.value='a'.repeat(i);input.dispatchEvent(new Event('input',{bubbles:true}));}
+            input.value='Atlas';input.dispatchEvent(new Event('input',{bubbles:true}));
+        }''')
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 1)
+        self.assertIn('Atlas', self.page.locator('#leaderboard-body').inner_text())
+        self.assertLess(self.page.evaluate('searchHistoryWrites.length'), 10)
+        self.page.wait_for_function('new URL(location.href).searchParams.get("q")==="Atlas"')
+        self.assertLess(self.page.evaluate('searchHistoryWrites.length'), 10)
+
+    def test_pending_search_is_saved_before_a_new_view_history_entry(self):
+        self.open('?task=all')
+        self.page.evaluate('''() => {
+            const input=document.querySelector('#model-search');
+            for(const value of ['A','Atlas']) {input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
+            // Programmatic activation also covers the path without input blur.
+            document.querySelector('#setting-tab-RH').click();
+        }''')
+        self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
+        self.page.go_back()
+        self.page.wait_for_function('document.querySelector("#setting-tab-RL").getAttribute("aria-selected")==="true"')
+        self.assertEqual(self.page.locator('#model-search').input_value(), 'Atlas')
+        self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("q")'), 'Atlas')
+        self.page.go_forward()
+        self.assertEqual(self.page.locator('#model-search').input_value(), 'Atlas')
+
+    def test_history_navigation_cancels_a_pending_search_address_update(self):
+        self.open('?task=all')
+        original_rows = self.page.locator('#leaderboard-body tr').count()
+        self.page.locator('#setting-tab-RH').click()
+        self.page.evaluate('''() => {
+            const input=document.querySelector('#model-search');
+            for(const value of ['A','Atlas']) {input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));}
+            history.back();
+        }''')
+        self.page.wait_for_function('document.querySelector("#setting-tab-RL").getAttribute("aria-selected")==="true"')
+        url = self.page.url
+        self.page.wait_for_timeout(350)
+        self.assertEqual(self.page.url, url)
+        self.assertEqual(self.page.locator('#model-search').input_value(), '')
+        self.assertEqual(self.page.locator('#leaderboard-body tr').count(), original_rows)
+
+    def test_held_tab_navigation_uses_one_history_entry_and_restores_final_selection(self):
+        for selector, parameter, initial, final, repetitions in (
+            ('#setting-tabs', 'setting', 'RL', 'THI', 19),
+            ('#task-tabs', 'task', 'multiclass_node_classification', 'all', 7),
+        ):
+            with self.subTest(parameter=parameter):
+                self.open()
+                initial_length = self.page.evaluate('history.length')
+                self.page.locator(selector+' [aria-selected="true"]').focus()
+                for _ in range(repetitions): self.page.keyboard.down('ArrowRight')
+                self.page.keyboard.up('ArrowRight')
+                self.assertEqual(self.page.evaluate('history.length'), initial_length+1)
+                self.assertEqual(self.page.evaluate('(key)=>new URL(location.href).searchParams.get(key)', parameter), final)
+                self.page.go_back()
+                self.page.wait_for_function('''([selector,key,value])=>document.querySelector(selector+' [aria-selected="true"]').dataset[key]===value''', arg=[selector,parameter,initial])
+                self.page.wait_for_timeout(300)
+                self.assertEqual(self.page.locator(selector+' [aria-selected="true"]').get_attribute('data-'+parameter), initial)
+                self.page.go_forward()
+                self.assertEqual(self.page.locator(selector+' [aria-selected="true"]').get_attribute('data-'+parameter), final)
+
     def test_static_fallback_has_downloads_without_javascript_or_app_script(self):
         for javascript in (False, True):
             with self.subTest(javascript=javascript):
