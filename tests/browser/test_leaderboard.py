@@ -677,6 +677,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
             * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
             p { margin-bottom: 2em !important; }
         ''')
+        # Let the new styles and ResizeObserver delivery settle before inspecting selection.
+        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
         self.page.wait_for_function('''()=>{
             const tab=document.querySelector('#task-tab-all').getBoundingClientRect();
             const view=document.querySelector('.task-control').getBoundingClientRect();
@@ -1683,6 +1685,147 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'settings': ['RL', 'RH', 'TH', 'THI'], 'sort_dataset': 'city-reviews',
                                         'history_preserved': True, 'separate_view_return': True,
                                         'visible_setting_label_hidden_accessible_name_retained': True})
+
+    def test_print_records_preserve_order_labels_values_and_best_emphasis(self):
+        self.open('?task=all')
+        for setting in ('RL', 'RH', 'TH', 'THI'):
+            self.page.get_by_role('tab', name=setting, exact=True).click()
+            self.page.locator('#leaderboard-head [data-sort-key]').first.click()
+            expected = self.page.evaluate('''() => {
+                const table = document.querySelector('#leaderboard-table');
+                const labels = [...table.tHead.rows[0].cells].slice(1).map(cell =>
+                    (cell.querySelector('.sort-label') || cell).textContent.trim().replace(/\\s+/g, ' '));
+                return [...table.tBodies[0].rows].map(row => ({
+                    name: row.cells[0].querySelector('.model-button').textContent,
+                    fields: [...row.cells].slice(1).map((cell, i) => ({
+                        label: labels[i], text: cell.textContent, html: cell.innerHTML,
+                        best: cell.classList.contains('metric-best')
+                    }))
+                }));
+            }''')
+            self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+            self.assertFalse(self.page.locator('.print-tables').is_visible())
+            actual = self.page.evaluate('''() => [...document.querySelectorAll('.print-record')].map(table => ({
+                name: table.querySelector('.print-model-name').textContent,
+                fields: [...table.tBodies[0].rows].map(row => ({
+                    label: row.cells[0].textContent, text: row.cells[1].textContent,
+                    html: row.cells[1].innerHTML, best: row.cells[1].classList.contains('metric-best')
+                }))
+            }))''')
+            self.assertEqual(actual, expected)
+            self.page.emulate_media(media='print')
+            self.assertTrue(self.page.locator('.print-tables').is_visible())
+            self.assertFalse(self.page.locator('#leaderboard-table').is_visible())
+            for value in self.page.locator('.print-record .metric-value').all():
+                expected_weight = '700' if 'metric-best' in value.get_attribute('class') else '400'
+                self.assertEqual(value.evaluate('(e)=>getComputedStyle(e).fontWeight'), expected_weight)
+            self.page.emulate_media(media='screen')
+            self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+            self.assertEqual(self.page.locator('.print-record').count(), 0)
+            self.assertTrue(self.page.locator('#leaderboard-table').is_visible())
+
+    def test_print_lifecycle_reconciles_stale_dialog_and_preserves_original_focus(self):
+        self.open('?task=all')
+        self.page.locator('.model-button').first.click()
+        self.page.locator('.dialog-close').focus()
+        before = self.page.evaluate('''() => {
+            window.originalPrintFocus = document.activeElement;
+            return {url: location.href, history: history.length,
+                    title: document.querySelector('#dialog-title').textContent,
+                    content: document.querySelector('#dialog-content').innerHTML};
+        }''')
+        for _ in range(2):
+            self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+            self.assertEqual(self.page.locator('.print-model-details').count(), 1)
+            self.assertEqual(self.page.locator('.print-model-details h1').text_content(), before['title'])
+            self.assertEqual(self.page.locator('.print-model-details [id], .print-model-details [tabindex]').count(), 0)
+            self.assertFalse(self.page.locator('.print-model-details').is_visible())
+            self.assertTrue(self.page.evaluate('document.activeElement===window.originalPrintFocus'))
+        # A real PDF invokes the browser's print lifecycle, including cleanup.
+        pdf = self.page.pdf(format='A4')
+        self.assertTrue(pdf.startswith(b'%PDF-'))
+        self.assertEqual(self.page.locator('.print-model-details').count(), 0)
+        self.assertTrue(self.page.locator('#model-dialog').evaluate('(e)=>e.open && e.matches(":modal")'))
+        self.assertTrue(self.page.evaluate('document.activeElement===window.originalPrintFocus'))
+        self.assertEqual(self.page.url, before['url'])
+        self.assertEqual(self.page.evaluate('history.length'), before['history'])
+        self.assertEqual(self.page.locator('#dialog-content').inner_html(), before['content'])
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.page.keyboard.press('Escape')
+        # No afterprint: a normal print must discard the stale model snapshot.
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.assertEqual(self.page.locator('.print-model-details').count(), 0)
+        self.assertGreater(self.page.locator('.print-record').count(), 0)
+        self.assertFalse(self.page.evaluate("document.body.classList.contains('printing-model')"))
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+        self.assertEqual(self.page.locator('.print-record').count(), 0)
+
+    def test_catalog_print_labels_are_complete_without_javascript(self):
+        context = self.browser.new_context(java_script_enabled=False, viewport={'width':794,'height':1123})
+        try:
+            page = context.new_page()
+            page.goto(self.base+'index.html')
+            labels = page.locator('.dataset-catalog thead th').all_text_contents()[1:]
+            self.assertEqual(page.locator('.dataset-catalog tbody tr').count(), 14)
+            for row in page.locator('.dataset-catalog tbody tr').all():
+                self.assertEqual([cell.get_attribute('data-print-label') for cell in row.locator('td').all()], labels)
+            page.emulate_media(media='print')
+            bounds = page.locator('.dataset-catalog').bounding_box()
+            self.assertLessEqual(bounds['x']+bounds['width'], 795)
+            self.assertTrue(page.locator('.dataset-catalog tbody tr').last.is_visible())
+        finally:
+            context.close()
+
+    def test_print_handles_error_and_empty_views_without_stale_records(self):
+        self.page.route('**/data/leaderboard.json', lambda route: route.fulfill(status=503, body='unavailable'))
+        self.page.goto(self.base+'leaderboard.html')
+        self.page.wait_for_selector('#load-error', state='visible')
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.assertEqual(self.page.locator('.print-record').count(), 0)
+        self.page.emulate_media(media='print')
+        self.assertTrue(self.page.locator('#load-error').is_visible())
+        self.assertTrue(self.page.locator('#load-error a[href="leaderboard.csv"]').is_visible())
+        self.page.emulate_media(media='screen')
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+        self.page.unroute('**/data/leaderboard.json')
+        self.open('?task=all')
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.assertGreater(self.page.locator('.print-record').count(), 0)
+        self.page.locator('#model-search').fill('no matching model')
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.assertEqual(self.page.locator('.print-record').count(), 0)
+        self.page.emulate_media(media='print')
+        self.assertTrue(self.page.locator('#empty-state').is_visible())
+        self.page.emulate_media(media='screen')
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+
+    def test_print_long_model_text_wraps_without_scaling_the_page(self):
+        payload = copy.deepcopy(self.payload)
+        payload['submissions'][0]['model_name'] = 'M' * 120
+        payload['submissions'][0]['model_variant'] = 'V' * 120
+        payload['submissions'][0]['notes'] = 'Long notes. ' * 300
+        self.with_payload(payload)
+        self.open('?task=all&submission=' + payload['submissions'][0]['id'])
+        self.page.set_viewport_size({'width':794,'height':1123})
+        self.page.evaluate("dispatchEvent(new Event('beforeprint'))")
+        self.page.emulate_media(media='print')
+        self.assertLessEqual(self.page.evaluate('document.documentElement.scrollWidth'), 794)
+        self.assertEqual(self.page.locator('.print-model-details h1').inner_text(), 'M' * 120)
+        self.assertEqual(self.page.locator('.print-model-details .dialog-lead').inner_text(), 'V' * 120)
+        self.assertEqual(self.page.locator('.print-prose-field dd').text_content(), payload['submissions'][0]['notes'])
+        self.assertEqual(self.page.locator('.print-model-details h1').evaluate('(e)=>getComputedStyle(e).fontSize'), '32px')
+        self.page.emulate_media(media='screen')
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+
+    def test_model_details_identify_each_result_metric(self):
+        self.open('?task=all')
+        self.page.locator('.model-button').first.click()
+        labels = {task['id']: task['metric_label'] for task in self.payload['config']['task_families']}
+        datasets = {dataset['display_name']: labels[dataset['task']] for dataset in self.payload['datasets']}
+        results = self.page.locator('#dialog-content .detail-list').last.locator('div')
+        self.assertGreater(results.count(), 0)
+        for result in results.all():
+            self.assertTrue(result.locator('dd').inner_text().startswith(datasets[result.locator('dt').inner_text()]+': '))
 
 
 if __name__ == '__main__': unittest.main()
