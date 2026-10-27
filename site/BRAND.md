@@ -53,6 +53,8 @@ Printing uses the same fonts with a separate paper layout. Wide tables become se
 
 An open model prints its complete details in normal document flow. Temporary copies are cleared before every print and after printing; the original dialog, focus, history and content remain intact. Long names and URLs wrap without shrinking the page. Each model result explicitly names its metric, including in the screen dialog. Real A4/Letter PDF checks use Chromium; Firefox and WebKit additionally exercise print styles, ordered data mappings and lifecycle events. These checks do not constitute tagged-PDF or screen-reader certification.
 
+Paper-specific section, record and code-panel spacing is compact enough to avoid footer-only pages in the checked A4 home/catalogue and Letter getting-started views. Font sizes and line heights stay unchanged. Other paper formats may still need an extra page; preserving readable complete sections takes precedence over a fixed page count.
+
 Unavailable dataset columns retain their labels and table alignment, but hide decorative sorting arrows and explain the unsupported setting in their accessible name. The native disabled state remains; switching to a supported setting restores sorting. Result totals use the singular form for one submission.
 
 The initial HTML offers complete CSV and spreadsheet downloads while interactive controls remain hidden. Initialization replaces this fallback only after binding the controls; the same downloads work when JavaScript is disabled or the application script fails to load. If a delayed script replaces a focused fallback link, focus moves to the results panel. Focus elsewhere stays unchanged. The initial View results anchor targets the visible section and upgrades to the filters when ready.
