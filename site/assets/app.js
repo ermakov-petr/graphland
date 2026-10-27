@@ -1212,6 +1212,40 @@
     }
   }
 
+  function prepareInitialSectionReveal() {
+    const fragment = window.location.hash;
+    const navigationType = performance.getEntriesByType("navigation")[0]?.type;
+    if (!["#protocol", "#submit"].includes(fragment)
+        || (navigationType && navigationType !== "navigate")
+        || (document.activeElement !== document.body
+          && document.activeElement !== document.documentElement)) return () => {};
+    const target = document.getElementById(fragment.slice(1));
+    if (!target) return () => {};
+    let cancelled = false;
+    const events = ["pointerdown", "touchstart", "wheel", "keydown", "focusin",
+      "hashchange", "popstate", "pagehide", "beforeprint"];
+    const cleanup = () => events.forEach((event) => window.removeEventListener(event, cancel, true));
+    const cancel = (event) => {
+      if (event?.type === "focusin"
+          && (event.target === document.body || event.target === document.documentElement)) return;
+      cancelled = true;
+      cleanup();
+    };
+    events.forEach((event) => window.addEventListener(event, cancel, { capture: true, passive: true }));
+    return () => {
+      Promise.resolve(document.fonts?.ready).then(() => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          cleanup();
+          if (!cancelled && target.isConnected && window.location.hash === fragment && !elements.dialog.open) {
+            // Native fragments can retain a pre-results position after a legacy
+            // redirect. Settle fresh visits once, preserving reload/history.
+            target.scrollIntoView({ block: "start", inline: "nearest" });
+          }
+        }));
+      }, cleanup);
+    };
+  }
+
   async function init() {
     cacheElements();
     readQueryState();
@@ -1225,10 +1259,12 @@
     elements.panel.hidden = false;
     elements.fallback.hidden = true;
     elements.viewResults.setAttribute("href", "#leaderboard-controls");
+    const revealInitialSection = prepareInitialSectionReveal();
     const loading = loadLeaderboard();
     // A delayed script must not remove a focused static download link silently.
     if (focusWasInFallback) elements.panel.focus({ preventScroll: true });
     await loading;
+    revealInitialSection();
   }
 
   window.GraphLandLeaderboard = Object.freeze({

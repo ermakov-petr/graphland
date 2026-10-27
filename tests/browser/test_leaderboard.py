@@ -435,8 +435,147 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy') === 'false'")
                     self.assertTrue(self.page.url.endswith(query + '#' + fragment))
                     self.assertEqual(self.page.locator('#' + fragment).count(), 1)
+                    if fragment == 'protocol':
+                        self.assertIsNotNone(self.page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.page.wait_for_function('''()=>{
+                            const target=document.querySelector('#protocol-title').getBoundingClientRect();
+                            const header=document.querySelector('.site-header').getBoundingClientRect();
+                            return target.top>=header.bottom-1&&target.top<200;
+                        }''')
         self.page.goto(self.base + '#main-content')
         self.assertEqual(self.page.locator('body').get_attribute('data-page'), 'home')
+
+    def test_protocol_links_reveal_content_without_javascript_or_extra_history(self):
+        for javascript in (True, False):
+            for width in (375, 1280):
+                with self.subTest(javascript=javascript, width=width):
+                    page = self.browser.new_page(java_script_enabled=javascript,
+                                                 viewport={'width': width, 'height': 900}, reduced_motion='reduce')
+                    try:
+                        page.goto(self.base + 'leaderboard.html')
+                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        page.goto(self.base + 'leaderboard.html#protocol')
+                        page.evaluate('document.fonts.ready')
+                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        summary = page.locator('#protocol-title')
+                        header = page.locator('.site-header').bounding_box()
+                        self.assertGreaterEqual(summary.bounding_box()['y'], header['y'] + header['height'] - 1)
+                        self.assertLess(summary.bounding_box()['y'], 200)
+                        summary.focus()
+                        page.keyboard.press('Space')
+                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        history_length = page.evaluate('history.length')
+                        page.locator('.footer-links a[href="#protocol"]').focus()
+                        page.keyboard.press('Enter')
+                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.assertEqual(page.evaluate('history.length'), history_length)
+                        page.locator('.footer-links a[href="#submit"]').click()
+                        page.go_back()
+                        self.assertTrue(page.url.endswith('#protocol'))
+                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                    finally:
+                        page.close()
+
+    def test_protocol_fragment_stays_aligned_after_delayed_data_and_fonts(self):
+        for width in (375, 1280):
+            with self.subTest(width=width):
+                page = self.browser.new_page(viewport={'width': width, 'height': 900},
+                                             reduced_motion='no-preference')
+                pending, fonts, released = [], [], [False]
+                def font_route(route):
+                    if released[0]:
+                        route.continue_()
+                    else:
+                        fonts.append(route)
+                page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+                page.route('**/*.woff2', font_route)
+                try:
+                    page.goto(self.base + 'leaderboard.html?task=all#protocol', wait_until='domcontentloaded')
+                    page.wait_for_timeout(250)
+                    self.assertTrue(pending)
+                    self.assertTrue(fonts)
+                    pending[0].fulfill(json=self.payload)
+                    page.wait_for_selector('.model-button')
+                    page.wait_for_timeout(200)
+                    released[0] = True
+                    for route in fonts:
+                        route.continue_()
+                    page.evaluate('document.fonts.ready')
+                    page.wait_for_timeout(800)
+                    header = page.locator('.site-header').bounding_box()
+                    summary = page.locator('#protocol-title').bounding_box()
+                    self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                    self.assertGreaterEqual(summary['y'], header['y'] + header['height'] - 1)
+                    self.assertLess(summary['y'], 200)
+                finally:
+                    page.close()
+
+    def test_initial_section_correction_yields_to_user_navigation_and_printing(self):
+        for action in ('none', 'wheel', 'keyboard', 'pointer', 'focus', 'fragment', 'print'):
+            with self.subTest(action=action):
+                page = self.browser.new_page(viewport={'width': 375, 'height': 900})
+                pending, fonts, released = [], [], [False]
+                page.add_init_script('''(() => {
+                    const original=Element.prototype.scrollIntoView;
+                    window.sectionReveals=[];
+                    Element.prototype.scrollIntoView=function(...args){
+                        if(['protocol','submit'].includes(this.id))window.sectionReveals.push(this.id);
+                        return original.apply(this,args);
+                    };
+                })();''')
+                def font_route(route):
+                    if released[0]: route.continue_()
+                    else: fonts.append(route)
+                page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+                page.route('**/*.woff2', font_route)
+                try:
+                    page.goto(self.base + 'leaderboard.html#protocol', wait_until='domcontentloaded')
+                    page.wait_for_timeout(100)
+                    self.assertTrue(pending)
+                    self.assertTrue(fonts)
+                    if action == 'wheel': page.mouse.wheel(0, -200)
+                    elif action == 'keyboard': page.keyboard.press('PageUp')
+                    elif action == 'pointer': page.locator('h1').click()
+                    elif action == 'focus': page.locator('#view-results-link').focus()
+                    elif action == 'fragment': page.evaluate('location.hash="#submit"')
+                    elif action == 'print':
+                        page.evaluate('dispatchEvent(new Event("beforeprint"));dispatchEvent(new Event("afterprint"))')
+                    pending[0].fulfill(json=self.payload)
+                    page.wait_for_selector('.model-button')
+                    released[0] = True
+                    for route in fonts: route.continue_()
+                    page.evaluate('document.fonts.ready')
+                    page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+                    page.wait_for_timeout(100)
+                    self.assertEqual(page.evaluate('sectionReveals'), ['protocol'] if action == 'none' else [])
+                    if action == 'focus':
+                        self.assertEqual(page.evaluate('document.activeElement.id'), 'view-results-link')
+                finally:
+                    page.close()
+
+    def test_initial_section_correction_preserves_reload_and_history_restoration(self):
+        self.page.add_init_script('''(() => {
+            const original=Element.prototype.scrollIntoView;
+            window.sectionReveals=[];
+            Element.prototype.scrollIntoView=function(...args){
+                if(['protocol','submit'].includes(this.id))window.sectionReveals.push(this.id);
+                return original.apply(this,args);
+            };
+        })();''')
+        self.open('#protocol')
+        self.page.wait_for_function('sectionReveals.length===1')
+        self.page.reload()
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+        self.page.evaluate('document.fonts.ready')
+        self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+        self.assertEqual(self.page.evaluate('performance.getEntriesByType("navigation")[0].type'), 'reload')
+        self.assertEqual(self.page.evaluate('sectionReveals'), [])
+        self.page.goto(self.base + 'datasets.html')
+        self.page.go_back()
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+        self.page.evaluate('document.fonts.ready')
+        self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+        self.assertEqual(self.page.evaluate('sectionReveals'), [])
 
     def test_unavailable_training_code_is_not_a_link_in_model_details(self):
         for availability, url, linked in (
