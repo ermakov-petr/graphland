@@ -37,6 +37,7 @@
   function cacheElements() {
     elements.settingTabs = document.getElementById("setting-tabs");
     elements.taskTabs = document.getElementById("task-tabs");
+    elements.taskViewport = elements.taskTabs.parentElement;
     elements.settingDescription = document.getElementById("setting-description");
     elements.search = document.getElementById("model-search");
     elements.codeFilter = document.getElementById("code-filter");
@@ -1104,8 +1105,16 @@
   function setLoading(loading) {
     state.loading = loading;
     elements.panel.setAttribute("aria-busy", String(loading));
+    elements.metricNote.hidden = !state.loaded;
+    const taskRegionHadFocus = document.activeElement === elements.taskViewport;
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
       elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
+    // Disabled tabs cannot make their overflow region keyboard-accessible.
+    // Keep that region readable while waiting, then restore the selected tab.
+    elements.taskViewport.tabIndex = loading || !state.loaded ? 0 : -1;
+    if (!loading && state.loaded && taskRegionHadFocus) {
+      elements.taskTabs.querySelector('[aria-selected="true"]').focus({ preventScroll: true });
+    }
     // Keep the retry target focused while its request is pending. The loading
     // guard in loadLeaderboard prevents duplicate pointer or keyboard requests.
     if (loading) elements.retry.setAttribute("aria-disabled", "true");
@@ -1176,6 +1185,7 @@
     cacheElements();
     readQueryState();
     setActiveTabs();
+    updateSettingDescription();
     bindControls();
     bindTableHint();
     bindDialog();

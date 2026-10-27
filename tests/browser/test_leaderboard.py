@@ -1989,6 +1989,62 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.go_forward()
         self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
 
+    def test_loading_task_strip_scrolls_by_keyboard_and_focus_moves_to_ready_tab(self):
+        pending=[]
+        self.page.set_viewport_size({'width':375,'height':800})
+        self.page.emulate_media(reduced_motion='reduce')
+        self.page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+        self.page.goto(self.base+'leaderboard.html?setting=TH&task=node_regression')
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
+        self.page.evaluate('document.fonts.ready')
+        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
+        self.assertEqual(self.page.locator('#setting-description').inner_text(), '')
+        self.assertFalse(self.page.locator('#metric-note').is_visible())
+        self.assertTrue(self.page.locator('#task-tab-node_regression').is_disabled())
+        self.page.locator('#leaderboard-controls').focus()
+        self.page.keyboard.press('Tab')
+        region=self.page.locator('.task-control')
+        self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
+        region.evaluate('(e)=>e.scrollLeft=0')
+        url=self.page.url
+        self.page.keyboard.press('ArrowRight')
+        self.assertGreater(region.evaluate('(e)=>e.scrollLeft'), 0)
+        self.assertEqual(self.page.url,url)
+        pending[0].fulfill(json=self.payload)
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+        self.assertEqual(self.page.evaluate('document.activeElement.id'),'task-tab-node_regression')
+        self.assertEqual(region.get_attribute('tabindex'),'-1')
+        self.assertIn('R²',self.page.locator('#metric-note').inner_text())
+        self.assertTrue(self.page.locator('#metric-note').is_visible())
+        self.assertTrue(self.page.locator('#task-tab-node_regression').is_enabled())
+
+    def test_failed_data_keeps_task_strip_focus_and_keyboard_access(self):
+        pending=[]
+        self.page.set_viewport_size({'width':375,'height':800})
+        self.page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+        self.page.goto(self.base+'leaderboard.html?setting=TH&task=node_regression')
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
+        region=self.page.locator('.task-control');region.focus()
+        pending[0].fulfill(status=503,body='unavailable')
+        self.page.wait_for_selector('#load-error')
+        self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
+        self.assertEqual(region.get_attribute('tabindex'),'0')
+        self.assertFalse(self.page.locator('#metric-note').is_visible())
+        self.assertEqual(self.page.locator('#setting-description').inner_text(),'')
+        self.page.keyboard.press('Tab')
+        self.assertTrue(self.page.locator(':focus').is_visible())
+        self.assertTrue(self.page.locator(':focus').is_enabled())
+
+    def test_ready_task_strip_preserves_focus_in_another_section(self):
+        pending=[]
+        self.page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+        self.page.goto(self.base+'leaderboard.html')
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
+        elsewhere=self.page.locator('.project-navigation a[href="datasets.html"]');elsewhere.focus()
+        pending[0].fulfill(json=self.payload)
+        self.page.wait_for_selector('.model-button')
+        self.assertTrue(elsewhere.evaluate('(e)=>e===document.activeElement'))
+
     def test_delayed_app_preserves_focus_when_replacing_static_downloads(self):
         for target in ('#leaderboard-fallback a[href="leaderboard.csv"]', '.project-navigation a[href="datasets.html"]'):
             with self.subTest(target=target):

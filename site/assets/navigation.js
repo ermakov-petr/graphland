@@ -59,7 +59,7 @@
   function initializeHorizontalKeyboardScroll() {
     // WebKit does not natively scroll focused overflow regions with arrow keys.
     // Keep descendant controls and text-selection/browser shortcuts untouched.
-    document.querySelectorAll('.catalog-scroll, .table-scroll, .code-block').forEach((viewport) => {
+    document.querySelectorAll('.catalog-scroll, .table-scroll, .code-block, .task-control').forEach((viewport) => {
       viewport.addEventListener('keydown', (event) => {
         if (event.target !== viewport || event.defaultPrevented || event.isComposing
             || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
