@@ -464,7 +464,9 @@
   }
 
   function renderModelCell(row, submission) {
-    const cell = document.createElement("td");
+    const cell = document.createElement("th");
+    cell.scope = "row";
+    cell.setAttribute("aria-label", submissionName(submission));
     const button = createElement("button", "model-button");
     button.type = "button";
     button.setAttribute("aria-label", `View details for ${submissionName(submission)}`);
