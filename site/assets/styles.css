@@ -665,8 +665,12 @@ button {
   text-align: left;
 }
 
-.sort-button:hover {
+.sort-button:not(:disabled):hover {
   color: var(--black);
+}
+
+.sort-button:disabled .sort-indicator {
+  visibility: hidden;
 }
 
 .sort-label {
@@ -818,17 +822,6 @@ button {
 
 .text-link span {
   margin-left: 8px;
-}
-
-.noscript-note {
-  margin-top: 18px;
-  padding: 18px;
-  background: var(--gray-100);
-}
-
-.noscript-note a {
-  color: var(--black);
-  text-decoration: underline;
 }
 
 .legend-list {

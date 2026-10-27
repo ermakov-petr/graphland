@@ -35,7 +35,7 @@
     <section class="shell page-intro"><h1>Leaderboard</h1><p class="page-lead">Compare submitted models on the official GraphLand datasets and evaluation settings.</p><div class="page-actions hero-actions">
             <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
-            <a class="button button-secondary" id="view-results-link" href="#leaderboard-controls">View results <span aria-hidden="true">↓</span></a>
+            <a class="button button-secondary" id="view-results-link" href="#leaderboard">View results <span aria-hidden="true">↓</span></a>
           </div><p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by the GraphML team. Typical review time is about one week.</p></section>
 
     <aside class="shell result-note" aria-labelledby="disclosure-title">
@@ -53,11 +53,11 @@
       </div>
     </section>
 
-    <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title">
+    <section class="leaderboard-section" id="leaderboard" aria-labelledby="leaderboard-title" tabindex="-1">
       <div class="shell">
         <h2 id="leaderboard-title" class="visually-hidden">Results</h2>
 
-        <div class="leaderboard-controls" id="leaderboard-controls" role="group" aria-label="Leaderboard filters" tabindex="-1">
+        <div class="leaderboard-controls" id="leaderboard-controls" role="group" aria-label="Leaderboard filters" tabindex="-1" hidden>
           <div class="control-block">
             <span class="visually-hidden" id="setting-tabs-label">Experimental setting</span>
             <div class="tabs tabs-primary" id="setting-tabs" role="tablist" aria-labelledby="setting-tabs-label">
@@ -102,7 +102,7 @@
           </div>
         </div>
 
-        <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="setting-tab-RL task-tab-multiclass_node_classification" tabindex="0">
+        <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="setting-tab-RL task-tab-multiclass_node_classification" tabindex="0" hidden>
           <div class="table-meta">
             <p id="result-summary" aria-live="polite">Loading leaderboard…</p>
             <p class="metric-note" id="metric-note">Canonical metric: Accuracy · higher is better</p>
@@ -135,9 +135,14 @@
           </div>
         </div>
 
-        <noscript>
-          <p class="noscript-note">JavaScript is required to filter and sort the leaderboard. You can still <a href="leaderboard.csv">download the complete CSV</a>.</p>
-        </noscript>
+        <div class="load-error" id="leaderboard-fallback" tabindex="-1" aria-labelledby="leaderboard-fallback-title">
+          <h3 id="leaderboard-fallback-title">Download leaderboard results</h3>
+          <p>The interactive leaderboard needs JavaScript. The complete results are available below.</p>
+          <div class="error-actions">
+            <a class="text-link" href="leaderboard.xlsx" download>Download spreadsheet</a>
+            <a class="text-link" href="leaderboard.csv" download>Canonical CSV</a>
+          </div>
+        </div>
       </div>
     </section>
 

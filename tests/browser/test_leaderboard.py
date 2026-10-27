@@ -1827,5 +1827,81 @@ class LeaderboardBrowserTests(unittest.TestCase):
         for result in results.all():
             self.assertTrue(result.locator('dd').inner_text().startswith(datasets[result.locator('dt').inner_text()]+': '))
 
+    def test_unavailable_sort_headers_explain_the_setting_without_action_arrows(self):
+        self.open('?setting=TH&task=all')
+        unavailable = self.page.locator('.sort-button:disabled')
+        self.assertEqual(unavailable.count(), 4)
+        before = self.page.url
+        for button in unavailable.all():
+            self.assertIn(': unavailable in TH', button.get_attribute('aria-label'))
+            self.assertNotIn(': sort ', button.get_attribute('aria-label'))
+            self.assertEqual(button.locator('.sort-indicator').evaluate('(e)=>getComputedStyle(e).visibility'), 'hidden')
+            self.assertEqual(button.evaluate('(e)=>e.closest("th").title'), 'This dataset does not support TH.')
+            button.evaluate('(e)=>e.click()')
+            self.assertEqual(self.page.url, before)
+        self.page.get_by_role('tab', name='RH', exact=True).click()
+        self.assertEqual(self.page.locator('.sort-button:disabled').count(), 0)
+        button = self.page.locator('[data-sort-key="city-reviews"]')
+        self.assertIn(': sort ', button.get_attribute('aria-label'))
+        self.assertEqual(button.locator('.sort-indicator').evaluate('(e)=>getComputedStyle(e).visibility'), 'visible')
+        self.assertEqual(button.evaluate('(e)=>e.closest("th").title'), '')
+
+    def test_single_submission_summary_uses_singular_total(self):
+        payload = copy.deepcopy(self.payload)
+        payload['submissions'] = payload['submissions'][:1]
+        self.with_payload(payload)
+        self.open('?task=all')
+        self.assertIn('1 model with results', self.page.locator('#result-summary').inner_text())
+        self.assertTrue(self.page.locator('#result-summary').inner_text().endswith('1 submission overall'))
+
+    def test_static_fallback_has_downloads_without_javascript_or_app_script(self):
+        for javascript in (False, True):
+            with self.subTest(javascript=javascript):
+                page = self.browser.new_page(java_script_enabled=javascript, viewport={'width':375,'height':800}, reduced_motion='reduce')
+                try:
+                    if javascript: page.route('**/assets/app.js', lambda route: route.abort())
+                    page.goto(self.base+'leaderboard.html')
+                    self.assertTrue(page.locator('#leaderboard-fallback').is_visible())
+                    self.assertFalse(page.locator('#leaderboard-panel').is_visible())
+                    self.assertFalse(page.locator('#leaderboard-controls').is_visible())
+                    self.assertEqual(page.locator('#view-results-link').get_attribute('href'), '#leaderboard')
+                    page.locator('#view-results-link').click()
+                    self.assertTrue(page.url.endswith('#leaderboard'))
+                    for filename in ('leaderboard.csv','leaderboard.xlsx'):
+                        link = page.locator('#leaderboard-fallback a[href="'+filename+'"]')
+                        self.assertTrue(link.is_visible())
+                        with page.expect_download() as info: link.click()
+                        self.assertEqual(info.value.suggested_filename, filename)
+                        self.assertIsNone(info.value.failure())
+                    page.emulate_media(media='print')
+                    self.assertTrue(page.locator('#leaderboard-fallback').is_visible())
+                    self.assertFalse(page.locator('#result-summary').is_visible())
+                finally:
+                    page.close()
+
+    def test_delayed_app_preserves_focus_when_replacing_static_downloads(self):
+        for target in ('#leaderboard-fallback a[href="leaderboard.csv"]', '.project-navigation a[href="datasets.html"]'):
+            with self.subTest(target=target):
+                page = self.browser.new_page(reduced_motion='reduce')
+                pending = []
+                try:
+                    page.route('**/assets/app.js', lambda route: pending.append(route))
+                    page.goto(self.base+'leaderboard.html', wait_until='commit')
+                    page.wait_for_selector('#leaderboard-fallback', state='visible')
+                    page.locator(target).focus()
+                    page.wait_for_function('document.readyState!=="loading"')
+                    self.assertEqual(len(pending), 1)
+                    pending[0].fulfill(body=(ROOT/'site/assets/app.js').read_text(), content_type='text/javascript')
+                    page.wait_for_function("document.querySelector('#leaderboard-panel').getAttribute('aria-busy')==='false'")
+                    self.assertFalse(page.locator('#leaderboard-fallback').is_visible())
+                    self.assertTrue(page.locator('#leaderboard-panel').is_visible())
+                    self.assertEqual(page.locator('#view-results-link').get_attribute('href'), '#leaderboard-controls')
+                    if target.startswith('#leaderboard-fallback'):
+                        self.assertEqual(page.evaluate('document.activeElement.id'), 'leaderboard-panel')
+                    else:
+                        self.assertTrue(page.locator(target).evaluate('(e)=>e===document.activeElement'))
+                finally:
+                    page.close()
+
 
 if __name__ == '__main__': unittest.main()

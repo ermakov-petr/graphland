@@ -40,6 +40,9 @@
     elements.filterStatus = document.getElementById("filter-status");
     elements.resetFilters = document.getElementById("reset-filters");
     elements.panel = document.getElementById("leaderboard-panel");
+    elements.controls = document.getElementById("leaderboard-controls");
+    elements.fallback = document.getElementById("leaderboard-fallback");
+    elements.viewResults = document.getElementById("view-results-link");
     elements.resultSummary = document.getElementById("result-summary");
     elements.metricNote = document.getElementById("metric-note");
     elements.tableScroll = document.querySelector(".table-scroll");
@@ -358,7 +361,10 @@
       ? (state.sortDirection === "asc" ? "descending" : "ascending")
       : (key === "model" ? "ascending" : "descending");
     const visibleLabel = [label, secondaryLabel].filter(Boolean).join(" ");
-    button.setAttribute("aria-label", `${visibleLabel}: sort ${directionText}`);
+    button.setAttribute("aria-label", button.disabled
+      ? `${visibleLabel}: unavailable in ${state.setting}`
+      : `${visibleLabel}: sort ${directionText}`);
+    if (button.disabled) th.title = `This dataset does not support ${state.setting}.`;
     button.addEventListener("click", () => setSort(key));
 
     const labelContainer = createElement("span", "sort-label");
@@ -651,7 +657,9 @@
     });
 
     const modelLabel = submissions.length === 1 ? "model" : "models";
-    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : "All datasets"} · ${state.payload.submissions.length} submissions overall`;
+    const total = state.payload.submissions.length;
+    const submissionLabel = total === 1 ? "submission" : "submissions";
+    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : "All datasets"} · ${total} ${submissionLabel} overall`;
     elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "All datasets"} leaderboard`;
     updateEmptyState(submissions.length, matching.length, sliceCount);
     updateFilterFeedback(sliceSubmissions, submissions.length);
@@ -1102,7 +1110,15 @@
     bindControls();
     bindTableHint();
     bindDialog();
-    await loadLeaderboard();
+    const focusWasInFallback = elements.fallback.contains(document.activeElement);
+    elements.controls.hidden = false;
+    elements.panel.hidden = false;
+    elements.fallback.hidden = true;
+    elements.viewResults.setAttribute("href", "#leaderboard-controls");
+    const loading = loadLeaderboard();
+    // A delayed script must not remove a focused static download link silently.
+    if (focusWasInFallback) elements.panel.focus({ preventScroll: true });
+    await loading;
   }
 
   window.GraphLandLeaderboard = Object.freeze({
