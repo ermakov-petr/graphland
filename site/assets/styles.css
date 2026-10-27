@@ -1479,6 +1479,20 @@ button:disabled {
   }
 }
 
+@media screen and (max-width: 496px) {
+  /* Keep one complete field beside the sticky dataset name. Nine columns
+     share at most 160px each, or half of a narrower table viewport. */
+  .dataset-catalog {
+    table-layout: fixed;
+    width: 450%;
+    min-width: 0;
+    max-width: 1440px;
+  }
+  .dataset-catalog th,
+  .dataset-catalog td { overflow-wrap: anywhere; }
+  .dataset-catalog th:first-child { min-width: 0; }
+}
+
 /* Two 150px scores fit beside the 165px model column from 497px onward,
    including the 32px page gutters. Below that, show one complete score. */
 @media (max-width: 496px) {

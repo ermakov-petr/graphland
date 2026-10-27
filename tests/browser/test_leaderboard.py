@@ -392,6 +392,34 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
                                         'task_change_and_results_restore': True})
 
+    def test_mobile_catalog_keeps_a_complete_column_beside_dataset_names(self):
+        self.page.set_viewport_size({'width': 320, 'height': 800})
+        self.page.goto(self.base + 'index.html')
+        self.page.evaluate('document.fonts.ready')
+        viewport = self.page.locator('.catalog-scroll')
+        original = self.page.locator('.dataset-catalog').inner_text()
+        for enlarged in (False, True):
+            if enlarged:
+                self.page.evaluate("""() => {
+                    const nodes = [...document.querySelectorAll('.dataset-catalog, .dataset-catalog *')];
+                    const sizes = nodes.map(e => parseFloat(getComputedStyle(e).fontSize));
+                    nodes.forEach((e, i) => e.style.fontSize = sizes[i] * 2 + 'px');
+                }""")
+                self.page.add_style_tag(content='.dataset-catalog * {line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}')
+            for column in range(1, 9):
+                geometry = viewport.evaluate("""(v, index) => {
+                    const cells = v.querySelector('thead tr').cells;
+                    const first = cells[0].getBoundingClientRect().width;
+                    const target = cells[index];
+                    v.scrollLeft += target.getBoundingClientRect().left - v.getBoundingClientRect().left - first;
+                    const r = target.getBoundingClientRect(), b = v.getBoundingClientRect();
+                    return {left:r.left, right:r.right, start:b.left+first, end:b.right};
+                }""", column)
+                self.assertGreaterEqual(geometry['left'], geometry['start'] - 1)
+                self.assertLessEqual(geometry['right'], geometry['end'] + 1)
+            self.assertEqual(self.page.locator('.dataset-catalog').inner_text(), original)
+            self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
+
     def test_catalog_scroll_and_native_disclosures_work_with_keyboard(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.page.goto(self.base)
