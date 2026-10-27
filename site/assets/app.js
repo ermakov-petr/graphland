@@ -32,6 +32,7 @@
   let queryReplaceTimer = 0;
   let pendingReplaceUrl = null;
   let lastQueryReplaceWrite = -Infinity;
+  let tabGesture = null;
 
   function cacheElements() {
     elements.settingTabs = document.getElementById("setting-tabs");
@@ -289,9 +290,18 @@
   function writeQueryState(mode = "replace") {
     // Preserve the preceding search entry before a tab/dialog pushes a new one.
     flushQueryReplace();
+    commitTabGesture();
     const url = queryStateUrl();
     const method = mode === "push" ? "pushState" : "replaceState";
     if (url.href !== window.location.href) window.history[method](null, "", url);
+  }
+
+  function commitTabGesture() {
+    const gesture = tabGesture;
+    tabGesture = null;
+    if (gesture && gesture.url !== gesture.initialUrl && gesture.url !== window.location.href) {
+      window.history.pushState(null, "", gesture.url);
+    }
   }
 
   function setActiveTabs() {
@@ -665,7 +675,7 @@
     if (state.sortKey !== "model" && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
       state.sortKey = "model";
       state.sortDirection = "asc";
-      writeQueryState();
+      if (!tabGesture) writeQueryState();
     }
     const task = state.tasksById.get(state.task);
     const hasSliceResult = (submission) => datasets.some((dataset) => isSettingAvailable(dataset, state.setting)
@@ -755,6 +765,15 @@
         return;
       }
       event.preventDefault();
+      // Traversal cancels an old gesture. Ignore its remaining held-key repeats
+      // until a fresh keydown, rather than rewriting the entry just visited.
+      if (event.repeat && tabGesture?.tablist !== tablist) return;
+      if (!event.repeat) {
+        commitTabGesture();
+        flushQueryReplace();
+        const url = queryStateUrl().href;
+        tabGesture = { tablist, initialUrl: url, url };
+      }
       let next = current;
       if (event.key === "ArrowRight") {
         next = (current + 1) % tabs.length;
@@ -766,15 +785,17 @@
         next = tabs.length - 1;
       }
       tabs[next].focus();
-      // One held-key gesture owns one history entry; repeat events replace it.
-      activate(tabs[next].dataset[dataKey], !event.repeat);
-      if (event.repeat) scheduleQueryReplace();
+      // Selection is immediate; key release saves only the final view. A full
+      // cycle back to the starting view does not create a duplicate entry.
+      activate(tabs[next].dataset[dataKey], false);
+      tabGesture.url = queryStateUrl().href;
     });
     tablist.addEventListener("keyup", (event) => {
-      if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) flushQueryReplace();
+      if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+          && tabGesture?.tablist === tablist) commitTabGesture();
     });
     tablist.addEventListener("focusout", (event) => {
-      if (!tablist.contains(event.relatedTarget)) flushQueryReplace();
+      if (!tablist.contains(event.relatedTarget) && tabGesture?.tablist === tablist) commitTabGesture();
     });
   }
 
@@ -1034,9 +1055,11 @@
     });
     window.addEventListener("popstate", () => {
       cancelQueryReplace();
+      tabGesture = null;
       readQueryState();
       render();
     });
+    window.addEventListener("blur", commitTabGesture);
     elements.retry.addEventListener("click", loadLeaderboard);
   }
 

@@ -1947,6 +1947,48 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 finally:
                     page.close()
 
+    def test_full_tab_cycle_does_not_add_a_duplicate_history_entry(self):
+        self.page.goto(self.base+'index.html')
+        self.open('?setting=RL&task=multiclass_node_classification&code=0')
+        before = self.page.url
+        length = self.page.evaluate('history.length')
+        self.page.locator('#setting-tab-RL').focus()
+        for _ in range(4): self.page.keyboard.down('ArrowRight')
+        self.page.keyboard.up('ArrowRight')
+        self.assertEqual(self.page.url, before)
+        self.assertEqual(self.page.evaluate('history.length'), length)
+        self.page.go_back()
+        self.assertEqual(self.page.url, self.base+'index.html')
+        self.page.go_forward()
+        self.page.wait_for_selector('.model-button')
+        self.assertEqual(self.page.url, before)
+
+    def test_leaving_tab_group_commits_selection_without_keyup(self):
+        self.open()
+        length = self.page.evaluate('history.length')
+        self.page.locator('#setting-tab-RL').focus()
+        for _ in range(3): self.page.keyboard.down('ArrowRight')
+        self.page.locator('#model-search').focus()
+        self.assertEqual(self.page.evaluate('history.length'), length+1)
+        self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("setting")'), 'THI')
+        self.page.keyboard.up('ArrowRight')
+        self.assertEqual(self.page.evaluate('history.length'), length+1)
+
+    def test_back_cancels_remaining_repeats_of_a_held_tab_key(self):
+        self.open('?setting=RL&task=multiclass_node_classification&code=0')
+        self.page.locator('#setting-tab-RH').click()
+        self.page.locator('#setting-tab-RH').focus()
+        for _ in range(2): self.page.keyboard.down('ArrowRight')
+        self.page.go_back()
+        self.page.wait_for_function('document.querySelector("#setting-tab-RL").getAttribute("aria-selected")==="true"')
+        before = self.page.url
+        for _ in range(3): self.page.keyboard.down('ArrowRight')
+        self.page.keyboard.up('ArrowRight')
+        self.assertEqual(self.page.url, before)
+        self.assertEqual(self.page.locator('#setting-tab-RL').get_attribute('aria-selected'), 'true')
+        self.page.go_forward()
+        self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
+
     def test_delayed_app_preserves_focus_when_replacing_static_downloads(self):
         for target in ('#leaderboard-fallback a[href="leaderboard.csv"]', '.project-navigation a[href="datasets.html"]'):
             with self.subTest(target=target):
