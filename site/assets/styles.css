@@ -635,6 +635,7 @@ button {
 #leaderboard-table th,
 #leaderboard-table td { min-width: 145px; text-align: right; }
 #leaderboard-table thead th { position: sticky; z-index: 4; top: 0; }
+.table-scroll.free-table-header #leaderboard-table thead th { top: auto; }
 #leaderboard-table tr > :first-child {
   position: sticky;
   left: 0;
