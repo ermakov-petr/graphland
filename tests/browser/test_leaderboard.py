@@ -1090,7 +1090,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.open()
                 row = self.page.locator('#leaderboard-body tr').first
-                model = row.locator('td').nth(0).bounding_box()
+                model = row.locator('th[scope="row"]').bounding_box()
                 cell = row.locator('td[data-state]').first
                 score = cell.bounding_box()
                 metric = cell.evaluate('''(el) => {
@@ -1989,12 +1989,57 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.go_forward()
         self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
 
+    def test_model_rows_have_named_native_row_headers(self):
+        self.open('?task=all')
+        expected=sorted(f"{s['model_name']} {s['model_variant']}" for s in self.payload['submissions'])
+        headers=self.page.locator('#leaderboard-body th[scope="row"]')
+        self.assertEqual(headers.count(),len(expected))
+        self.assertEqual(sorted(headers.evaluate_all('(els)=>els.map(e=>e.getAttribute("aria-label"))')),expected)
+        client=self.page.context.new_cdp_session(self.page)
+        try:
+            nodes=client.send('Accessibility.getFullAXTree')['nodes']
+            actual=sorted(node.get('name',{}).get('value') for node in nodes
+                          if not node.get('ignored') and node.get('role',{}).get('value')=='rowheader')
+            self.assertEqual(actual,expected)
+        finally:
+            client.detach()
+        self.page.locator('.model-button').first.click()
+        self.assertTrue(self.page.locator('#model-dialog').is_visible())
+        self.page.locator('.dialog-close').click()
+        self.assertTrue(self.page.locator('.model-button').first.evaluate('(e)=>e===document.activeElement'))
+
+    def test_sticky_row_headers_do_not_cover_column_headers(self):
+        payload=copy.deepcopy(self.payload)
+        seed=payload['submissions'][0]
+        payload['submissions']=[]
+        for index in range(20):
+            submission=copy.deepcopy(seed)
+            submission.update(id=f'demo-row-{index:02d}',model_name=f'Row {index:02d}')
+            payload['submissions'].append(submission)
+        self.with_payload(payload)
+        for width in (320,1280):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width':width,'height':900})
+                self.open('?task=all')
+                viewport=self.page.locator('.table-scroll')
+                viewport.scroll_into_view_if_needed()
+                viewport.evaluate('(e)=>{e.scrollLeft=500;e.scrollTop=400}')
+                self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+                corner=self.page.locator('#leaderboard-head th').first
+                self.assertTrue(corner.evaluate('(e)=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+20,r.top+20))}'))
+                visible=self.page.locator('#leaderboard-body th[scope="row"]').evaluate_all('''els=>{
+                    const v=els[0].closest('.table-scroll').getBoundingClientRect();
+                    return els.filter(e=>{const r=e.getBoundingClientRect();return r.top>v.top+100&&r.bottom<v.bottom}).map(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+20,r.top+20))});
+                }''')
+                self.assertTrue(visible)
+                self.assertTrue(all(visible))
+
     def test_model_badges_stay_inside_the_sticky_column_with_text_spacing(self):
         self.page.set_viewport_size({'width':320,'height':900})
         self.open('?task=all')
         self.page.add_style_tag(content='*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}')
         for badge in self.page.locator('.model-cell-badges .mini-badge').all():
-            bounds=badge.evaluate('(e)=>({badge:e.getBoundingClientRect().right,cell:e.closest("td").getBoundingClientRect().right})')
+            bounds=badge.evaluate('(e)=>({badge:e.getBoundingClientRect().right,cell:e.closest("th,td").getBoundingClientRect().right})')
             self.assertLessEqual(bounds['badge'],bounds['cell']-11)
 
     def test_narrow_table_fits_one_complete_score_beside_model_names(self):

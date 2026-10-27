@@ -634,8 +634,7 @@ button {
 #leaderboard-table th,
 #leaderboard-table td { min-width: 145px; text-align: right; }
 #leaderboard-table thead th { position: sticky; z-index: 4; top: 0; }
-#leaderboard-table th:first-child,
-#leaderboard-table td:first-child {
+#leaderboard-table tr > :first-child {
   position: sticky;
   left: 0;
   min-width: 235px;
@@ -643,8 +642,8 @@ button {
   text-align: left;
   box-shadow: 1px 0 0 var(--gray-200);
 }
-#leaderboard-table th:first-child { z-index: 6; }
-#leaderboard-table td:first-child { z-index: 2; }
+#leaderboard-table thead th:first-child { z-index: 6; }
+#leaderboard-table tbody th:first-child { z-index: 2; font-weight: 400; }
 
 .sort-button {
   display: inline-flex;
@@ -1424,8 +1423,7 @@ button:disabled {
     max-width: 150px;
   }
 
-  #leaderboard-table th:first-child,
-  #leaderboard-table td:first-child {
+  #leaderboard-table tr > :first-child {
     width: var(--model-column-width);
     min-width: var(--model-column-width);
     max-width: var(--model-column-width);
