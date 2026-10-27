@@ -74,7 +74,8 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* Fragment targets must stay aligned while fonts and results change layout. */
+  scroll-behavior: auto;
   scroll-padding-top: calc(var(--header-height) + 24px);
 }
 
@@ -1494,10 +1495,6 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
   *,
   *::before,
   *::after {
@@ -1614,7 +1611,9 @@ button:disabled {
 .dataset-index a { display: flex; align-items: center; min-width: 0; min-height: 44px; padding-block: 12px; border-bottom: 1px solid var(--gray-200); font-size: var(--resource-size); line-height: 1.4; overflow-wrap: anywhere; }
 .dataset-index a:hover { color: var(--gray-700); }
 .dataset-description { position: relative; border-top: 1px solid var(--black); padding-block: 28px; }
-.dataset-anchor { display: block; position: absolute; top: 0; }
+.dataset-anchor,
+.protocol-anchor { display: block; position: absolute; top: 0; }
+.protocol-section { position: relative; }
 .dataset-tags { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 18px; }
 .dataset-tags a { display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; color: var(--gray-700); text-decoration: underline; text-underline-offset: 3px; }
 .dataset-tags a:hover { color: var(--black); }
