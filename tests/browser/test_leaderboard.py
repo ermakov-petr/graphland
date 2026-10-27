@@ -415,6 +415,78 @@ class LeaderboardBrowserTests(unittest.TestCase):
         }""")
         self.assertEqual(self.page.locator(':focus').get_attribute('class'), 'model-button')
 
+    def test_keyboard_table_focus_stays_visible_after_layout_changes(self):
+        visible = '''() => {
+            const e = document.activeElement, v = e.closest('.table-scroll');
+            if (!v) return false;
+            const b = v.getBoundingClientRect(), r = e.getBoundingClientRect();
+            const first = e.closest('tr').cells[0];
+            const left = e.closest('th,td') === first ? b.left : first.getBoundingClientRect().right;
+            const top = Math.max(b.top, document.querySelector('.site-header').getBoundingClientRect().bottom);
+            return e.matches(':focus-visible') && r.left >= left - .5
+                && r.right <= b.left + v.clientWidth + .5 && r.top >= top - .5
+                && r.bottom <= Math.min(innerHeight, b.top + v.clientHeight) + .5;
+        }'''
+        for selector in ('.sort-button', '.model-button'):
+            for change in ('resize', 'text'):
+                with self.subTest(selector=selector, change=change):
+                    self.page.set_viewport_size({'width': 1280, 'height': 900})
+                    self.open('?task=all')
+                    self.page.keyboard.press('Tab')
+                    self.page.locator(selector).last.focus()
+                    self.page.wait_for_function(visible)
+                    before = self.page.evaluate('({url:location.href,history:history.length})')
+                    if change == 'resize':
+                        self.page.set_viewport_size({'width': 375, 'height': 400})
+                    else:
+                        self.page.evaluate('''() => {
+                            const nodes = [...document.querySelectorAll('.data-table,.data-table *')];
+                            const sizes = nodes.map(e => parseFloat(getComputedStyle(e).fontSize));
+                            nodes.forEach((e,i) => e.style.fontSize = sizes[i] * 2 + 'px');
+                        }''')
+                    self.page.wait_for_function(visible)
+                    self.assertEqual(self.page.evaluate('({url:location.href,history:history.length})'), before)
+                    self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                    self.page.locator('.table-scroll').evaluate('e => e.scrollLeft = 0')
+                    self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                    self.assertEqual(self.page.locator('.table-scroll').evaluate('e => e.scrollLeft'), 0)
+
+    def test_manual_input_cancels_table_layout_reveal_until_keyboard_resumes(self):
+        for phase in ('resize-event', 'next-frame'):
+            for event in ('pointerdown', 'touchstart', 'wheel'):
+                with self.subTest(phase=phase, event=event):
+                    self.page.set_viewport_size({'width': 1280, 'height': 900})
+                    self.open('?task=all')
+                    self.page.keyboard.press('Tab')
+                    self.page.locator('.sort-button').last.focus()
+                    self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                    self.page.evaluate('''({phase,event}) => {
+                        window.layoutInputApplied = false;
+                        window.addEventListener('resize', () => {
+                            const cancel = () => {
+                                const v = document.querySelector('.table-scroll');
+                                v.scrollLeft = 0;
+                                v.dispatchEvent(new Event(event, {bubbles:true}));
+                                window.layoutInputApplied = true;
+                            };
+                            if (phase === 'next-frame') requestAnimationFrame(cancel);
+                            else cancel();
+                        }, {once:true});
+                    }''', {'phase': phase, 'event': event})
+                    self.page.set_viewport_size({'width': 375, 'height': 400})
+                    self.page.wait_for_function('window.layoutInputApplied')
+                    self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))')
+                    self.assertEqual(self.page.locator('.table-scroll').evaluate('e => e.scrollLeft'), 0)
+                    self.page.locator('#model-search').focus()
+                    self.page.keyboard.press('Tab')
+                    self.page.locator('.sort-button').last.focus()
+                    self.page.wait_for_function('''() => {
+                        const e = document.activeElement, v = e.closest('.table-scroll');
+                        const r = e.getBoundingClientRect(), b = v.getBoundingClientRect();
+                        return r.left >= e.closest('tr').cells[0].getBoundingClientRect().right - .5
+                            && r.right <= b.left + v.clientWidth + .5;
+                    }''')
+
     def test_large_table_header_yields_space_in_a_short_viewport(self):
         self.page.set_viewport_size({'width': 375, 'height': 240})
         self.open('?task=all')
