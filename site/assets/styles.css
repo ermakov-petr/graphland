@@ -1544,6 +1544,15 @@ button:disabled {
 .project-navigation a:hover,
 .project-navigation a[aria-current="page"] { color: var(--gray-700); }
 .project-page { padding-bottom: 56px; }
+@media screen {
+  body[data-page="not-found"] {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  body[data-page="not-found"] > .project-page { flex: 1; }
+}
 .page-intro { padding-top: var(--intro-spacing); padding-bottom: 28px; }
 .page-intro h1 {
   max-width: 1100px;
