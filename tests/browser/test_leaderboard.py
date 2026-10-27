@@ -2346,4 +2346,51 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     page.close()
 
 
+    def test_enlarged_text_keeps_navigation_and_page_titles_inside_viewport(self):
+        for width in (320, 375, 560, 561):
+            for route in ('leaderboard.html', 'getting-started.html'):
+                with self.subTest(width=width, route=route):
+                    self.page.set_viewport_size({'width': width, 'height': 900})
+                    self.page.goto(self.base + route)
+                    self.page.evaluate('document.fonts.ready')
+                    self.page.evaluate('''()=>{
+                        const fonts=[...document.body.querySelectorAll('*')]
+                            .filter(e=>e instanceof HTMLElement).map(e=>[e,parseFloat(getComputedStyle(e).fontSize)]);
+                        for(const [e,size] of fonts)e.style.setProperty('font-size',`${size*2}px`,'important');
+                    }''')
+                    self.page.wait_for_function('''()=>{
+                        const n=document.querySelector('.project-navigation').getBoundingClientRect();
+                        const c=document.querySelector('.project-navigation [aria-current]').getBoundingClientRect();
+                        return c.left>=n.left-1&&c.right<=n.right+1;
+                    }''')
+                    self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+                    self.assertTrue(self.page.locator('h1').evaluate('(e)=>e.scrollWidth<=e.clientWidth+1'))
+                    self.assertTrue(all(self.page.locator('.project-navigation a').evaluate_all(
+                        '(els)=>els.map(e=>e.scrollWidth<=e.clientWidth+1&&e.getBoundingClientRect().height>=44)')))
+                    self.assertEqual(self.page.locator('.project-navigation a').count(), 4)
+                    self.assertLessEqual(abs(self.page.evaluate('scrollY')), 1)
+                    if width == 320 and route == 'getting-started.html':
+                        self.page.add_style_tag(content='*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}')
+                        self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth<=innerWidth'))
+
+    def test_navigation_size_observer_preserves_manual_horizontal_browsing(self):
+        self.page.set_viewport_size({'width': 561, 'height': 900})
+        self.page.goto(self.base + 'getting-started.html')
+        self.page.evaluate('document.fonts.ready')
+        self.page.add_style_tag(content='.project-navigation,.project-navigation a{font-size:32px!important}')
+        self.page.wait_for_function('''()=>{
+            const n=document.querySelector('.project-navigation').getBoundingClientRect();
+            const c=document.querySelector('.project-navigation [aria-current]').getBoundingClientRect();
+            return c.left>=n.left-1&&c.right<=n.right+1;
+        }''')
+        navigation = self.page.locator('.project-navigation')
+        self.assertGreater(navigation.evaluate('(e)=>e.scrollLeft'), 0)
+        navigation.evaluate('(e)=>e.scrollLeft=0')
+        self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+        self.page.wait_for_timeout(100)
+        self.assertEqual(navigation.evaluate('(e)=>e.scrollLeft'), 0)
+        self.assertEqual(self.page.evaluate('scrollY'), 0)
+        self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+
+
 if __name__ == '__main__': unittest.main()

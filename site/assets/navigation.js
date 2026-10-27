@@ -102,6 +102,12 @@
     initializeHorizontalKeyboardScroll();
     initializeTableFocusScroll();
     initializeCodeCopy();
+    const navigation = document.querySelector('.project-navigation');
+    if (navigation && window.ResizeObserver) {
+      const observer = new ResizeObserver(revealCurrentSection);
+      observer.observe(navigation);
+      navigation.querySelectorAll('a').forEach((link) => observer.observe(link));
+    }
     window.requestAnimationFrame(revealCurrentSection);
     if (document.fonts) document.fonts.ready.then(revealCurrentSection);
     window.addEventListener('resize', revealCurrentSection, { passive: true });
