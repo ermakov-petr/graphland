@@ -760,6 +760,12 @@ button {
   text-transform: uppercase;
 }
 
+.model-cell-badges .mini-badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .mini-badge.code {
   background: var(--black);
   color: var(--white);
@@ -1425,6 +1431,11 @@ button:disabled {
     max-width: var(--model-column-width);
   }
 
+  #leaderboard-table .metric-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .model-button,
   .model-button strong,
   .model-button span {
@@ -1466,6 +1477,21 @@ button:disabled {
   .detail-list > div {
     grid-template-columns: 1fr;
     gap: 5px;
+  }
+}
+
+/* Two 150px scores fit beside the 165px model column from 497px onward,
+   including the 32px page gutters. Below that, show one complete score. */
+@media (max-width: 496px) {
+  #leaderboard-table {
+    width: calc(var(--model-column-width) + var(--dataset-count, 3) * (100% - var(--model-column-width)));
+  }
+
+  #leaderboard-table th:not(:first-child),
+  #leaderboard-table td:not(:first-child) {
+    width: auto;
+    min-width: 0;
+    max-width: none;
   }
 }
 

@@ -686,8 +686,11 @@
       if (cell.left < left || cell.right > right) viewport.scrollLeft += cell.left - left;
       expectedScroll = viewport.scrollLeft;
     };
-    window.requestAnimationFrame(reveal);
-    if (document.fonts) document.fonts.ready.then(() => window.requestAnimationFrame(reveal));
+    // Percentage-sized table columns can settle one frame after their new
+    // dataset count. Scroll only after that geometry reaches the viewport.
+    const schedule = () => window.requestAnimationFrame(() => window.requestAnimationFrame(reveal));
+    schedule();
+    if (document.fonts) document.fonts.ready.then(schedule);
   }
 
   function renderTable() {

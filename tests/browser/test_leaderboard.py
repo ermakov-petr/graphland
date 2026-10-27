@@ -1989,6 +1989,46 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.go_forward()
         self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
 
+    def test_model_badges_stay_inside_the_sticky_column_with_text_spacing(self):
+        self.page.set_viewport_size({'width':320,'height':900})
+        self.open('?task=all')
+        self.page.add_style_tag(content='*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}')
+        for badge in self.page.locator('.model-cell-badges .mini-badge').all():
+            bounds=badge.evaluate('(e)=>({badge:e.getBoundingClientRect().right,cell:e.closest("td").getBoundingClientRect().right})')
+            self.assertLessEqual(bounds['badge'],bounds['cell']-11)
+
+    def test_narrow_table_fits_one_complete_score_beside_model_names(self):
+        self.page.emulate_media(reduced_motion='reduce')
+        for width in (320,375,430,480,496):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width':width,'height':900})
+                self.open('?task=node_regression&sort=web-traffic&order=desc')
+                self.page.wait_for_function('document.querySelector(".table-scroll").scrollLeft>500')
+                geometry=self.page.locator('[data-sort-key="web-traffic"]').evaluate('''e=>{
+                    const cell=e.parentElement.getBoundingClientRect(),first=e.closest('tr').cells[0].getBoundingClientRect(),viewport=e.closest('.table-scroll').getBoundingClientRect();
+                    return {left:cell.left,right:cell.right,firstRight:first.right,viewportRight:viewport.right};
+                }''')
+                self.assertAlmostEqual(geometry['left'],geometry['firstRight'],delta=1)
+                self.assertAlmostEqual(geometry['right'],geometry['viewportRight'],delta=1)
+
+    def test_long_regression_values_wrap_inside_their_mobile_cells(self):
+        payload=copy.deepcopy(self.payload)
+        payload['submissions'][0]['results']=[{'setting':'RL','dataset':'web-traffic','value':-123456789.123,'std':987654321.987}]
+        self.with_payload(payload)
+        for width in (320,375,496,560):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width':width,'height':900})
+                self.open('?task=node_regression&sort=web-traffic&order=desc')
+                row=self.page.locator('#leaderboard-body tr').filter(has=self.page.locator('.model-button strong',has_text='Demo Atlas GNN'))
+                cell=row.locator('td.metric-value').last
+                self.assertEqual(cell.inner_text(),'-123456789.123 ± 987654321.987')
+                geometry=cell.evaluate('''e=>{const r=document.createRange();r.selectNodeContents(e);const c=e.getBoundingClientRect();return {left:c.left,right:c.right,lines:[...r.getClientRects()].map(x=>({left:x.left,right:x.right}))};}''')
+                if width != 496:
+                    self.assertGreaterEqual(len(geometry['lines']),2)
+                for line in geometry['lines']:
+                    self.assertGreaterEqual(line['left'],geometry['left']-1)
+                    self.assertLessEqual(line['right'],geometry['right']+1)
+
     def test_dataset_description_links_reveal_the_ranked_column(self):
         for width in (320, 1280):
             with self.subTest(width=width):
