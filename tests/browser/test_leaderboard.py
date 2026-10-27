@@ -437,6 +437,11 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertEqual(self.page.locator('#' + fragment).count(), 1)
                     if fragment == 'protocol':
                         self.assertIsNotNone(self.page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.page.wait_for_function('''()=>{
+                            const target=document.querySelector('#protocol-title').getBoundingClientRect();
+                            const header=document.querySelector('.site-header').getBoundingClientRect();
+                            return target.top>=header.bottom-1&&target.top<200;
+                        }''')
         self.page.goto(self.base + '#main-content')
         self.assertEqual(self.page.locator('body').get_attribute('data-page'), 'home')
 
@@ -504,6 +509,73 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertLess(summary['y'], 200)
                 finally:
                     page.close()
+
+    def test_initial_section_correction_yields_to_user_navigation_and_printing(self):
+        for action in ('none', 'wheel', 'keyboard', 'pointer', 'focus', 'fragment', 'print'):
+            with self.subTest(action=action):
+                page = self.browser.new_page(viewport={'width': 375, 'height': 900})
+                pending, fonts, released = [], [], [False]
+                page.add_init_script('''(() => {
+                    const original=Element.prototype.scrollIntoView;
+                    window.sectionReveals=[];
+                    Element.prototype.scrollIntoView=function(...args){
+                        if(['protocol','submit'].includes(this.id))window.sectionReveals.push(this.id);
+                        return original.apply(this,args);
+                    };
+                })();''')
+                def font_route(route):
+                    if released[0]: route.continue_()
+                    else: fonts.append(route)
+                page.route('**/data/leaderboard.json', lambda route: pending.append(route))
+                page.route('**/*.woff2', font_route)
+                try:
+                    page.goto(self.base + 'leaderboard.html#protocol', wait_until='domcontentloaded')
+                    page.wait_for_timeout(100)
+                    self.assertTrue(pending)
+                    self.assertTrue(fonts)
+                    if action == 'wheel': page.mouse.wheel(0, -200)
+                    elif action == 'keyboard': page.keyboard.press('PageUp')
+                    elif action == 'pointer': page.locator('h1').click()
+                    elif action == 'focus': page.locator('#view-results-link').focus()
+                    elif action == 'fragment': page.evaluate('location.hash="#submit"')
+                    elif action == 'print':
+                        page.evaluate('dispatchEvent(new Event("beforeprint"));dispatchEvent(new Event("afterprint"))')
+                    pending[0].fulfill(json=self.payload)
+                    page.wait_for_selector('.model-button')
+                    released[0] = True
+                    for route in fonts: route.continue_()
+                    page.evaluate('document.fonts.ready')
+                    page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+                    page.wait_for_timeout(100)
+                    self.assertEqual(page.evaluate('sectionReveals'), ['protocol'] if action == 'none' else [])
+                    if action == 'focus':
+                        self.assertEqual(page.evaluate('document.activeElement.id'), 'view-results-link')
+                finally:
+                    page.close()
+
+    def test_initial_section_correction_preserves_reload_and_history_restoration(self):
+        self.page.add_init_script('''(() => {
+            const original=Element.prototype.scrollIntoView;
+            window.sectionReveals=[];
+            Element.prototype.scrollIntoView=function(...args){
+                if(['protocol','submit'].includes(this.id))window.sectionReveals.push(this.id);
+                return original.apply(this,args);
+            };
+        })();''')
+        self.open('#protocol')
+        self.page.wait_for_function('sectionReveals.length===1')
+        self.page.reload()
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+        self.page.evaluate('document.fonts.ready')
+        self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+        self.assertEqual(self.page.evaluate('performance.getEntriesByType("navigation")[0].type'), 'reload')
+        self.assertEqual(self.page.evaluate('sectionReveals'), [])
+        self.page.goto(self.base + 'datasets.html')
+        self.page.go_back()
+        self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+        self.page.evaluate('document.fonts.ready')
+        self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+        self.assertEqual(self.page.evaluate('sectionReveals'), [])
 
     def test_unavailable_training_code_is_not_a_link_in_model_details(self):
         for availability, url, linked in (
