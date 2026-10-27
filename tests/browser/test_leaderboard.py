@@ -1981,6 +1981,24 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
                 self.assertEqual(self.page.locator('.print-record').count(), 0)
 
+    def test_print_focus_return_respects_programmatic_navigation(self):
+        for method, change in (('pushState', 'url'), ('replaceState', 'url'),
+                               ('pushState', 'state'), ('replaceState', 'state'),
+                               ('pushState', 'same-url-entry')):
+            with self.subTest(method=method, change=change):
+                self.open('?task=all')
+                self.page.locator('.model-button').first.focus()
+                self.page.evaluate('''({method, change}) => {
+                    dispatchEvent(new Event('beforeprint'));
+                    document.activeElement.blur();
+                    dispatchEvent(new Event('afterprint'));
+                    history[method](change === 'state' ? {changed: true} : null, '',
+                                    change === 'url' ? '?task=multiclass' : location.href);
+                }''', {'method': method, 'change': change})
+                self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+                self.assertEqual(self.page.locator('.print-record').count(), 0)
+
     def test_repeated_print_cycles_do_not_restore_focus_during_a_new_preview(self):
         self.open('?task=all')
         self.page.locator('.model-button').first.focus()
