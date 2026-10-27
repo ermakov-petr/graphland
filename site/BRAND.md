@@ -86,3 +86,7 @@ Below 497px, the nine-column dataset catalog uses equal-width cells capped at 16
 If the leaderboard header occupies more than half of its scroll viewport, it scrolls vertically with the rows rather than covering them. The first column stays pinned horizontally. The normal sticky header returns when the viewport or text dimensions allow enough space; no filter, focus or history state changes.
 
 Keyboard focus also reveals table controls vertically within the usable scroll area and below the fixed site header. Oversized controls align at their start so their names remain readable. Pointer-focused controls are excluded, preserving the pressed click target.
+
+After printing, a focused source control is restored only if the browser dropped focus to the document body. Page interaction or a different focus target cancels the return. Removed, hidden and disabled controls are not restored, and a newer print cycle cancels an older scheduled return.
+
+The return also checks the original URL, history length and history state, so programmatic same-document navigation can cancel it without relying on browser navigation events.

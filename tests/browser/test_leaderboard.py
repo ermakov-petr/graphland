@@ -1945,6 +1945,77 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(self.page.locator('.print-record').count(), 0)
             self.assertTrue(self.page.locator('#leaderboard-table').is_visible())
 
+    def test_print_restores_focus_only_when_the_page_loses_its_original_target(self):
+        self.open('?task=all')
+        button = self.page.locator('.model-button').first
+        button.focus()
+        self.page.evaluate('window.printOriginal = document.activeElement')
+        before = self.page.url
+        self.page.evaluate("dispatchEvent(new Event('beforeprint')); document.activeElement.blur()")
+        self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+        self.page.wait_for_function('document.activeElement === window.printOriginal')
+        self.assertEqual(self.page.url, before)
+        self.assertEqual(self.page.locator('.print-record').count(), 0)
+
+        for action in ('new-focus', 'pointer', 'keyboard', 'removed', 'disabled'):
+            with self.subTest(action=action):
+                self.open('?task=all')
+                button = self.page.locator('.model-button').first
+                button.focus()
+                self.page.evaluate('window.printOriginal = document.activeElement')
+                self.page.evaluate("dispatchEvent(new Event('beforeprint')); document.activeElement.blur()")
+                if action == 'new-focus':
+                    self.page.locator('#model-search').focus()
+                    self.page.locator('#model-search').evaluate('e => e.blur()')
+                elif action == 'pointer':
+                    self.page.evaluate("document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true}))")
+                elif action == 'keyboard':
+                    self.page.evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowDown', bubbles:true}))")
+                elif action == 'removed':
+                    self.page.evaluate('window.printOriginal.remove()')
+                else:
+                    self.page.evaluate('window.printOriginal.disabled = true')
+                self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+                self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+                self.assertEqual(self.page.locator('.print-record').count(), 0)
+
+    def test_print_focus_return_respects_programmatic_navigation(self):
+        for method, change in (('pushState', 'url'), ('replaceState', 'url'),
+                               ('pushState', 'state'), ('replaceState', 'state'),
+                               ('pushState', 'same-url-entry')):
+            with self.subTest(method=method, change=change):
+                self.open('?task=all')
+                self.page.locator('.model-button').first.focus()
+                self.page.evaluate('''({method, change}) => {
+                    dispatchEvent(new Event('beforeprint'));
+                    document.activeElement.blur();
+                    dispatchEvent(new Event('afterprint'));
+                    history[method](change === 'state' ? {changed: true} : null, '',
+                                    change === 'url' ? '?task=multiclass' : location.href);
+                }''', {'method': method, 'change': change})
+                self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+                self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+                self.assertEqual(self.page.locator('.print-record').count(), 0)
+
+    def test_repeated_print_cycles_do_not_restore_focus_during_a_new_preview(self):
+        self.open('?task=all')
+        self.page.locator('.model-button').first.focus()
+        self.page.evaluate("""() => {
+            window.printOriginal = document.activeElement;
+            dispatchEvent(new Event('beforeprint'));
+            document.activeElement.blur();
+            dispatchEvent(new Event('afterprint'));
+            dispatchEvent(new Event('beforeprint'));
+        }""")
+        self.page.evaluate('() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+        self.assertEqual(self.page.evaluate('document.activeElement.tagName'), 'BODY')
+        self.assertGreater(self.page.locator('.print-record').count(), 0)
+        self.page.evaluate("dispatchEvent(new Event('afterprint'))")
+        self.page.wait_for_function('document.activeElement === window.printOriginal')
+        self.assertEqual(self.page.locator('.print-record').count(), 0)
+
     def test_print_lifecycle_reconciles_stale_dialog_and_preserves_original_focus(self):
         self.open('?task=all')
         self.page.locator('.model-button').first.click()

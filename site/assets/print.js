@@ -3,6 +3,19 @@
 
   let snapshot;
   let tables = [];
+  let printFocus = null;
+  let printCycle = 0;
+  let printing = false;
+  let printNavigation;
+
+  // Page interaction takes ownership of focus away from a pending print return.
+  for (const type of ['pointerdown', 'touchstart', 'keydown', 'hashchange', 'popstate', 'pagehide']) {
+    window.addEventListener(type, () => { printFocus = null; }, true);
+  }
+  window.addEventListener('focusin', (event) => {
+    if (event.target !== document.body && event.target !== document.documentElement
+        && event.target !== printFocus) printFocus = null;
+  }, true);
   function cleanup() {
     snapshot?.remove();
     snapshot = null;
@@ -30,6 +43,14 @@
     return clone;
   }
   window.addEventListener('beforeprint', () => {
+    printing = true;
+    printCycle += 1;
+    const active = document.activeElement;
+    if (active !== document.body && active !== document.documentElement) {
+      printFocus = active;
+      printNavigation = { url: location.href, length: history.length, state: history.state };
+    }
+    else if (!printFocus?.isConnected) printFocus = null;
     // A preview may be cancelled or prepared more than once. Reconcile first.
     cleanup();
     const dialog = document.querySelector('#model-dialog[open]');
@@ -73,5 +94,24 @@
       table.after(records); table.classList.add('has-print-records'); tables.push([table, records]);
     }
   });
-  window.addEventListener('afterprint', cleanup);
+  window.addEventListener('afterprint', () => {
+    cleanup();
+    printing = false;
+    const cycle = printCycle;
+    window.requestAnimationFrame(() => {
+      if (printing || cycle !== printCycle) return;
+      const target = printFocus;
+      printFocus = null;
+      if (!target) return;
+      // pushState/replaceState do not dispatch popstate or hashchange.
+      if (location.href !== printNavigation.url || history.length !== printNavigation.length
+          || history.state !== printNavigation.state) return;
+      // Firefox can drop focus to body when print CSS hides the source table.
+      // Restore only an available original target, without replacing user focus.
+      if (!target?.isConnected || !target.getClientRects().length || target.matches(':disabled')
+          || getComputedStyle(target).visibility !== 'visible'
+          || (document.activeElement !== document.body && document.activeElement !== document.documentElement)) return;
+      target.focus({ preventScroll: true });
+    });
+  });
 })();
