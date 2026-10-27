@@ -666,6 +666,30 @@
     }
   }
 
+  function revealLinkedSortColumn() {
+    const key = state.sortKey;
+    const viewport = elements.tableScroll;
+    if (key === "model" || viewport.hidden) return;
+    let expectedScroll = viewport.scrollLeft;
+    // Reveal the ranked column immediately, then refine late font geometry.
+    // Do not undo a user's intervening horizontal scroll in the second pass.
+    const reveal = () => {
+      if (state.sortKey !== key || viewport.hidden || Math.abs(viewport.scrollLeft - expectedScroll) > 1) return;
+      const button = Array.from(elements.tableHead.querySelectorAll("[data-sort-key]"))
+        .find((candidate) => candidate.dataset.sortKey === key);
+      if (!button || button.disabled) return;
+      const bounds = viewport.getBoundingClientRect();
+      const first = elements.tableHead.rows[0].cells[0].getBoundingClientRect();
+      const cell = button.parentElement.getBoundingClientRect();
+      const left = Math.max(bounds.left + viewport.clientLeft, first.right);
+      const right = bounds.left + viewport.clientLeft + viewport.clientWidth;
+      if (cell.left < left || cell.right > right) viewport.scrollLeft += cell.left - left;
+      expectedScroll = viewport.scrollLeft;
+    };
+    window.requestAnimationFrame(reveal);
+    if (document.fonts) document.fonts.ready.then(() => window.requestAnimationFrame(reveal));
+  }
+
   function renderTable() {
     if (!state.payload) {
       return;
@@ -1059,6 +1083,7 @@
       tabGesture = null;
       readQueryState();
       render();
+      revealLinkedSortColumn();
     });
     window.addEventListener("blur", commitTabGesture);
     elements.retry.addEventListener("click", loadLeaderboard);
@@ -1159,6 +1184,7 @@
       const focusWasInError = elements.loadError.contains(document.activeElement);
       elements.loadError.hidden = true;
       render();
+      revealLinkedSortColumn();
       // Only replace focus that would disappear with the old error region.
       // A user who moved elsewhere during the request keeps that location.
       if (focusWasInError) elements.panel.focus();

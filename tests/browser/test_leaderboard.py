@@ -1989,6 +1989,58 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.go_forward()
         self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
 
+    def test_dataset_description_links_reveal_the_ranked_column(self):
+        for width in (320, 1280):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.page.emulate_media(reduced_motion='reduce')
+                self.page.goto(self.base+'datasets.html')
+                self.page.locator('.dataset-tags a').filter(has_text='twitch-views ·').click()
+                self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+                self.page.wait_for_function('''()=>{
+                    const e=document.querySelector('[data-sort-key="twitch-views"]');
+                    if(!e)return false;
+                    const c=e.parentElement.getBoundingClientRect(),v=e.closest('.table-scroll').getBoundingClientRect(),s=e.closest('tr').cells[0].getBoundingClientRect();
+                    return c.left>=Math.max(v.left,s.right)-1&&c.right<=v.right+1;
+                }''')
+                self.assertEqual(self.page.locator('[data-sort-key="twitch-views"]').locator('..').get_attribute('aria-sort'),'descending')
+                self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("task")'),'node_regression')
+                self.assertEqual(self.page.evaluate('location.hash'),'#leaderboard')
+
+    def test_linked_sort_reveals_after_history_without_resetting_manual_scroll(self):
+        self.page.set_viewport_size({'width':375,'height':900})
+        self.page.emulate_media(reduced_motion='reduce')
+        self.open('?task=node_regression&sort=web-traffic&order=desc')
+        viewport=self.page.locator('.table-scroll')
+        self.page.wait_for_function('document.querySelector(".table-scroll").scrollLeft>500')
+        viewport.evaluate('(e)=>e.scrollLeft=100')
+        self.page.locator('#model-search').fill('Demo')
+        self.page.wait_for_timeout(300)
+        self.assertEqual(viewport.evaluate('(e)=>e.scrollLeft'),100)
+        self.page.locator('#task-tab-multiclass_node_classification').click()
+        self.page.go_back()
+        self.page.wait_for_function('document.querySelector(".table-scroll").scrollLeft>500')
+        self.assertEqual(self.page.locator('[data-sort-key="web-traffic"]').locator('..').get_attribute('aria-sort'),'descending')
+
+    def test_linked_sort_reveals_before_fonts_and_respects_intervening_scroll(self):
+        for manually_scrolled in (False,True):
+            with self.subTest(manually_scrolled=manually_scrolled):
+                self.page.set_viewport_size({'width':375,'height':900})
+                pending=[]
+                self.page.route('**/assets/brand/ys-text-medium.woff2',lambda r:pending.append(r))
+                self.page.goto(self.base+'leaderboard.html?task=node_regression&sort=web-traffic&order=desc',wait_until='domcontentloaded')
+                self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+                self.assertEqual(len(pending),1)
+                viewport=self.page.locator('.table-scroll')
+                self.page.wait_for_function('document.querySelector(".table-scroll").scrollLeft>500')
+                if manually_scrolled:viewport.evaluate('(e)=>e.scrollLeft=100')
+                pending[0].fulfill(body=(ROOT/'site/assets/brand/ys-text-medium.woff2').read_bytes(),content_type='font/woff2')
+                self.page.evaluate('document.fonts.ready')
+                self.page.evaluate('()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))')
+                if manually_scrolled:self.assertEqual(viewport.evaluate('(e)=>e.scrollLeft'),100)
+                else:self.assertGreater(viewport.evaluate('(e)=>e.scrollLeft'),500)
+                self.page.unroute('**/assets/brand/ys-text-medium.woff2')
+
     def test_loading_task_strip_scrolls_by_keyboard_and_focus_moves_to_ready_tab(self):
         pending=[]
         self.page.set_viewport_size({'width':375,'height':800})
