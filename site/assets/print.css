@@ -1,0 +1,110 @@
+/* Printed pages retain every current value without horizontal scrolling. */
+@media print {
+  @page { size: auto; margin: 15mm; }
+  :root {
+    --page-padding: 0px; --shell: 100%; --header-height: 0px;
+    --page-heading-size: 24pt; --page-heading-line: 1.15;
+    --section-heading-size: 16pt; --section-heading-line: 1.2;
+    --subheading-size: 13pt; --prose-size: 11pt;
+    --intro-spacing: 12pt; --section-spacing: 18pt;
+  }
+  html { scroll-behavior: auto; }
+  body { min-width: 0; padding: 0; color: #000; background: #fff; font-size: 10pt; line-height: 1.4; forced-color-adjust: none; }
+  .shell { width: 100%; max-width: none; padding-inline: 0; }
+  .site-header { position: static; height: auto; margin-bottom: 12pt; background: #fff; }
+  .header-inner { height: auto; padding: 0 0 8pt; }
+  .skip-link, .project-navigation, .page-actions, .dataset-index, .code-toolbar,
+  .table-scroll-hint, .filter-row, #reset-filters, .sort-indicator,
+  .dialog-close { display: none !important; }
+  .project-page { padding-bottom: 0; }
+  .page-intro { padding: 0 0 12pt; }
+  .page-lead { margin-top: 12pt; }
+  .page-section { margin-top: 14pt; }
+  .page-section > h2, .dataset-description > h2 { margin-bottom: 8pt; }
+  .article-copy > p, .section-description { margin-bottom: 10pt; }
+  .project-resources { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14pt; }
+  .project-resources li { padding-block: 8pt; }
+  .dataset-description { padding-block: 12pt; }
+  .dataset-tags { margin-top: 6pt; }
+  .dataset-tags a { min-height: 16pt; }
+  h1, h2, h3, summary { break-after: avoid; }
+  p, li { orphans: 3; widows: 3; }
+  .legend-list > div, .dataset-description { break-inside: avoid; }
+  .legend-list > div { grid-template-columns: 70pt minmax(0, 1fr); gap: 12pt; padding-block: 6pt; }
+  .steps-list li { padding-block: 6pt; break-inside: avoid; }
+  .page-section:has(> .citation-disclosure) { break-inside: avoid; }
+  .protocol-disclosure:not([open]), .citation-disclosure:not([open]) { display: none; }
+  .guide-notes li { margin-bottom: 6pt; }
+  .tabs { max-width: 100%; border: 0; }
+  .tabs button:not([aria-selected="true"]) { display: none; }
+  .tabs button[aria-selected="true"] { padding: 0; min-height: 0; border: 0; white-space: normal; color: #000; }
+  .task-control, .catalog-scroll, .table-scroll { overflow: visible; max-height: none; border: 0; }
+  .setting-summary { display: block; min-height: 0; margin-top: 6pt; }
+  .setting-summary .setting-name { display: block; margin-bottom: 4pt; }
+  .control-block, .task-control { padding-top: 0; margin-top: 8pt; }
+  .table-meta { display: block; margin-block: 10pt; }
+  .filter-feedback { margin-top: 6pt; }
+  .data-table, .data-table tbody, .data-table tr { display: block; }
+  #leaderboard-table, .dataset-catalog { width: 100%; min-width: 0; }
+  .data-table thead { display: none; }
+  .data-table tbody tr { border-top: 1px solid #000; margin-bottom: 12pt; padding-top: 6pt; break-inside: avoid; }
+  .data-table tbody :is(th, td) {
+    position: static !important; display: grid !important;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 4fr); gap: 10pt;
+    width: auto !important; min-width: 0 !important; max-width: none !important;
+    padding: 4pt 0 !important; height: auto; box-shadow: none !important;
+    border-bottom: 1px solid #ddd; background: #fff !important;
+    font-size: 10pt; line-height: 1.4; text-align: right;
+    white-space: normal !important; overflow-wrap: anywhere;
+  }
+  .data-table tbody :is(th, td)::before { content: attr(data-print-label); text-align: left; font-weight: 400; color: #444; }
+  .data-table tbody tr > :first-child { display: block !important; padding-bottom: 8pt !important; text-align: left !important; }
+  .data-table tbody tr > :first-child::before { content: none; }
+  .model-button { font-size: 12pt; }
+  .model-button strong { text-decoration: none !important; }
+  .model-button span { font-size: 10pt; }
+  #leaderboard-table .metadata-link { display: block; width: auto; height: auto; font-size: 9pt; line-height: 1.4; overflow-wrap: anywhere; }
+  .metadata-link > span { display: none; }
+  .metadata-link::after { content: attr(href); }
+  .metadata-unavailable { width: auto; height: auto; color: #666; font-size: 12pt; }
+  .code-example { border: 1px solid #ddd; margin-block: 10pt; background: #fff; break-inside: avoid; }
+  .code-block { max-width: none; margin-block: 10pt; padding: 10pt; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9pt; line-height: 1.45; background: #fff; break-inside: avoid; }
+  .code-example .code-block { padding: 10pt; }
+  .code-block span { color: inherit; }
+  .site-footer { padding-block: 8pt 0; margin-top: 12pt; color: #000; background: #fff; border-top: 1px solid #000; break-inside: avoid; }
+  .site-footer * { color: inherit; }
+  .footer-links, .footer-bottom, .footer-meta { display: block; }
+  .footer-bottom { margin-top: 6pt; }
+  .footer-bottom > p, .footer-meta { width: auto; }
+  .footer-inner p { color: #444; font-size: 9pt; }
+  .footer-links a { display: block; margin-bottom: 4pt; min-height: 0; font-size: 10pt; }
+  .footer-links a:not([href^="https:"]) { display: none; }
+  .footer-links a[href^="https:"]::after { content: " (" attr(href) ")"; overflow-wrap: anywhere; }
+  .protocol-disclosure > summary::after, .citation-disclosure > summary::after { display: none; }
+  .detail-list > div { grid-template-columns: minmax(0, 3fr) minmax(0, 7fr); gap: 10pt; padding-block: 6pt; break-inside: avoid; }
+  .detail-list :is(dt, dd) { font-size: 10pt; overflow-wrap: anywhere; }
+  .print-model-details, .print-tables { display: block; }
+  .has-print-records { display: none !important; }
+  .print-record { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 0 14pt; font-size: 10pt; line-height: 1.4; }
+  .print-record thead { display: table-header-group; }
+  .print-record thead th { padding: 8pt 0; border-top: 1px solid #000; text-align: left; font-weight: 400; }
+  .print-record .metric-value { font-weight: 400; white-space: normal; }
+  .print-record .metric-best { font-weight: 700; }
+  .print-model-name strong { display: block; font-size: 12pt; font-weight: 500; overflow-wrap: anywhere; }
+  .print-model-name span { display: block; color: #666; font-size: 10pt; overflow-wrap: anywhere; }
+  .print-context { color: #666; font-size: 9pt; margin-bottom: 4pt; }
+  .print-record tbody tr { break-inside: avoid; }
+  .print-record tbody :is(th, td) { padding: 4pt 0; border-bottom: 1px solid #ddd; vertical-align: top; overflow-wrap: anywhere; }
+  .print-record tbody th { width: 43%; padding-right: 10pt; text-align: left; font-weight: 400; color: #444; }
+  .print-record tbody td { text-align: right; }
+  .print-record .metadata-link { display: inline; font-size: 9pt; }
+  .print-model-details { overflow: visible; height: auto; max-height: none; }
+  .print-model-details .print-prose-field { display: block; break-inside: auto; }
+  .print-prose-field dt { margin-bottom: 4pt; font-weight: 500; color: #000; break-after: avoid; }
+  .print-prose-field dd { orphans: 3; widows: 3; }
+
+  .print-model-details h1, .print-model-details .dialog-lead { overflow-wrap: anywhere; }
+  .print-model-details h1 { font-size: 24pt; font-weight: 500; margin: 12pt 0; }
+  body.printing-model > :not(.site-header):not(.print-model-details) { display: none !important; }
+  body.printing-model dialog::backdrop { display: none; }
+}

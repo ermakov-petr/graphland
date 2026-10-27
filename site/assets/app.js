@@ -879,7 +879,8 @@
       if (!result || !isSettingAvailable(dataset, state.setting)) continue;
       const runs = result.num_runs ?? submission.num_runs;
       const trials = effectiveHparamTrials(submission, result);
-      appendDetail(resultDetails, dataset.display_name, `${formatMetric(result, dataset)} · ${runs ?? "unknown"} runs · hyperparameter trials: ${trials ?? "unknown"}`);
+      const metric = state.tasksById.get(dataset.task)?.metric_label || dataset.metric;
+      appendDetail(resultDetails, dataset.display_name, `${metric}: ${formatMetric(result, dataset)} · ${runs ?? "unknown"} runs · hyperparameter trials: ${trials ?? "unknown"}`);
     }
     if (!resultDetails.childElementCount) appendDetail(resultDetails, "Coverage", "No results submitted in this view.");
     elements.dialogContent.append(badges, lead, details, resultHeading, resultDetails);

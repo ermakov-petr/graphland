@@ -1697,3 +1697,6 @@ button:disabled {
   .tabs button { border-bottom: 0; }
   .tabs button[aria-selected="true"] { border-bottom: 2px solid Highlight; }
 }
+
+/* Transient print copies never participate in the screen interface. */
+.print-model-details, .print-tables { display: none; }
