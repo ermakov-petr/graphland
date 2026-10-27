@@ -392,6 +392,37 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                         'right_edge_hidden': True, 'fit_hidden': True, 'empty_hidden': True,
                                         'task_change_and_results_restore': True})
 
+    def test_large_table_header_yields_space_in_a_short_viewport(self):
+        self.page.set_viewport_size({'width': 375, 'height': 240})
+        self.open('?task=all')
+        viewport = self.page.locator('.table-scroll')
+        self.assertNotIn('free-table-header', viewport.get_attribute('class'))
+        self.page.evaluate("""() => {
+            const nodes = [...document.querySelectorAll('.data-table, .data-table *')];
+            const sizes = nodes.map(e => parseFloat(getComputedStyle(e).fontSize));
+            nodes.forEach((e, i) => e.style.fontSize = sizes[i] * 2 + 'px');
+        }""")
+        self.page.wait_for_function('document.querySelector(".table-scroll").classList.contains("free-table-header")')
+        geometry = viewport.evaluate("""v => {
+            const head = v.querySelector('thead');
+            v.scrollTop = head.getBoundingClientRect().height;
+            const b = v.getBoundingClientRect(), h = head.querySelector('th').getBoundingClientRect();
+            const row = v.querySelector('tbody tr').getBoundingClientRect();
+            const text = document.createRange();
+            text.selectNodeContents(v.querySelector('tbody tr .metric-value'));
+            const value = text.getBoundingClientRect();
+            return {headerBottom:h.bottom, top:b.top, bottom:b.bottom, rowTop:row.top, valueTop:value.top, valueBottom:value.bottom};
+        }""")
+        self.assertLessEqual(geometry['headerBottom'], geometry['top'] + 1)
+        self.assertGreaterEqual(geometry['rowTop'], geometry['top'] - 1)
+        self.assertGreaterEqual(geometry['valueTop'], geometry['top'])
+        self.assertLessEqual(geometry['valueBottom'], geometry['bottom'])
+        before = self.page.url
+        self.page.set_viewport_size({'width': 375, 'height': 900})
+        self.page.wait_for_function('!document.querySelector(".table-scroll").classList.contains("free-table-header")')
+        self.assertEqual(self.page.url, before)
+        self.assertEqual(self.page.locator('#leaderboard-head th').first.evaluate('e => getComputedStyle(e).top'), '0px')
+
     def test_mobile_catalog_keeps_a_complete_column_beside_dataset_names(self):
         self.page.set_viewport_size({'width': 320, 'height': 800})
         self.page.goto(self.base + 'index.html')

@@ -82,3 +82,5 @@ The mobile navigation grid adapts to enlarged user text: its two default columns
 The not-found page uses the same header, four-section navigation, heading, prose and action components. No section is marked current. Its built local URLs start at the configured project mount so deeply nested missing addresses still load the shared assets and recovery links without JavaScript. The skip link remains within the current document; the response status is supplied by GitHub Pages.
 
 Below 497px, the nine-column dataset catalog uses equal-width cells capped at 160px and at half the available table viewport. One complete field stays visible next to the sticky dataset name, including enlarged text; long headings and task names wrap within their cells. Wider layouts retain their existing density.
+
+If the leaderboard header occupies more than half of its scroll viewport, it scrolls vertically with the rows rather than covering them. The first column stays pinned horizontally. The normal sticky header returns when the viewport or text dimensions allow enough space; no filter, focus or history state changes.

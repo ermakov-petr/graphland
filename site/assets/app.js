@@ -649,6 +649,10 @@
     tableHintFrame = window.requestAnimationFrame(() => {
       tableHintFrame = 0;
       const scroll = elements.tableScroll;
+      // A large-text header must not take most of a short table viewport.
+      // Keep horizontal pinning, but let this header scroll vertically.
+      scroll.classList.toggle("free-table-header", scroll.clientHeight > 0
+        && elements.tableHead.getBoundingClientRect().height > scroll.clientHeight / 2);
       const remaining = scroll.scrollWidth - scroll.clientWidth - scroll.scrollLeft;
       const show = state.loaded && !state.loading && !scroll.hidden
         && elements.tableBody.rows.length > 0 && scroll.clientWidth > 0 && remaining > 1;
@@ -665,6 +669,7 @@
       elements.tableSizeObserver = new ResizeObserver(scheduleTableHint);
       elements.tableSizeObserver.observe(elements.tableScroll);
       elements.tableSizeObserver.observe(elements.table);
+      elements.tableSizeObserver.observe(elements.tableHead);
     }
   }
 
