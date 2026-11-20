@@ -899,6 +899,15 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertFalse(reset_sort.is_visible())
         self.assertTrue(self.page.locator('#leaderboard-head .metadata-date').is_visible())
 
+        self.page.set_viewport_size({'width': 375, 'height': 800})
+        reset_sort.focus()
+        self.page.set_viewport_size({'width': 768, 'height': 800})
+        self.assertTrue(reset_sort.is_visible())
+        self.assertTrue(reset_sort.evaluate('el => el === document.activeElement'))
+        reset_sort.press('Tab')
+        self.assertFalse(reset_sort.is_visible())
+        self.assertTrue(self.page.locator('.table-scroll').evaluate('el => el === document.activeElement'))
+
     def test_tabs_filters_dialog_deep_link_and_history(self):
         def close_and_wait(action):
             # Native close is queued after dialog.open becomes false. Await its
