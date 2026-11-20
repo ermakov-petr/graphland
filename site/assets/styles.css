@@ -1654,7 +1654,8 @@ button:disabled {
 .guide-notes { max-width: var(--reading-width); padding-left: 22px; }
 .project-page p > code, .guide-notes li > code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; overflow-wrap: anywhere; }
 .guide-notes li { margin-bottom: 16px; }
-#citation > .section-description { max-width: var(--code-width); }
+#citation > .section-description,
+#data-access > .section-description { max-width: var(--code-width); }
 @media (max-width: 1600px) {
   :root {
     --page-heading-size: 40px;

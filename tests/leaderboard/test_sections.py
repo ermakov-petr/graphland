@@ -5,7 +5,9 @@ import ast
 import builtins
 import re
 import unittest
+from html import unescape
 from html.parser import HTMLParser
+from urllib.parse import parse_qs, urlsplit
 
 from support import ROOT, load_json
 from test_frontend import DocumentInventory
@@ -46,7 +48,8 @@ class SectionsContractTests(unittest.TestCase):
             inventory = DocumentInventory()
             inventory.feed(source)
             cls.inventories[path] = inventory
-        cls.dataset_ids = {dataset["id"] for dataset in load_json(ROOT / "leaderboard/datasets.json")["datasets"]}
+        cls.dataset_tasks = {dataset["id"]: dataset["task"]
+                             for dataset in load_json(ROOT / "leaderboard/datasets.json")["datasets"]}
 
     def test_four_routes_have_one_heading_native_navigation_and_unique_ids(self):
         for path, (marker, label, heading) in PAGES.items():
@@ -98,7 +101,7 @@ class SectionsContractTests(unittest.TestCase):
         targets = [attrs["href"].split("#", 1)[1] for tag, attrs in catalog_inventory.elements
                    if tag == "a" and str(attrs.get("href", "")).startswith("datasets.html#")]
         self.assertEqual(len(targets), 14)
-        self.assertEqual(set(targets), self.dataset_ids)
+        self.assertEqual(set(targets), set(self.dataset_tasks))
         self.assertTrue(all(target in self.inventories["datasets.html"].by_id for target in targets))
         groups = [attrs for tag, attrs in self.inventories["datasets.html"].elements
                   if tag == "article" and "dataset-description" in str(attrs.get("class", "")).split()]
@@ -111,6 +114,25 @@ class SectionsContractTests(unittest.TestCase):
         footnote.feed(footnotes[0])
         self.assertEqual([attrs.get("href") for tag, attrs in footnote.elements if tag == "a"],
                          ["https://arxiv.org/html/2409.14500v5#A1.SS2"])
+
+    def test_dataset_leaderboard_links_name_and_rank_each_dataset(self):
+        groups = re.findall(r'<p class="dataset-tags">(.*?)</p>', self.pages["datasets.html"], re.DOTALL)
+        targets = []
+        for group in groups:
+            for href, label in re.findall(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>(.*?)</a>', group, re.DOTALL):
+                url = urlsplit(unescape(href))
+                query = parse_qs(url.query)
+                dataset_id, = query.get("sort", [])
+                with self.subTest(dataset=dataset_id):
+                    self.assertIn(dataset_id, self.dataset_tasks)
+                    self.assertEqual((url.scheme, url.netloc, url.path, url.fragment),
+                                     ("", "", "leaderboard.html", "leaderboard"))
+                    self.assertEqual(query, {"task": [self.dataset_tasks[dataset_id]],
+                                             "sort": [dataset_id], "order": ["desc"]})
+                    self.assertEqual(unescape(re.sub(r"<[^>]+>", "", label)),
+                                     f"Leaderboard results on {dataset_id} dataset")
+                targets.append(dataset_id)
+        self.assertCountEqual(targets, self.dataset_tasks.keys())
 
     def test_loading_examples_are_complete_python_with_correct_masks_and_three_snapshots(self):
         codes = CodeInventory()
