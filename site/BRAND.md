@@ -23,7 +23,7 @@ The common system extends through the complete page, not only its intro. Leaderb
 
 Model details use the same section-heading and prose scales as the pages; metadata stays in the compact YS Text scale. Inline footnote links inherit their text style without adding line spacing. Resource-list links have no extra top margin. The unused inverse-button variant is removed to prevent a conflicting hover cascade.
 
-Catalog tables own their column sizing and horizontal sticky row labels; leaderboard-specific cell and mobile sizing never apply to documentation tables. The catalog scroll hint is shown only while more columns remain to the right. The citation disclosure uses a right-aligned chevron and a full-width native keyboard-operable summary.
+Catalog tables own their column sizing and horizontal sticky row labels; leaderboard-specific cell and mobile sizing never apply to documentation tables. The catalog scroll hint is shown only while more columns remain to the right. Home displays the BibTeX citation directly in the shared code block.
 
 The Model column puts available Paper and Code links under each model and variant, beside any status badges. The links remain visible on narrow screens and retain their full destinations in print. The initial leaderboard order is newest submission first. The Submission date header switches direction, equal dates use model name order, and undated entries follow dated entries.
 

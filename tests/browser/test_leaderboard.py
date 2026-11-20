@@ -546,7 +546,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(self.page.locator('.dataset-catalog').inner_text(), original)
             self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
 
-    def test_catalog_scroll_and_citation_disclosure_work_with_keyboard(self):
+    def test_catalog_and_visible_citation_scroll_with_keyboard(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.page.goto(self.base)
         self.page.evaluate('document.fonts.ready')
@@ -566,17 +566,27 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertNotIn('catalog-scroll-hint', (viewport.get_attribute('aria-describedby') or '').split())
         viewport.evaluate('(el) => el.scrollLeft = 0')
         self.page.wait_for_function("!document.getElementById('catalog-scroll-hint').hidden")
+
+        citation = self.page.locator('#citation .code-block')
+        self.assertTrue(citation.is_visible())
+        self.assertEqual(citation.get_attribute('tabindex'), '0')
+        citation.focus()
+        self.assertTrue(citation.evaluate('(el) => document.activeElement === el'))
+        self.page.keyboard.press('ArrowRight')
+        self.page.wait_for_function("document.querySelector('#citation .code-block').scrollLeft > 0")
+
         self.page.set_viewport_size({'width': 1920, 'height': 900})
         self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
         self.assertTrue(viewport.evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'))
-        disclosure = self.page.locator('.citation-disclosure')
-        summary = disclosure.locator('summary')
-        summary.focus()
-        self.page.keyboard.press('Enter')
-        self.assertIsNotNone(disclosure.get_attribute('open'))
-        self.page.keyboard.press('Space')
-        self.assertIsNone(disclosure.get_attribute('open'))
-        self.assertTrue(summary.evaluate('(el) => document.activeElement === el'))
+
+        self.page.set_viewport_size({'width': 1280, 'height': 900})
+        description = self.page.locator('#citation .section-description')
+        self.assertEqual(description.inner_text(), 'If GraphLand is useful for your research, please cite the benchmark paper.')
+        self.assertTrue(description.evaluate('''el => {
+            const text = document.createRange();
+            text.selectNodeContents(el);
+            return new Set(Array.from(text.getClientRects(), rect => rect.top)).size === 1;
+        }'''))
 
     def test_legacy_section_fragments_redirect_without_losing_state(self):
         for fragment in ('protocol', 'submit', 'model-search'):
@@ -1795,8 +1805,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
         }});''')
         for route in ('getting-started.html', 'index.html'):
             self.page.goto(self.base + route)
-            if route == 'index.html':
-                self.page.locator('.citation-disclosure summary').click()
             blocks = self.page.locator('.code-example')
             self.assertEqual(blocks.count(), 3 if route == 'getting-started.html' else 1)
             for index, block in enumerate(blocks.all()):
@@ -1817,6 +1825,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                         'python -m pip install "torch-geometric>=2.8.0" pandas scikit-learn PyYAML',
                     ])
                 if route == 'index.html':
+                    self.assertTrue(block.locator('pre').is_visible())
                     self.assertEqual(button.inner_text(), 'Copy citation')
                     self.assertTrue(expected.startswith('@inproceedings{bazhenov2025graphland,'))
 
@@ -2202,7 +2211,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.evaluate("dispatchEvent(new Event('afterprint'))")
         self.assertEqual(self.page.locator('.print-record').count(), 0)
 
-    def test_catalog_print_labels_are_complete_without_javascript(self):
+    def test_catalog_print_labels_and_citation_are_complete_without_javascript(self):
         context = self.browser.new_context(java_script_enabled=False, viewport={'width':794,'height':1123})
         try:
             page = context.new_page()
@@ -2211,10 +2220,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(page.locator('.dataset-catalog tbody tr').count(), 14)
             for row in page.locator('.dataset-catalog tbody tr').all():
                 self.assertEqual([cell.get_attribute('data-print-label') for cell in row.locator('td').all()], labels)
+            citation = page.locator('#citation .code-block')
+            self.assertTrue(citation.is_visible())
+            self.assertIn('@inproceedings{bazhenov2025graphland,', citation.inner_text())
             page.emulate_media(media='print')
             bounds = page.locator('.dataset-catalog').bounding_box()
             self.assertLessEqual(bounds['x']+bounds['width'], 795)
             self.assertTrue(page.locator('.dataset-catalog tbody tr').last.is_visible())
+            self.assertTrue(citation.is_visible())
         finally:
             context.close()
 
