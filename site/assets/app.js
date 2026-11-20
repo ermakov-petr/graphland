@@ -758,7 +758,7 @@
   }
 
   function activateSetting(setting, updateUrl = true) {
-    if (!SETTING_IDS.includes(setting)) {
+    if (setting === state.setting || !SETTING_IDS.includes(setting)) {
       return;
     }
     state.setting = setting;
@@ -769,7 +769,7 @@
   }
 
   function activateTask(task, updateUrl = true) {
-    if (!TASK_IDS.includes(task)) {
+    if (task === state.task || !TASK_IDS.includes(task)) {
       return;
     }
     state.task = task;

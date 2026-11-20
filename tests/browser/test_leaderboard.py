@@ -2629,6 +2629,38 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("task")'),'node_regression')
                 self.assertEqual(self.page.evaluate('location.hash'),'#leaderboard')
 
+    def test_reselecting_the_current_tabs_preserves_rank_and_history(self):
+        query = '?task=node_regression&sort=web-traffic&order=desc#leaderboard'
+        for width in (375, 1280):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 900})
+                self.open(query)
+                url = self.page.url
+                history_length = self.page.evaluate('history.length')
+                rank = self.page.locator('th:has(button[data-sort-key="web-traffic"])')
+                task = self.page.locator('#task-tab-node_regression')
+                setting = self.page.locator('#setting-tab-RL')
+
+                for tab, key in ((setting, None), (task, None), (task, 'Enter'),
+                                 (task, 'Space'), (task, 'End'), (setting, 'Home')):
+                    if key is None:
+                        tab.click()
+                    else:
+                        tab.press(key)
+                    self.assertEqual(tab.get_attribute('aria-selected'), 'true')
+                    self.assertEqual(rank.get_attribute('aria-sort'), 'descending')
+                    self.assertEqual(self.page.url, url)
+                    self.assertEqual(self.page.evaluate('history.length'), history_length)
+
+                self.page.locator('#task-tab-all').click()
+                date = self.page.locator('th:has(button[data-sort-key="submitted_at"])')
+                self.assertEqual(date.get_attribute('aria-sort'), 'descending')
+                self.assertEqual(self.page.evaluate('history.length'), history_length + 1)
+                self.page.go_back()
+                self.page.wait_for_url(url)
+                self.assertEqual(task.get_attribute('aria-selected'), 'true')
+                self.assertEqual(rank.get_attribute('aria-sort'), 'descending')
+
     def test_linked_sort_reveals_after_history_without_resetting_manual_scroll(self):
         self.page.set_viewport_size({'width':375,'height':900})
         self.page.emulate_media(reduced_motion='reduce')
