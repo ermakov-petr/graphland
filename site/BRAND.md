@@ -2,14 +2,14 @@
 
 All four GraphLand pages follow the shared visual system of [Yandex Research](https://research.yandex.com/). Their white scientific introductions follow [Publications](https://research.yandex.com/publications); the same header, fonts and responsive container were checked against [About](https://research.yandex.com/about). These are measurements of the public site captured on 2026-10-08, rather than a claim of official design-system certification. A fresh reference capture on 2026-10-26 confirmed that both original logo SVG geometries, all five font files and the reference stylesheets remain unchanged. Publications retains the 48px / 40px / 30px heading scale used here; the larger homepage heading belongs to its distinct landing-page composition.
 
-| Viewport | Content width / horizontal gutters | Fixed header | Two-part logo | H1 |
+| Viewport | Content width / horizontal gutters | Fixed header | Two-part logo | Standard H1 |
 | --- | --- | --- | --- | --- |
 | 1601px and wider | 1360px maximum / 30px | 63px | 83×31 + 99×31 | 48px |
 | 1000–1600px | 928px maximum / 20px | 49px | 59×22 + 70×22 | 40px |
 | 768–999px | 696px maximum / 20px | 49px | 59×22 + 70×22 | 40px |
 | 767px and narrower | viewport minus 32px / 16px | 53px | 75×28 + 89×28 | 30px |
 
-Interface text and numeric tables use YS Text; descriptive editorial text uses Merriweather Light. Heading weight is 500, regular interface text is 400, serif text is 300. H1 tracking is −0.008em on desktop and −0.004em on mobile. All four pages share one intro and typography scale: H1 is 48/48px, 40/40px, then 30/32.4px; content H2 is 32px / 24px / 24px; H3 is 24px / 18px / 18px. Editorial lead and body copy use 22px / 17px / 15px at line-height 1.5. These heading and prose roles follow the reference's inner-page and rich-text styles. Buttons have a 30px radius, with 52px / 18px type above 1600px and approximately 40px / 14px type below. The Submit accent is #fed42b, with #f5c400 on hover.
+Interface text and numeric tables use YS Text; descriptive editorial text uses Merriweather Light. Heading weight is 500, regular interface text is 400, serif text is 300. Standard H1 tracking is −0.008em on desktop and −0.004em on mobile. The GraphLand title on Home uses the same YS Text Medium with a fluid display size from 42px to 64px at the default root size, 1.06 line height, and −0.02em tracking on screen. Standard H1 is 48/48px, 40/40px, then 30/32.4px. Content H2 is 32px / 24px / 24px and H3 is 24px / 18px / 18px. Editorial lead and body copy use 22px / 17px / 15px at line-height 1.5. These heading and prose roles follow the reference's inner-page and rich-text styles. Buttons have a 30px radius, with 52px / 18px type above 1600px and approximately 40px / 14px type below. The Submit accent is #fed42b, with #f5c400 on hover.
 
 The five WOFF2 files and three SVG drawings are hosted locally under `assets/brand/`. Their source URLs, captured build and SHA-256 hashes are recorded in [provenance.json](assets/brand/provenance.json). HTML and CSS use relative URLs, including when served under `/graphland/`. Three critical font faces are preloaded; the remaining faces load on demand. Font declarations are paired with actual files for every used weight.
 

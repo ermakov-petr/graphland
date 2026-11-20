@@ -1486,9 +1486,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     h1_size, h1_line, lead_size, nav_size, h2_size = (
                         (48, 48, 22, 20, 32) if width > 1600 else
                         (40, 40, 17, 16, 24) if width >= 768 else (30, 32.4, 15, 16, 24))
+                    if marker == 'home':
+                        h1_size = min(64, max(42, 32 + width * .016))
+                        h1_line = h1_size * 1.06
                     self.assertAlmostEqual(styles['h1']['size'], h1_size, delta=.05)
                     self.assertAlmostEqual(styles['h1']['line'], h1_line, delta=.05)
                     self.assertEqual(styles['h1']['weight'], 500)
+                    self.assertIn('YSText', styles['h1']['family'])
                     self.assertAlmostEqual(styles['lead']['size'], lead_size, delta=.05)
                     self.assertIn('Merriweather', styles['lead']['family'])
                     self.assertTrue(styles['h2Renderable'], 'Compare rendered content headings, not visually hidden labels')
@@ -1504,12 +1508,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertGreater(active_rgb[0], normal_rgb[0])
                     self.assertLess(active_rgb[0], 255)
                     self.assertEqual(styles['leadMargin']['top'], '32px' if width > 1600 else '20px')
-                    parity = {key: styles[key] for key in ('h1', 'lead', 'h2', 'nav', 'activeNav', 'introPadding', 'leadMargin')}
+                    parity = {key: styles[key] for key in ('lead', 'h2', 'nav', 'activeNav', 'introPadding', 'leadMargin')}
+                    if marker != 'home':
+                        parity['h1'] = styles['h1']
                     if shared_styles is None:
                         shared_styles = parity
                     else:
                         for component, metrics in parity.items():
-                            self.assertEqual(metrics, shared_styles[component],
+                            self.assertEqual(metrics, shared_styles.setdefault(component, metrics),
                                              f'Shared {component} style differs on {path} at {width}px')
                     if marker == 'home':
                         self.assertEqual(self.page.locator('.dataset-catalog tbody tr').count(), 14)
@@ -2573,7 +2579,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_enlarged_text_keeps_navigation_and_page_titles_inside_viewport(self):
         for width in (320, 375, 560, 561):
-            for route in ('leaderboard.html', 'getting-started.html'):
+            for route in ('index.html', 'leaderboard.html', 'getting-started.html'):
                 with self.subTest(width=width, route=route):
                     self.page.set_viewport_size({'width': width, 'height': 900})
                     self.page.goto(self.base + route)
