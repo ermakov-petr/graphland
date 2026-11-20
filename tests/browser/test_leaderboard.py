@@ -554,18 +554,22 @@ class LeaderboardBrowserTests(unittest.TestCase):
         hint = self.page.locator('#catalog-scroll-hint')
         self.page.wait_for_function("!document.getElementById('catalog-scroll-hint').hidden")
         self.assertIn('catalog-scroll-hint', viewport.get_attribute('aria-describedby'))
+        self.assertTrue(self.page.get_by_text('AP is average precision and R² is the coefficient of determination.',
+                                            exact=False).is_visible())
+        hint_box = hint.bounding_box()
+        table_top = viewport.bounding_box()['y']
+        self.assertLessEqual(hint_box['y'] + hint_box['height'], table_top)
         label = self.page.locator('.dataset-catalog tbody th').first
         left = label.bounding_box()['x']
         viewport.focus()
         self.page.keyboard.press('ArrowRight')
         self.page.wait_for_function("document.querySelector('.catalog-scroll').scrollLeft > 0")
         self.assertAlmostEqual(label.bounding_box()['x'], left, delta=1)
-        viewport.evaluate('(el) => el.scrollLeft = el.scrollWidth')
-        self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
-        self.assertFalse(hint.is_visible())
-        self.assertNotIn('catalog-scroll-hint', (viewport.get_attribute('aria-describedby') or '').split())
-        viewport.evaluate('(el) => el.scrollLeft = 0')
-        self.page.wait_for_function("!document.getElementById('catalog-scroll-hint').hidden")
+        table_top = viewport.evaluate('el => el.getBoundingClientRect().top')
+        viewport.evaluate('el => el.scrollLeft = el.scrollWidth')
+        self.assertTrue(hint.is_visible())
+        self.assertIn('catalog-scroll-hint', viewport.get_attribute('aria-describedby'))
+        self.assertAlmostEqual(viewport.bounding_box()['y'], table_top, delta=1)
 
         citation = self.page.locator('#citation .code-block')
         self.assertTrue(citation.is_visible())
@@ -578,6 +582,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.set_viewport_size({'width': 1920, 'height': 900})
         self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
         self.assertTrue(viewport.evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'))
+        self.assertNotIn('catalog-scroll-hint', (viewport.get_attribute('aria-describedby') or '').split())
 
         self.page.set_viewport_size({'width': 1280, 'height': 900})
         description = self.page.locator('#citation .section-description')
@@ -867,6 +872,33 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator('#leaderboard-head .metadata-date').is_visible())
         self.assertEqual(self.page.locator('.table-scroll').evaluate('e => e.scrollLeft'), 0)
 
+    def test_mobile_can_restore_newest_first_without_changing_filters(self):
+        self.page.set_viewport_size({'width': 375, 'height': 800})
+        self.open('?task=all&setting=RH&q=Demo&code=1#leaderboard')
+        reset_sort = self.page.get_by_role('button', name='Newest submissions first')
+        self.assertFalse(reset_sort.is_visible())
+        self.page.locator('[data-sort-key="hm-categories"]').click()
+        names = self.page.locator('#leaderboard-body .model-button strong')
+        self.assertEqual(names.all_text_contents(), ['Demo Atlas GNN', 'Demo Beacon Transformer'])
+        self.assertTrue(reset_sort.is_visible())
+        reset_sort.press('Enter')
+        self.assertFalse(reset_sort.is_visible())
+        self.assertTrue(self.page.locator('.table-scroll').evaluate('el => el === document.activeElement'))
+        self.assertEqual(names.all_text_contents(), ['Demo Beacon Transformer', 'Demo Atlas GNN'])
+        self.assertEqual(self.page.evaluate('Object.fromEntries(new URL(location.href).searchParams)'), {
+            'task': 'all', 'setting': 'RH', 'q': 'Demo', 'code': '1',
+        })
+        self.assertEqual(self.page.evaluate('location.hash'), '#leaderboard')
+        self.assertEqual(self.page.locator('#model-search').input_value(), 'Demo')
+        self.assertTrue(self.page.locator('#code-filter').is_checked())
+
+        self.open('?task=all&setting=RH&q=Demo&code=1&sort=submitted_at&order=asc')
+        self.assertTrue(reset_sort.is_visible())
+        self.assertEqual(names.all_text_contents(), ['Demo Atlas GNN', 'Demo Beacon Transformer'])
+        self.page.set_viewport_size({'width': 1280, 'height': 900})
+        self.assertFalse(reset_sort.is_visible())
+        self.assertTrue(self.page.locator('#leaderboard-head .metadata-date').is_visible())
+
     def test_tabs_filters_dialog_deep_link_and_history(self):
         def close_and_wait(action):
             # Native close is queued after dialog.open becomes false. Await its
@@ -1056,6 +1088,32 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assert_dataset_tabs_fit()
         self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
         self.assertEqual(self.page.evaluate('scrollY'), 0)
+
+    def test_enlarged_dataset_tab_labels_wrap_only_between_words(self):
+        for width in (320, 375):
+            with self.subTest(width=width):
+                self.page.set_viewport_size({'width': width, 'height': 800})
+                self.open()
+                tabs = self.page.locator('#task-tabs [role="tab"]')
+                self.assertEqual(tabs.nth(0).bounding_box()['y'], tabs.nth(1).bounding_box()['y'])
+                self.page.evaluate('''() => {
+                    const elements = [document.querySelector('#task-tabs'), ...document.querySelectorAll('#task-tabs button')];
+                    const sizes = elements.map(el => parseFloat(getComputedStyle(el).fontSize));
+                    elements.forEach((el, index) => { el.style.fontSize = `${sizes[index] * 2}px`; });
+                }''')
+                self.page.add_style_tag(content='#task-tabs button {line-height:1.5;letter-spacing:.12em;word-spacing:.16em}')
+                self.assert_dataset_tabs_fit()
+                self.assertLess(tabs.nth(0).bounding_box()['y'], tabs.nth(1).bounding_box()['y'])
+                broken_words = tabs.evaluate_all(r'''buttons => buttons.flatMap(button => {
+                    const text = button.firstChild;
+                    const range = document.createRange();
+                    return Array.from(text.textContent.matchAll(/\S+/g), word => {
+                        range.setStart(text, word.index);
+                        range.setEnd(text, word.index + word[0].length);
+                        return range.getClientRects().length > 1 ? word[0] : null;
+                    }).filter(Boolean);
+                })''')
+                self.assertEqual(broken_words, [])
 
     def test_tablist_preserves_modified_keys(self):
         self.open()
@@ -1913,10 +1971,20 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_code_remains_usable_without_clipboard_or_javascript(self):
         self.page.add_init_script("Object.defineProperty(navigator,'clipboard',{value:undefined})")
+        self.page.set_viewport_size({'width': 320, 'height': 800})
         self.page.goto(self.base + 'getting-started.html')
         self.assertEqual(self.page.locator('.copy-code').count(), 0)
         expected = self.page.locator('.code-block code').all_text_contents()
         self.assertEqual(len(expected), 3)
+        for block in self.page.locator('.code-block').all():
+            hint = block.locator('xpath=preceding-sibling::*[1]')
+            hint.wait_for(state='visible')
+            self.assertEqual(hint.inner_text(), 'Scroll horizontally to see the full code.')
+            self.assertEqual(block.get_attribute('aria-describedby'), hint.get_attribute('id'))
+        self.page.set_viewport_size({'width': 1280, 'height': 900})
+        for hint in self.page.locator('.code-scroll-hint').all():
+            hint.wait_for(state='hidden')
+        self.assertEqual(self.page.locator('.code-block[aria-describedby]').count(), 0)
         no_js = self.browser.new_page(java_script_enabled=False)
         try:
             no_js.goto(self.base + 'getting-started.html')

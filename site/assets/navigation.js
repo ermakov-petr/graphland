@@ -32,28 +32,31 @@
     }
   }
 
-  function initializeCatalogScrollHint() {
-    const viewport = document.querySelector('.catalog-scroll');
-    const hint = document.getElementById('catalog-scroll-hint');
-    if (!viewport || !hint) return;
+  function initializeOverflowHint(viewport, hint, content) {
     function update() {
-      const remaining = viewport.scrollWidth - viewport.clientWidth - viewport.scrollLeft;
-      hint.hidden = remaining <= 2;
+      // Keep the hint in place during horizontal scrolling so the content
+      // below it does not move vertically when the user reaches either end.
+      hint.hidden = viewport.scrollWidth <= viewport.clientWidth + 2;
       const descriptions = new Set((viewport.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
       if (hint.hidden) descriptions.delete(hint.id);
       else descriptions.add(hint.id);
       if (descriptions.size) viewport.setAttribute('aria-describedby', [...descriptions].join(' '));
       else viewport.removeAttribute('aria-describedby');
     }
-    viewport.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
     if (window.ResizeObserver) {
       const observer = new ResizeObserver(update);
       observer.observe(viewport);
-      observer.observe(viewport.querySelector('table'));
+      if (content) observer.observe(content);
     }
     if (document.fonts) document.fonts.ready.then(update);
     update();
+  }
+
+  function initializeCatalogScrollHint() {
+    const viewport = document.querySelector('.catalog-scroll');
+    const hint = document.getElementById('catalog-scroll-hint');
+    if (viewport && hint) initializeOverflowHint(viewport, hint, viewport.querySelector('table'));
   }
 
   function initializeHorizontalKeyboardScroll() {
@@ -148,6 +151,7 @@
     initializeHorizontalKeyboardScroll();
     initializeTableFocusScroll();
     initializeCodeCopy();
+    initializeCodeScrollHints();
     const navigation = document.querySelector('.project-navigation');
     if (navigation && window.ResizeObserver) {
       const observer = new ResizeObserver(revealCurrentSection);
@@ -200,6 +204,19 @@
           button.removeAttribute('aria-disabled');
         }
       });
+    });
+  }
+
+  function initializeCodeScrollHints() {
+    if (document.body?.dataset.page !== 'getting-started') return;
+    document.querySelectorAll('.code-block').forEach((block, index) => {
+      const hint = document.createElement('p');
+      hint.id = `code-scroll-hint-${index + 1}`;
+      hint.className = 'section-note code-scroll-hint';
+      hint.textContent = 'Scroll horizontally to see the full code.';
+      hint.hidden = true;
+      (block.closest('.code-example') || block).before(hint);
+      initializeOverflowHint(block, hint, block.querySelector('code'));
     });
   }
 

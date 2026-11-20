@@ -504,7 +504,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-.reset-filters {
+.text-button {
   flex: 0 0 auto;
   min-height: 44px;
   padding: 6px 0;
@@ -518,7 +518,7 @@ button {
   cursor: pointer;
 }
 
-.reset-filters:hover {
+.text-button:hover {
   color: var(--gray-700);
 }
 
@@ -1256,7 +1256,8 @@ button:disabled {
 
   .tabs-secondary {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Use one column when enlarged labels need more room. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8em, calc((100% - 16px) / 2))), 1fr));
     column-gap: 16px;
     justify-items: start;
   }
@@ -1566,6 +1567,7 @@ button:disabled {
 .project-resources li { padding-block: 18px; border-bottom: 1px solid var(--gray-200); }
 .project-resources .text-link { margin-top: 0; font-size: var(--resource-size); font-weight: 400; }
 .text-link:hover { color: var(--gray-700); }
+#catalog-scroll-hint { margin: 0 0 8px; text-align: start; }
 .catalog-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--black); border-bottom: 1px solid var(--gray-200); scrollbar-color: var(--gray-300) transparent; }
 .dataset-catalog { min-width: 1000px; }
 .dataset-catalog th, .dataset-catalog td { text-align: left; }
@@ -1582,11 +1584,15 @@ button:disabled {
 .dataset-tags { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 18px; }
 .dataset-tags a { display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; color: var(--gray-700); text-decoration: underline; text-underline-offset: 3px; }
 .dataset-tags a:hover { color: var(--black); }
+.dataset-license { white-space: nowrap; }
 .code-block { max-width: var(--code-width); margin: 20px 0; padding: 24px; overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 0; background: var(--gray-100); font-size: 14px; line-height: 1.7; tab-size: 4; }
 .code-block code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: inherit; }
 .code-example { max-width: var(--code-width); margin: 20px 0; border: 1px solid var(--gray-200); background: var(--gray-100); }
 .code-example .code-block { margin: 0; border: 0; padding-top: 8px; }
 .code-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 4px 24px 0; }
+@media screen {
+  .code-scroll-hint:not([hidden]) + :is(.code-example, .code-block) { margin-top: 8px; }
+}
 .copy-code { flex: 0 0 auto; min-height: 44px; border: 0; padding: 8px 0; background: transparent; color: var(--black); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .copy-code:hover { color: var(--gray-700); }
 .copy-code[aria-disabled="true"] { color: var(--gray-700); cursor: wait; }
