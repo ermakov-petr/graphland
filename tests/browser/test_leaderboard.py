@@ -1704,13 +1704,17 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.page.evaluate('document.fonts.ready')
             links = self.page.locator('.dataset-index a')
             self.assertEqual(links.count(), 9)
+            self.assertEqual(links.all_text_contents(), [
+                'web-fraud, web-topics, web-traffic', 'artnet-views, artnet-exp',
+                'city-roads-m, city-roads-l', 'city-reviews', 'avazu-ctr',
+                'hm-categories, hm-prices', 'pokec-regions', 'twitch-views', 'tolokers-2',
+            ])
             for link in links.all():
                 bounds = link.bounding_box()
                 self.assertGreaterEqual(bounds['height'], 44)
                 self.assertGreaterEqual(bounds['x'], 0)
                 self.assertLessEqual(bounds['x'] + bounds['width'], width)
-                self.assertTrue(link.get_attribute('aria-label').startswith(link.inner_text()))
-            target = self.page.locator('.dataset-index a[href="#hm"]')
+            target = self.page.get_by_role('link', name='hm-categories, hm-prices', exact=True)
             target.focus()
             self.page.keyboard.press('Enter')
             self.page.wait_for_url('**/datasets.html#hm')
