@@ -380,15 +380,17 @@ button {
   color: var(--black);
 }
 
-.task-control {
-  overflow-x: auto;
-  scrollbar-width: thin;
+.tabs-secondary {
+  width: 100%;
+  flex-wrap: wrap;
+  row-gap: 0;
 }
 
-.tabs-secondary {
-  width: max-content;
-  min-width: 100%;
-  max-width: none;
+.tabs-secondary button {
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .filter-row {
@@ -1299,13 +1301,10 @@ button:disabled {
   }
 
   .tabs-secondary {
-    width: max-content;
-    min-width: 100%;
-  }
-
-  .task-control {
-    overflow-x: auto;
-    scrollbar-width: thin;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    justify-items: start;
   }
 
   .filter-row {
@@ -1610,6 +1609,7 @@ button:disabled {
 .page-section { margin-top: var(--section-spacing); }
 .page-section > h2,
 .dataset-description > h2 {
+  overflow-wrap: anywhere;
   margin-bottom: 20px;
   font-family: var(--font-sans);
   font-size: var(--section-heading-size);

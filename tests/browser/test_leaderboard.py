@@ -987,16 +987,32 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     'tab_order': 'skip link → logo → project page links → Submit', 'logo_focus_outline': outline,
                     'focused_content_id': 'model-search', 'content_inert': False})
 
-    def test_selected_task_is_visible_on_deep_links_history_and_resize(self):
+    def assert_dataset_tabs_fit(self):
+        group = self.page.locator('.task-control').bounding_box()
+        for tab in self.page.locator('#task-tabs [role="tab"]').all():
+            bounds = tab.bounding_box()
+            self.assertIsNotNone(bounds)
+            self.assertGreaterEqual(bounds['x'], group['x'] - 1, tab.inner_text())
+            self.assertLessEqual(bounds['x'] + bounds['width'], group['x'] + group['width'] + 1,
+                                 tab.inner_text())
+
+    def test_all_dataset_tabs_stay_visible_on_narrow_screens_and_deep_links(self):
         for width in (320, 375, 560, 767, 768):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 800})
+                self.open()
+                tabs = self.page.get_by_role('tablist', name='Datasets').get_by_role('tab')
+                self.assertEqual(tabs.all_text_contents(), [
+                    'All datasets', 'Binary node classification',
+                    'Multiclass node classification', 'Node regression',
+                ])
+                self.assertEqual(tabs.nth(2).get_attribute('aria-selected'), 'true')
+                self.assert_dataset_tabs_fit()
+                self.assertEqual(self.page.evaluate('scrollY'), 0)
+
                 self.open('?task=node_regression')
-                self.page.wait_for_function('''()=>{
-                    const tab=document.querySelector('#task-tabs [aria-selected="true"]').getBoundingClientRect();
-                    const view=document.querySelector('.task-control').getBoundingClientRect();
-                    return tab.left>=view.left-1&&tab.right<=view.right+1;
-                }''')
+                self.assert_dataset_tabs_fit()
+                self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
                 self.assertEqual(self.page.evaluate('scrollY'), 0)
                 self.page.locator('#task-tab-node_regression').focus()
                 self.page.keyboard.press('Home')
@@ -1005,36 +1021,22 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
                 self.page.go_back()
                 self.page.wait_for_function("document.querySelector('#task-tab-all').getAttribute('aria-selected')==='true'")
-                self.page.wait_for_function("document.querySelector('.task-control').scrollLeft<1")
+                self.assert_dataset_tabs_fit()
         self.page.set_viewport_size({'width': 1920, 'height': 900})
         self.open('?task=node_regression')
         self.page.set_viewport_size({'width': 320, 'height': 800})
-        self.page.wait_for_function('''()=>{
-            const t=document.querySelector('#task-tab-node_regression').getBoundingClientRect(),v=document.querySelector('.task-control').getBoundingClientRect();
-            return t.left>=v.left-1&&t.right<=v.right+1;
-        }''')
+        self.assert_dataset_tabs_fit()
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
-    def test_selected_task_remains_visible_after_text_spacing_changes(self):
+    def test_dataset_tabs_remain_visible_after_text_spacing_changes(self):
         self.page.set_viewport_size({'width': 320, 'height': 800})
         self.open('?task=node_regression')
         self.page.add_style_tag(content='''
             * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
             p { margin-bottom: 2em !important; }
         ''')
-        # Let the new styles and ResizeObserver delivery settle before inspecting selection.
-        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.page.wait_for_function('''()=>{
-            const tab=document.querySelector('#task-tab-node_regression').getBoundingClientRect();
-            const view=document.querySelector('.task-control').getBoundingClientRect();
-            return tab.left>=view.left-1&&tab.right<=view.right+1;
-        }''')
-        self.assertEqual(self.page.evaluate('scrollY'), 0)
+        self.assert_dataset_tabs_fit()
         self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
-        # Looking back through other tasks must not snap to the selected one.
-        self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft=0')
-        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.assertEqual(self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft'), 0)
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
     def test_tablist_preserves_modified_keys(self):
@@ -2566,7 +2568,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 else:self.assertGreater(viewport.evaluate('(e)=>e.scrollLeft'),500)
                 self.page.unroute('**/assets/brand/ys-text-medium.woff2')
 
-    def test_loading_task_strip_scrolls_by_keyboard_and_focus_moves_to_ready_tab(self):
+    def test_loading_task_group_is_keyboard_reachable_and_focus_moves_to_ready_tab(self):
         pending=[]
         self.page.set_viewport_size({'width':375,'height':800})
         self.page.emulate_media(reduced_motion='reduce')
@@ -2581,11 +2583,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.keyboard.press('Tab')
         region=self.page.locator('.task-control')
         self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
-        region.evaluate('(e)=>e.scrollLeft=0')
-        url=self.page.url
-        self.page.keyboard.press('ArrowRight')
-        self.assertGreater(region.evaluate('(e)=>e.scrollLeft'), 0)
-        self.assertEqual(self.page.url,url)
+        self.assert_dataset_tabs_fit()
         pending[0].fulfill(json=self.payload)
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
         self.assertEqual(self.page.evaluate('document.activeElement.id'),'task-tab-node_regression')

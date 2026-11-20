@@ -38,7 +38,7 @@
   function cacheElements() {
     elements.settingTabs = document.getElementById("setting-tabs");
     elements.taskTabs = document.getElementById("task-tabs");
-    elements.taskViewport = elements.taskTabs.parentElement;
+    elements.taskGroup = elements.taskTabs.parentElement;
     elements.search = document.getElementById("model-search");
     elements.codeFilter = document.getElementById("code-filter");
     elements.filterFeedback = document.getElementById("filter-feedback");
@@ -342,18 +342,6 @@
       "aria-labelledby",
       `task-tab-${state.task} setting-tab-${state.setting}`,
     );
-    revealActiveTask();
-  }
-
-  function revealActiveTask() {
-    const selected = elements.taskTabs.querySelector('[aria-selected="true"]');
-    if (!selected) return;
-    const viewport = elements.taskTabs.parentElement;
-    const bounds = viewport.getBoundingClientRect();
-    const tab = selected.getBoundingClientRect();
-    // Change only horizontal scroll: deep links must not jump down the page.
-    if (tab.left < bounds.left) viewport.scrollLeft += tab.left - bounds.left;
-    else if (tab.right > bounds.right) viewport.scrollLeft += tab.right - bounds.right;
   }
 
   function updateMetricNote() {
@@ -1055,14 +1043,6 @@
   function bindControls() {
     bindTablist(elements.settingTabs, "setting", activateSetting);
     bindTablist(elements.taskTabs, "task", activateTask);
-    window.addEventListener('resize', revealActiveTask, { passive: true });
-    if (document.fonts) document.fonts.ready.then(revealActiveTask);
-    // User text-spacing or font overrides can resize the strip without a window
-    // resize. Observe its size, not scrolling, so manual browsing remains free.
-    if (typeof ResizeObserver === 'function') {
-      const taskSizeObserver = new ResizeObserver(revealActiveTask);
-      taskSizeObserver.observe(elements.taskTabs);
-    }
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
       renderTable();
@@ -1136,13 +1116,13 @@
     state.loading = loading;
     elements.panel.setAttribute("aria-busy", String(loading));
     elements.metricNote.hidden = !state.loaded;
-    const taskRegionHadFocus = document.activeElement === elements.taskViewport;
+    const taskGroupHadFocus = document.activeElement === elements.taskGroup;
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
       elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
-    // Disabled tabs cannot make their overflow region keyboard-accessible.
-    // Keep that region readable while waiting, then restore the selected tab.
-    elements.taskViewport.tabIndex = loading || !state.loaded ? 0 : -1;
-    if (!loading && state.loaded && taskRegionHadFocus) {
+    // Keep the group reachable while its tabs are disabled, then move focus
+    // to the selected tab if the reader is still on the group.
+    elements.taskGroup.tabIndex = loading || !state.loaded ? 0 : -1;
+    if (!loading && state.loaded && taskGroupHadFocus) {
       elements.taskTabs.querySelector('[aria-selected="true"]').focus({ preventScroll: true });
     }
     // Keep the retry target focused while its request is pending. The loading
