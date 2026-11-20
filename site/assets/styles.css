@@ -380,25 +380,7 @@ button {
   color: var(--black);
 }
 
-.setting-summary {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  min-height: 44px;
-  margin-top: 16px;
-  padding: 0;
-  color: var(--gray-700);
-  font-size: 14px;
-}
-
-.setting-summary .setting-name {
-  flex: 0 0 auto;
-  color: var(--black);
-  font-weight: 500;
-}
-
 .task-control {
-  margin-top: 8px;
   overflow-x: auto;
   scrollbar-width: thin;
 }
@@ -1384,12 +1366,6 @@ button:disabled {
 
   .hero-actions .button {
     width: 100%;
-  }
-
-  .setting-summary {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
   }
 
   .tabs-primary {

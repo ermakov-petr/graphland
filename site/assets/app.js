@@ -2,20 +2,20 @@
   "use strict";
 
   const SETTING_IDS = ["RL", "RH", "TH", "THI"];
+  const DEFAULT_TASK = "multiclass_node_classification";
   const TASK_IDS = [
-    "multiclass_node_classification",
-    "binary_node_classification",
-    "node_regression",
     "all",
+    "binary_node_classification",
+    DEFAULT_TASK,
+    "node_regression",
   ];
 
   const state = {
     payload: null,
     datasetsById: new Map(),
-    settingsById: new Map(),
     tasksById: new Map(),
     setting: "RL",
-    task: "multiclass_node_classification",
+    task: DEFAULT_TASK,
     search: "",
     codeOnly: false,
     sortKey: "model",
@@ -38,7 +38,6 @@
     elements.settingTabs = document.getElementById("setting-tabs");
     elements.taskTabs = document.getElementById("task-tabs");
     elements.taskViewport = elements.taskTabs.parentElement;
-    elements.settingDescription = document.getElementById("setting-description");
     elements.search = document.getElementById("model-search");
     elements.codeFilter = document.getElementById("code-filter");
     elements.filterFeedback = document.getElementById("filter-feedback");
@@ -239,7 +238,7 @@
     const setting = params.get("setting");
     const task = params.get("task");
     state.setting = SETTING_IDS.includes(setting) ? setting : "RL";
-    state.task = TASK_IDS.includes(task) ? task : TASK_IDS[0];
+    state.task = TASK_IDS.includes(task) ? task : DEFAULT_TASK;
     state.search = (params.get("q") || "").slice(0, 200);
     state.queryCodeExplicit = ["0", "1"].includes(params.get("code"));
     state.codeOnly = state.queryCodeExplicit ? params.get("code") === "1" : Boolean(state.payload?.config?.default_filters?.only_models_with_code);
@@ -318,7 +317,7 @@
     });
     elements.panel.setAttribute(
       "aria-labelledby",
-      `setting-tab-${state.setting} task-tab-${state.task}`,
+      `task-tab-${state.task} setting-tab-${state.setting}`,
     );
     revealActiveTask();
   }
@@ -332,18 +331,6 @@
     // Change only horizontal scroll: deep links must not jump down the page.
     if (tab.left < bounds.left) viewport.scrollLeft += tab.left - bounds.left;
     else if (tab.right > bounds.right) viewport.scrollLeft += tab.right - bounds.right;
-  }
-
-  function updateSettingDescription() {
-    const setting = state.settingsById.get(state.setting);
-    elements.settingDescription.replaceChildren();
-    if (!setting) {
-      return;
-    }
-    const access = setting.information_access === "inductive" ? "Inductive" : "Transductive";
-    const name = createElement("span", "setting-name", `${setting.name} · ${access}`);
-    const description = createElement("span", null, setting.description);
-    elements.settingDescription.append(name, description);
   }
 
   function updateMetricNote() {
@@ -750,7 +737,6 @@
     elements.search.value = state.search;
     elements.codeFilter.checked = state.codeOnly;
     setActiveTabs();
-    updateSettingDescription();
     updateMetricNote();
     renderTable();
     syncDialogWithUrl();
@@ -1185,7 +1171,6 @@
     try {
       state.payload = await loadData();
       state.datasetsById = new Map(state.payload.datasets.map((dataset) => [dataset.id, dataset]));
-      state.settingsById = new Map(state.payload.config.settings.map((setting) => [setting.id, setting]));
       state.tasksById = new Map(state.payload.config.task_families.map((task) => [task.id, task]));
       state.loaded = true;
       readQueryState();
@@ -1255,7 +1240,6 @@
     cacheElements();
     readQueryState();
     setActiveTabs();
-    updateSettingDescription();
     bindControls();
     bindTableHint();
     bindDialog();

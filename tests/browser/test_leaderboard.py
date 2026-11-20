@@ -773,6 +773,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
                 self.assertEqual(self.page.locator('#task-tab-binary_node_classification').get_attribute('aria-selected'), 'true')
                 self.page.keyboard.press('Tab')
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'task-tab-binary_node_classification')
+                self.page.keyboard.press('Tab')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'setting-tab-RH')
                 self.brand_observations.append({'check': 'view_results_anchor', 'width': width,
                                                 'focused_controls_id': 'leaderboard-controls',
@@ -939,33 +941,33 @@ class LeaderboardBrowserTests(unittest.TestCase):
         for width in (320, 375, 560, 767, 768):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 800})
-                self.open('?task=all')
+                self.open('?task=node_regression')
                 self.page.wait_for_function('''()=>{
                     const tab=document.querySelector('#task-tabs [aria-selected="true"]').getBoundingClientRect();
                     const view=document.querySelector('.task-control').getBoundingClientRect();
                     return tab.left>=view.left-1&&tab.right<=view.right+1;
                 }''')
                 self.assertEqual(self.page.evaluate('scrollY'), 0)
-                self.page.locator('#task-tab-all').focus()
+                self.page.locator('#task-tab-node_regression').focus()
                 self.page.keyboard.press('Home')
-                self.assertEqual(self.page.locator('#task-tab-multiclass_node_classification').get_attribute('aria-selected'), 'true')
-                self.page.keyboard.press('End')
                 self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
+                self.page.keyboard.press('End')
+                self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
                 self.page.go_back()
-                self.page.wait_for_function("document.querySelector('#task-tab-multiclass_node_classification').getAttribute('aria-selected')==='true'")
+                self.page.wait_for_function("document.querySelector('#task-tab-all').getAttribute('aria-selected')==='true'")
                 self.page.wait_for_function("document.querySelector('.task-control').scrollLeft<1")
         self.page.set_viewport_size({'width': 1920, 'height': 900})
-        self.open('?task=all')
+        self.open('?task=node_regression')
         self.page.set_viewport_size({'width': 320, 'height': 800})
         self.page.wait_for_function('''()=>{
-            const t=document.querySelector('#task-tab-all').getBoundingClientRect(),v=document.querySelector('.task-control').getBoundingClientRect();
+            const t=document.querySelector('#task-tab-node_regression').getBoundingClientRect(),v=document.querySelector('.task-control').getBoundingClientRect();
             return t.left>=v.left-1&&t.right<=v.right+1;
         }''')
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
     def test_selected_task_remains_visible_after_text_spacing_changes(self):
         self.page.set_viewport_size({'width': 320, 'height': 800})
-        self.open('?task=all')
+        self.open('?task=node_regression')
         self.page.add_style_tag(content='''
             * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
             p { margin-bottom: 2em !important; }
@@ -973,12 +975,12 @@ class LeaderboardBrowserTests(unittest.TestCase):
         # Let the new styles and ResizeObserver delivery settle before inspecting selection.
         self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
         self.page.wait_for_function('''()=>{
-            const tab=document.querySelector('#task-tab-all').getBoundingClientRect();
+            const tab=document.querySelector('#task-tab-node_regression').getBoundingClientRect();
             const view=document.querySelector('.task-control').getBoundingClientRect();
             return tab.left>=view.left-1&&tab.right<=view.right+1;
         }''')
         self.assertEqual(self.page.evaluate('scrollY'), 0)
-        self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
+        self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
         # Looking back through other tasks must not snap to the selected one.
         self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft=0')
         self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
@@ -2279,7 +2281,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
     def test_held_tab_navigation_uses_one_history_entry_and_restores_final_selection(self):
         for selector, parameter, initial, final, repetitions in (
             ('#setting-tabs', 'setting', 'RL', 'THI', 19),
-            ('#task-tabs', 'task', 'multiclass_node_classification', 'all', 7),
+            ('#task-tabs', 'task', 'multiclass_node_classification', 'all', 6),
         ):
             with self.subTest(parameter=parameter):
                 self.open()
@@ -2509,7 +2511,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
         self.page.evaluate('document.fonts.ready')
         self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.assertEqual(self.page.locator('#setting-description').inner_text(), '')
         self.assertFalse(self.page.locator('#metric-note').is_visible())
         self.assertTrue(self.page.locator('#task-tab-node_regression').is_disabled())
         self.page.locator('#leaderboard-controls').focus()
@@ -2541,7 +2542,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
         self.assertEqual(region.get_attribute('tabindex'),'0')
         self.assertFalse(self.page.locator('#metric-note').is_visible())
-        self.assertEqual(self.page.locator('#setting-description').inner_text(),'')
         self.page.keyboard.press('Tab')
         self.assertTrue(self.page.locator(':focus').is_visible())
         self.assertTrue(self.page.locator(':focus').is_enabled())
