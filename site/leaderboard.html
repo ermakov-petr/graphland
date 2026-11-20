@@ -153,42 +153,40 @@
         </dl>
     </section>
 
-    <section class="shell page-section protocol-section" aria-labelledby="protocol-title">
-      <details class="protocol-disclosure"><summary id="protocol-title">Benchmark protocol</summary>
-        <span class="protocol-anchor" id="protocol"></span>
-        <div class="protocol-grid">
-          <article>
-            <span class="protocol-code">RL</span>
-            <h3>Random Low</h3>
-            <p>Random stratified split with 10% train, 10% validation, and 80% test nodes. The full graph is available transductively.</p>
-            <span class="protocol-file">split_masks_RL.csv</span>
-          </article>
-          <article>
-            <span class="protocol-code">RH</span>
-            <h3>Random High</h3>
-            <p>Random stratified split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
-            <span class="protocol-file">split_masks_RH.csv</span>
-          </article>
-          <article>
-            <span class="protocol-code">TH</span>
-            <h3>Temporal High</h3>
-            <p>Temporal split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
-            <span class="protocol-file">split_masks_TH.csv</span>
-          </article>
-          <article class="protocol-highlight">
-            <span class="protocol-code">THI</span>
-            <h3>Temporal High · Inductive</h3>
-            <p>Uses the TH temporal split. Train sees train nodes only; validation adds validation nodes; test uses the full graph snapshot.</p>
-            <span class="protocol-file">split_masks_TH.csv · no THI file</span>
-          </article>
-        </div>
+    <section class="shell page-section protocol-section" id="protocol" aria-labelledby="protocol-title">
+      <h2 id="protocol-title">Benchmark protocol</h2>
+      <div class="protocol-grid">
+        <article>
+          <span class="protocol-code">RL</span>
+          <h3>Random Low</h3>
+          <p>Random stratified split with 10% train, 10% validation, and 80% test nodes. The full graph is available transductively.</p>
+          <span class="protocol-file">split_masks_RL.csv</span>
+        </article>
+        <article>
+          <span class="protocol-code">RH</span>
+          <h3>Random High</h3>
+          <p>Random stratified split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
+          <span class="protocol-file">split_masks_RH.csv</span>
+        </article>
+        <article>
+          <span class="protocol-code">TH</span>
+          <h3>Temporal High</h3>
+          <p>Temporal split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
+          <span class="protocol-file">split_masks_TH.csv</span>
+        </article>
+        <article class="protocol-highlight">
+          <span class="protocol-code">THI</span>
+          <h3>Temporal High · Inductive</h3>
+          <p>Uses the TH temporal split. Train sees train nodes only; validation adds validation nodes; test uses the full graph snapshot.</p>
+          <span class="protocol-file">split_masks_TH.csv · no THI file</span>
+        </article>
+      </div>
 
-        <div class="article-copy protocol-callout">
-          <strong>TH and THI use the same temporal split.</strong>
-          <p>They differ only in information access. In THI, validation and test nodes and their incident edges are removed from the training graph, and test nodes and their incident edges are removed from the validation graph.</p>
-          <p>THI preprocessing is fitted on training data only, then applied to validation and test snapshots. This includes categorical encoders, feature transforms, imputers, and regression-target transforms. <a class="text-link" href="https://github.com/ermakov-petr/graphland/blob/main/leaderboard/README.md#experimental-settings">Read the complete protocol</a>.</p>
-        </div>
-      </details>
+      <div class="article-copy protocol-callout">
+        <strong>TH and THI use the same temporal split.</strong>
+        <p>They differ only in information access. In THI, validation and test nodes and their incident edges are removed from the training graph, and test nodes and their incident edges are removed from the validation graph.</p>
+        <p>THI preprocessing is fitted on training data only, then applied to validation and test snapshots. This includes categorical encoders, feature transforms, imputers, and regression-target transforms. <a class="text-link" href="https://github.com/ermakov-petr/graphland/blob/main/leaderboard/README.md#experimental-settings">Read the complete protocol</a>.</p>
+      </div>
     </section>
 
     <section class="shell page-section submit-section" id="submit" aria-labelledby="submit-title">

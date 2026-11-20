@@ -546,7 +546,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(self.page.locator('.dataset-catalog').inner_text(), original)
             self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
 
-    def test_catalog_scroll_and_native_disclosures_work_with_keyboard(self):
+    def test_catalog_scroll_and_citation_disclosure_work_with_keyboard(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.page.goto(self.base)
         self.page.evaluate('document.fonts.ready')
@@ -569,16 +569,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.set_viewport_size({'width': 1920, 'height': 900})
         self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
         self.assertTrue(viewport.evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'))
-        for route, selector in (('', '.citation-disclosure'), ('leaderboard.html', '.protocol-disclosure')):
-            self.page.goto(self.base + route)
-            disclosure = self.page.locator(selector)
-            summary = disclosure.locator('summary')
-            summary.focus()
-            self.page.keyboard.press('Enter')
-            self.assertIsNotNone(disclosure.get_attribute('open'))
-            self.page.keyboard.press('Space')
-            self.assertIsNone(disclosure.get_attribute('open'))
-            self.assertEqual(summary.evaluate('(el) => document.activeElement === el'), True)
+        disclosure = self.page.locator('.citation-disclosure')
+        summary = disclosure.locator('summary')
+        summary.focus()
+        self.page.keyboard.press('Enter')
+        self.assertIsNotNone(disclosure.get_attribute('open'))
+        self.page.keyboard.press('Space')
+        self.assertIsNone(disclosure.get_attribute('open'))
+        self.assertTrue(summary.evaluate('(el) => document.activeElement === el'))
 
     def test_legacy_section_fragments_redirect_without_losing_state(self):
         for fragment in ('protocol', 'submit', 'model-search'):
@@ -590,7 +588,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertTrue(self.page.url.endswith(query + '#' + fragment))
                     self.assertEqual(self.page.locator('#' + fragment).count(), 1)
                     if fragment == 'protocol':
-                        self.assertIsNotNone(self.page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.assertTrue(self.page.locator('#protocol .protocol-grid').is_visible())
                         self.page.wait_for_function('''()=>{
                             const target=document.querySelector('#protocol-title').getBoundingClientRect();
                             const header=document.querySelector('.site-header').getBoundingClientRect();
@@ -599,7 +597,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.goto(self.base + '#main-content')
         self.assertEqual(self.page.locator('body').get_attribute('data-page'), 'home')
 
-    def test_protocol_links_reveal_content_without_javascript_or_extra_history(self):
+    def test_protocol_is_visible_on_screen_and_in_print_with_native_fragment_links(self):
         for javascript in (True, False):
             for width in (375, 1280):
                 with self.subTest(javascript=javascript, width=width):
@@ -607,26 +605,32 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                                  viewport={'width': width, 'height': 900}, reduced_motion='reduce')
                     try:
                         page.goto(self.base + 'leaderboard.html')
-                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        page.goto(self.base + 'leaderboard.html#protocol')
                         page.evaluate('document.fonts.ready')
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        summary = page.locator('#protocol-title')
-                        header = page.locator('.site-header').bounding_box()
-                        self.assertGreaterEqual(summary.bounding_box()['y'], header['y'] + header['height'] - 1)
-                        self.assertLess(summary.bounding_box()['y'], 200)
-                        summary.focus()
-                        page.keyboard.press('Space')
-                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        if javascript:
+                            page.wait_for_function("document.getElementById('leaderboard-panel').getAttribute('aria-busy') === 'false'")
+                        protocol = page.get_by_role('region', name='Benchmark protocol', exact=True)
+                        heading = protocol.get_by_role('heading', name='Benchmark protocol', level=2, exact=True)
+                        cards = protocol.locator('.protocol-grid article')
+                        self.assertTrue(heading.is_visible())
+                        self.assertEqual(cards.count(), 4)
+                        self.assertTrue(all(card.is_visible() for card in cards.all()))
                         history_length = page.evaluate('history.length')
-                        page.locator('.footer-links a[href="#protocol"]').focus()
-                        page.keyboard.press('Enter')
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        self.assertEqual(page.evaluate('history.length'), history_length)
+                        footer_link = page.locator('.footer-links a[href="#protocol"]')
+                        footer_link.press('Enter')
+                        self.assertTrue(page.url.endswith('#protocol'))
+                        header = page.locator('.site-header').bounding_box()
+                        self.assertGreaterEqual(heading.bounding_box()['y'], header['y'] + header['height'] - 1)
+                        self.assertLess(heading.bounding_box()['y'], 200)
+                        self.assertEqual(page.evaluate('history.length'), history_length + 1)
+                        footer_link.press('Enter')
+                        self.assertEqual(page.evaluate('history.length'), history_length + 1)
                         page.locator('.footer-links a[href="#submit"]').click()
                         page.go_back()
                         self.assertTrue(page.url.endswith('#protocol'))
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.assertTrue(heading.is_visible())
+                        page.emulate_media(media='print')
+                        self.assertTrue(heading.is_visible())
+                        self.assertTrue(all(card.is_visible() for card in cards.all()))
                     finally:
                         page.close()
 
@@ -657,10 +661,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     page.evaluate('document.fonts.ready')
                     page.wait_for_timeout(800)
                     header = page.locator('.site-header').bounding_box()
-                    summary = page.locator('#protocol-title').bounding_box()
-                    self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                    self.assertGreaterEqual(summary['y'], header['y'] + header['height'] - 1)
-                    self.assertLess(summary['y'], 200)
+                    heading = page.locator('#protocol-title').bounding_box()
+                    self.assertGreaterEqual(heading['y'], header['y'] + header['height'] - 1)
+                    self.assertLess(heading['y'], 200)
                 finally:
                     page.close()
 
@@ -1614,7 +1617,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 focus = self.page.locator(download).evaluate('(el)=>getComputedStyle(el).outlineStyle')
                 self.assertNotEqual(focus, 'none')
                 self.page.mouse.move(0, 0)
-                self.page.locator('.protocol-disclosure > summary').click()
                 for selector in ('.legend-list dd', '.protocol-grid p', '.protocol-callout p', '.steps-list p'):
                     actual = style(selector)
                     for key in ('family', 'size', 'weight', 'line', 'color'):

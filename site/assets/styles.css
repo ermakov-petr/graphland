@@ -1634,9 +1634,7 @@ button:disabled {
 .dataset-index a { display: flex; align-items: center; min-width: 0; min-height: 44px; padding-block: 12px; border-bottom: 1px solid var(--gray-200); font-size: var(--resource-size); line-height: 1.4; overflow-wrap: anywhere; }
 .dataset-index a:hover { color: var(--gray-700); }
 .dataset-description { position: relative; border-top: 1px solid var(--black); padding-block: 28px; }
-.dataset-anchor,
-.protocol-anchor { display: block; position: absolute; top: 0; }
-.protocol-section { position: relative; }
+.dataset-anchor { display: block; position: absolute; top: 0; }
 .dataset-tags { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-top: 18px; }
 .dataset-tags a { display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; color: var(--gray-700); text-decoration: underline; text-underline-offset: 3px; }
 .dataset-tags a:hover { color: var(--black); }
@@ -1656,13 +1654,13 @@ button:disabled {
 .guide-notes { max-width: var(--reading-width); padding-left: 22px; }
 .project-page p > code, .guide-notes li > code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; overflow-wrap: anywhere; }
 .guide-notes li { margin-bottom: 16px; }
-.protocol-disclosure, .citation-disclosure { border-top: 1px solid var(--black); border-bottom: 1px solid var(--gray-200); }
-.protocol-disclosure > summary, .citation-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; cursor: pointer; padding-block: 16px; list-style: none; font-size: var(--subheading-size); font-weight: 500; }
-.protocol-disclosure > summary::-webkit-details-marker, .citation-disclosure > summary::-webkit-details-marker { display: none; }
-.protocol-disclosure > summary::after, .citation-disclosure > summary::after { content: ""; flex: 0 0 8px; height: 8px; margin-right: 4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); }
-.protocol-disclosure[open] > summary::after, .citation-disclosure[open] > summary::after { transform: rotate(225deg); }
-.protocol-disclosure > summary:hover, .citation-disclosure > summary:hover { color: var(--gray-700); }
-.protocol-disclosure[open] > summary { margin-bottom: 24px; }
+.citation-disclosure { border-top: 1px solid var(--black); border-bottom: 1px solid var(--gray-200); }
+.citation-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; cursor: pointer; padding-block: 16px; list-style: none; font-size: var(--subheading-size); font-weight: 500; }
+.citation-disclosure > summary::-webkit-details-marker { display: none; }
+.citation-disclosure > summary::after { content: ""; flex: 0 0 8px; height: 8px; margin-right: 4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); }
+.citation-disclosure[open] > summary::after { transform: rotate(225deg); }
+.citation-disclosure > summary:hover { color: var(--gray-700); }
+.citation-disclosure[open] > summary { margin-bottom: 24px; }
 @media (max-width: 1600px) {
   :root {
     --page-heading-size: 40px;
