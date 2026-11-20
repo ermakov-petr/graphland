@@ -49,7 +49,6 @@
     elements.fallback = document.getElementById("leaderboard-fallback");
     elements.viewResults = document.getElementById("view-results-link");
     elements.resultSummary = document.getElementById("result-summary");
-    elements.metricNote = document.getElementById("metric-note");
     elements.tableScroll = document.querySelector(".table-scroll");
     elements.tableHint = document.getElementById("table-scroll-hint");
     elements.resultFootnote = document.getElementById("result-footnote");
@@ -68,7 +67,6 @@
     elements.dialogContent = document.getElementById("dialog-content");
     elements.dialogClose = document.querySelector("[data-dialog-close]");
     elements.retry = document.getElementById("retry-load");
-    elements.buildInfo = document.getElementById("build-info");
   }
 
   function createElement(tagName, className, text) {
@@ -135,18 +133,47 @@
     return { label, details };
   }
 
-  function bestReportedMeans(submissions, datasets, setting) {
+  function reportedDeviation(result) {
+    return Number.isFinite(result.std) && result.std >= 0 ? result.std : null;
+  }
+
+  function bestReportedResults(submissions, datasets, setting) {
     const best = new Map();
     for (const dataset of datasets) {
       if (!isSettingAvailable(dataset, setting)) continue;
       for (const submission of submissions) {
-        const value = getResult(submission, setting, dataset.id)?.value;
-        if (Number.isFinite(value) && (!best.has(dataset.id) || value > best.get(dataset.id))) {
-          best.set(dataset.id, value);
+        const result = getResult(submission, setting, dataset.id);
+        if (!Number.isFinite(result?.value)) continue;
+        const current = best.get(dataset.id);
+        if (!current || result.value > current.value || (
+          result.value === current.value
+          && (reportedDeviation(result) ?? -1) > (reportedDeviation(current) ?? -1)
+        )) {
+          best.set(dataset.id, result);
         }
       }
     }
     return best;
+  }
+
+  function bestReportedMeans(submissions, datasets, setting) {
+    const results = bestReportedResults(submissions, datasets, setting);
+    return new Map(Array.from(results, ([id, result]) => [id, result.value]));
+  }
+
+  function tiesHighestMean(result, best) {
+    const deviation = reportedDeviation(result);
+    const bestDeviation = reportedDeviation(best);
+    if (deviation === null || bestDeviation === null) return false;
+
+    const difference = best.value - result.value;
+    const combinedDeviation = deviation + bestDeviation;
+    if (difference <= combinedDeviation) return true;
+    // Include touching intervals despite decimal roundoff. Bound the tolerance
+    // by the interval width so large means cannot make tiny intervals tie.
+    const meanTolerance = Number.EPSILON * Math.max(Math.abs(result.value), Math.abs(best.value), combinedDeviation);
+    const intervalTolerance = Math.sqrt(Number.EPSILON) * combinedDeviation;
+    return difference - combinedDeviation <= Math.min(meanTolerance, intervalTolerance);
   }
 
   function formatMetric(result, dataset) {
@@ -157,14 +184,13 @@
     const display = dataset.display || {};
     const decimals = Number.isInteger(display.decimals) ? display.decimals : 3;
     const multiplier = display.style === "percentage" ? 100 : 1;
-    const suffix = display.style === "percentage" ? "%" : "";
     const value = (result.value * multiplier).toFixed(decimals);
 
     if (Number.isFinite(result.std)) {
       const std = (result.std * multiplier).toFixed(decimals);
-      return `${value}${suffix} ± ${std}${suffix}`;
+      return `${value} ± ${std}`;
     }
-    return `${value}${suffix}`;
+    return value;
   }
 
   function submissionName(submission) {
@@ -344,16 +370,6 @@
     );
   }
 
-  function updateMetricNote() {
-    const task = state.tasksById.get(state.task);
-    if (state.task === "all") {
-      elements.metricNote.textContent = "Dataset-specific metrics · higher is better";
-      return;
-    }
-    if (!task) return;
-    elements.metricNote.textContent = `Canonical metric: ${task.metric_label} · higher is better`;
-  }
-
   function taskDatasets() {
     if (!state.payload) {
       return [];
@@ -440,7 +456,8 @@
     const hpoHeader = createElement("th", "metadata-column metadata-hpo", "# HPO trials");
     hpoHeader.scope = "col";
     hpoHeader.dataset.metadataColumn = "hpo";
-    hpoHeader.title = "Reported hyperparameter trials in the selected setting and task";
+    hpoHeader.title = "Reported hyperparameter optimization (HPO) trials in the selected setting and task";
+    hpoHeader.setAttribute("aria-label", "# HPO trials (Hyperparameter Optimization)");
     row.append(dateHeader, hpoHeader);
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
@@ -532,7 +549,7 @@
     row.append(budgetCell);
   }
 
-  function renderResultCell(row, submission, dataset, bestMean) {
+  function renderResultCell(row, submission, dataset, bestResult) {
     const cell = document.createElement("td");
     const datasetLabel = dataset.id.toLowerCase();
 
@@ -559,7 +576,10 @@
       return;
     }
 
-    const isBest = result.value === bestMean;
+    const hasHighestMean = result.value === bestResult?.value;
+    const isBest = hasHighestMean || (bestResult !== undefined && tiesHighestMean(result, bestResult));
+    const emphasis = hasHighestMean ? ". Highest reported mean in this view"
+      : isBest ? ". Tied with the highest reported mean in this view" : "";
     cell.className = `metric-value${isBest ? " metric-best" : ""}`;
     cell.dataset.state = "value";
     cell.dataset.best = String(isBest);
@@ -568,7 +588,7 @@
     const trials = effectiveHparamTrials(submission, result);
     const evidence = `Runs: ${runs ?? "unknown"}; hyperparameter trials: ${trials ?? "unknown"}`;
     cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; sample standard deviation: ${result.std}` : ""}; ${evidence}`;
-    cell.setAttribute("aria-label", `${datasetLabel}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
+    cell.setAttribute("aria-label", `${datasetLabel}: ${cell.textContent}. ${evidence}${emphasis}`);
     row.append(cell);
   }
 
@@ -709,7 +729,7 @@
       setting: state.setting,
       datasetsById: state.datasetsById,
     }));
-    const bestMeans = bestReportedMeans(submissions, datasets, state.setting);
+    const bestResults = bestReportedResults(submissions, datasets, state.setting);
 
     renderTableHeader(datasets);
     elements.tableBody.replaceChildren();
@@ -717,14 +737,12 @@
       const row = document.createElement("tr");
       renderModelCell(row, submission);
       renderMetadataCells(row, submission, datasets);
-      datasets.forEach((dataset) => renderResultCell(row, submission, dataset, bestMeans.get(dataset.id)));
+      datasets.forEach((dataset) => renderResultCell(row, submission, dataset, bestResults.get(dataset.id)));
       elements.tableBody.append(row);
     });
 
     const modelLabel = submissions.length === 1 ? "model" : "models";
-    const total = state.payload.submissions.length;
-    const submissionLabel = total === 1 ? "submission" : "submissions";
-    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results · ${task ? task.label : "All datasets"} · ${total} ${submissionLabel} overall`;
+    elements.resultSummary.textContent = `${submissions.length} ${modelLabel} with results.`;
     elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "All datasets"} leaderboard`;
     updateEmptyState(submissions.length, matching.length, sliceCount);
     updateFilterFeedback(sliceSubmissions, submissions.length);
@@ -735,7 +753,6 @@
     elements.search.value = state.search;
     elements.codeFilter.checked = state.codeOnly;
     setActiveTabs();
-    updateMetricNote();
     renderTable();
     syncDialogWithUrl();
   }
@@ -1115,7 +1132,7 @@
   function setLoading(loading) {
     state.loading = loading;
     elements.panel.setAttribute("aria-busy", String(loading));
-    elements.metricNote.hidden = !state.loaded;
+    elements.resultSummary.classList.toggle("visually-hidden", !loading);
     const taskGroupHadFocus = document.activeElement === elements.taskGroup;
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
       elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
@@ -1131,24 +1148,6 @@
     else elements.retry.removeAttribute("aria-disabled");
     elements.retry.textContent = loading ? "Loading…" : "Retry loading";
     scheduleTableHint();
-  }
-
-  async function loadPublicationInfo() {
-    try {
-      const response = await fetch("data/build-info.json", { headers: { Accept: "application/json" } });
-      if (!response.ok) return;
-      const info = await response.json();
-      if (!/^[a-f0-9]{40}$/.test(info.commit_sha || "") || !Number.isFinite(Date.parse(info.built_at))) return;
-      const repository = safeExternalUrl(state.payload?.config?.site?.repository_url);
-      if (!repository) return;
-      const link = createElement("a", null, info.commit_sha.slice(0, 7));
-      link.href = `${repository.replace(/\/$/, "")}/commit/${info.commit_sha}`;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      elements.buildInfo.replaceChildren(createElement("span", null, "Published from "), link,
-        createElement("span", null, ` · ${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(info.built_at))} UTC${info.rollback === true ? " · rollback" : ""}`));
-      elements.buildInfo.hidden = false;
-    } catch (_error) { /* Publication metadata is optional in local previews. */ }
   }
 
   async function loadLeaderboard() {
@@ -1172,7 +1171,6 @@
       // Only replace focus that would disappear with the old error region.
       // A user who moved elsewhere during the request keeps that location.
       if (focusWasInError) elements.panel.focus();
-      loadPublicationInfo();
     } catch (error) {
       state.payload = null;
       state.loaded = false;

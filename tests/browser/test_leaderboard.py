@@ -624,6 +624,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
                         self.assertTrue(heading.is_visible())
                         self.assertEqual(cards.count(), 4)
                         self.assertTrue(all(card.is_visible() for card in cards.all()))
+                        filenames = cards.locator('p code')
+                        self.assertEqual(filenames.all_text_contents(), [
+                            'split_masks_RL.csv', 'split_masks_RH.csv', 'split_masks_TH.csv', 'split_masks_TH.csv',
+                        ])
+                        self.assertTrue(all('monospace' in name.evaluate('(el) => getComputedStyle(el).fontFamily')
+                                            for name in filenames.all()))
+                        self.assertIn('For the inductive setting, use the same data split file, but process the data accordingly.',
+                                      cards.last.inner_text())
                         history_length = page.evaluate('history.length')
                         footer_link = page.locator('.footer-links a[href="#protocol"]')
                         footer_link.press('Enter')
@@ -1629,10 +1637,20 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 focus = self.page.locator(download).evaluate('(el)=>getComputedStyle(el).outlineStyle')
                 self.assertNotEqual(focus, 'none')
                 self.page.mouse.move(0, 0)
-                for selector in ('.legend-list dd', '.protocol-grid p', '.protocol-callout p', '.steps-list p'):
+                for selector in ('.review-note', '.legend-list dd', '.protocol-grid p',
+                                 '.protocol-callout p', '.steps-list p', '.public-warning'):
                     actual = style(selector)
                     for key in ('family', 'size', 'weight', 'line', 'color'):
                         self.assertEqual(actual[key], body_style[key], (selector, key, width))
+                self.assertEqual(self.page.locator('.legend-list dt').all_text_contents(), ['—', 'N/A', 'Reproduced'])
+                self.assertEqual(self.page.locator('.public-warning').inner_text(),
+                                 'Note that the GitHub Issue, draft pull request, and submission discussion are public.')
+                if width >= 1280:
+                    self.assertEqual(self.page.locator('.page-lead').evaluate('''el => {
+                        const text = document.createRange();
+                        text.selectNodeContents(el);
+                        return text.getClientRects().length;
+                    }'''), 1)
                 for selector in ('.legend-section', '.protocol-section', '.submit-section'):
                     section = self.page.locator(selector)
                     actual = style(selector)
@@ -1966,6 +1984,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.open()
         headers = self.page.locator('#leaderboard-head th[data-metadata-column]')
         self.assertEqual(headers.evaluate_all('(cells) => cells.map(el => el.dataset.metadataColumn)'), ['date', 'hpo'])
+        hpo_header = self.page.get_by_role('columnheader', name='# HPO trials (Hyperparameter Optimization)')
+        self.assertEqual(hpo_header.inner_text(), '# HPO trials')
         budgets = []
         for index, expected_budget in enumerate(('Varies', '—', '0')):
             name = payload['submissions'][index]['model_name']
@@ -2006,43 +2026,68 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.brand_observations.append({'check': 'metadata_budget_and_links', 'budgets': budgets,
                                         'mobile_metadata_hidden_details_available': True})
 
-    def test_best_reported_means_include_negative_ties_and_recompute_after_filtering(self):
+    def test_best_reported_means_and_interval_ties_recompute_after_filtering(self):
         payload = copy.deepcopy(self.payload)
         payload['config']['default_filters']['only_models_with_code'] = False
-        means = (-.8, -.2, -.2, -.20001)
-        for submission, mean in zip(payload['submissions'], means):
-            submission['results'] = [{'setting': setting, 'dataset': 'hm-prices', 'value': mean,
-                                      'std': .01, 'num_runs': 3} for setting in ('RL', 'TH')]
+        means = (-.8, -.8, -.81, -.82)
+        extreme_means = (-9.999999999999998e307, -9.999999999999998e307, -1e308, -1.001e308)
+        deviations = {'TH': (None, .005, .005, .005),
+                      'RH': (.02, None, None, .005),
+                      'RL': (None, None, .05, .05),
+                      'THI': (.01, .01, .01, .01)}
+        for index, (submission, mean) in enumerate(zip(payload['submissions'], means)):
+            submission['results'] = []
+            for setting, values in deviations.items():
+                value = extreme_means[index] if setting == 'THI' else mean
+                result = {'setting': setting, 'dataset': 'hm-prices', 'value': value, 'num_runs': 3}
+                if values[index] is not None:
+                    result['std'] = values[index]
+                submission['results'].append(result)
         payload['submissions'][0]['results'].append({'setting': 'TH', 'dataset': 'city-roads-M', 'value': 999, 'num_runs': 3})
         self.with_payload(payload)
         self.open('?task=node_regression&setting=TH')
-        expected_best = {submission['model_name'] for submission in payload['submissions'][1:3]}
-        highlighted = set()
-        for submission in payload['submissions']:
-            row = self.page.locator('#leaderboard-body tr').filter(has_text=submission['model_name'])
-            cell = row.locator('td[data-state="value"]').first
-            best = submission['model_name'] in expected_best
-            self.assertEqual(cell.get_attribute('data-best'), str(best).lower())
-            weight = cell.evaluate('(el) => Number(getComputedStyle(el).fontWeight)')
-            self.assertEqual(weight, 700 if best else 400)
-            if best:
-                self.assertIn('Highest reported mean in this view', cell.get_attribute('aria-label'))
-                highlighted.add(submission['model_name'])
-        self.assertEqual(highlighted, expected_best)
+
+        def assert_emphasis(tied):
+            for index, submission in enumerate(payload['submissions']):
+                row = self.page.locator('#leaderboard-body tr').filter(has_text=submission['model_name'])
+                cell = row.locator('td[data-state="value"]').first
+                best = index < 2 or index in tied
+                self.assertEqual(cell.get_attribute('data-best'), str(best).lower())
+                self.assertEqual(cell.evaluate('(el) => Number(getComputedStyle(el).fontWeight)'), 700 if best else 400)
+                label = cell.get_attribute('aria-label')
+                self.assertEqual('Highest reported mean in this view' in label, index < 2)
+                self.assertEqual('Tied with the highest reported mean in this view' in label, index in tied)
+
+        # Model 3 touches a highest-mean interval at -0.805. Model 4 overlaps
+        # Model 3's interval, with no overlap with a highest-mean interval.
+        assert_emphasis(tied={2})
+        sort = self.page.locator('#leaderboard-head button[data-sort-key="model"]')
+        sort.click()
+        assert_emphasis(tied={2})
+        sort.click()
+        assert_emphasis(tied={2})
         self.assertEqual(self.page.locator('[data-state="missing"].metric-best, [data-state="unavailable"].metric-best').count(), 0)
-        self.page.locator('#model-search').fill(payload['submissions'][0]['model_name'])
+        self.page.locator('#model-search').fill(payload['submissions'][3]['model_name'])
         self.assertEqual(self.page.locator('#leaderboard-body tr').count(), 1)
         self.assertEqual(self.page.locator('#leaderboard-body td[data-state="value"]').first.get_attribute('data-best'), 'true')
         self.page.locator('#model-search').fill('')
-        self.assertEqual(self.page.locator('#leaderboard-body .metric-best').count(), 2)
-        self.brand_observations.append({'check': 'negative_r2_best_means', 'raw_means': means,
-                                        'tied_best_models': sorted(expected_best), 'refilter_recomputes_best': True,
+        assert_emphasis(tied={2})
+        self.page.get_by_role('tab', name='RH', exact=True).click()
+        assert_emphasis(tied={3})
+        self.page.get_by_role('tab', name='RL', exact=True).click()
+        assert_emphasis(tied=set())
+        # Adjacent floating-point means can be far apart relative to the reported deviations.
+        self.page.get_by_role('tab', name='THI', exact=True).click()
+        assert_emphasis(tied=set())
+        self.brand_observations.append({'check': 'negative_r2_mean_and_interval_ties', 'raw_means': means,
+                                        'boundary_included': True, 'no_chaining': True,
+                                        'missing_deviations_excluded': True, 'refilter_recomputes_best': True,
                                         'missing_and_unavailable_excluded': True})
 
     def test_all_datasets_keep_individual_metrics_sorting_history_and_four_settings(self):
         self.open('?setting=RL&task=all')
         self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
-        self.assertIn('Dataset-specific metrics', self.page.locator('#metric-note').inner_text())
+        self.assertEqual(self.page.locator('#metric-note').count(), 0)
         keys = self.page.locator('#leaderboard-head [data-sort-key]').evaluate_all('(buttons) => buttons.map(el => el.dataset.sortKey)')
         self.assertEqual(keys, ['model', 'submitted_at'] + [dataset['id'] for dataset in self.payload['datasets']])
         self.assertEqual(len(keys) - 2, 14)
@@ -2087,6 +2132,17 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_print_records_preserve_order_labels_values_and_best_emphasis(self):
         self.open('?task=all')
+        atlas = self.page.locator('#leaderboard-body tr').filter(has_text='Demo Atlas GNN')
+        for dataset, expected_score in (('hm-categories', '78.10 ± 0.60'),
+                                        ('tolokers-2', '52.20 ± 1.20'),
+                                        ('hm-prices', '0.214 ± 0.018')):
+            self.assertEqual(atlas.locator(f'td[aria-label^="{dataset}:"]').inner_text(), expected_score)
+        atlas.locator('.model-button').click()
+        details = self.page.locator('#dialog-content').inner_text()
+        for score in ('78.10 ± 0.60', '52.20 ± 1.20', '0.214 ± 0.018'):
+            self.assertIn(score, details)
+        self.page.locator('#model-dialog [data-dialog-close]').click()
+
         for setting in ('RL', 'RH', 'TH', 'THI'):
             self.page.get_by_role('tab', name=setting, exact=True).click()
             self.page.locator('#leaderboard-head [data-sort-key]').first.click()
@@ -2324,13 +2380,16 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(button.locator('.sort-indicator').evaluate('(e)=>getComputedStyle(e).visibility'), 'visible')
         self.assertEqual(button.evaluate('(e)=>e.closest("th").title'), '')
 
-    def test_single_submission_summary_uses_singular_total(self):
+    def test_single_submission_count_remains_accessible_without_visible_summary(self):
         payload = copy.deepcopy(self.payload)
         payload['submissions'] = payload['submissions'][:1]
         self.with_payload(payload)
         self.open('?task=all')
-        self.assertIn('1 model with results', self.page.locator('#result-summary').inner_text())
-        self.assertTrue(self.page.locator('#result-summary').inner_text().endswith('1 submission overall'))
+        status = self.page.get_by_role('status').and_(self.page.locator('#result-summary'))
+        self.assertEqual(status.inner_text(), '1 model with results.')
+        bounds = status.bounding_box()
+        self.assertLessEqual(bounds['width'], 1)
+        self.assertLessEqual(bounds['height'], 1)
 
     def test_continuous_search_filters_immediately_and_coalesces_history_writes(self):
         self.open('?task=all')
@@ -2613,7 +2672,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
         self.page.evaluate('document.fonts.ready')
         self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.assertFalse(self.page.locator('#metric-note').is_visible())
+        status = self.page.locator('#result-summary')
+        self.assertEqual(status.inner_text(), 'Loading leaderboard…')
+        self.assertGreater(status.bounding_box()['height'], 1)
         self.assertTrue(self.page.locator('#task-tab-node_regression').is_disabled())
         self.page.locator('#leaderboard-controls').focus()
         self.page.keyboard.press('Tab')
@@ -2624,8 +2685,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
         self.assertEqual(self.page.evaluate('document.activeElement.id'),'task-tab-node_regression')
         self.assertEqual(region.get_attribute('tabindex'),'-1')
-        self.assertIn('R²',self.page.locator('#metric-note').inner_text())
-        self.assertTrue(self.page.locator('#metric-note').is_visible())
+        self.assertIn('with results.', status.inner_text())
+        self.assertLessEqual(status.bounding_box()['height'], 1)
         self.assertTrue(self.page.locator('#task-tab-node_regression').is_enabled())
 
     def test_failed_data_keeps_task_strip_focus_and_keyboard_access(self):
@@ -2639,7 +2700,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.wait_for_selector('#load-error')
         self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
         self.assertEqual(region.get_attribute('tabindex'),'0')
-        self.assertFalse(self.page.locator('#metric-note').is_visible())
+        self.assertLessEqual(self.page.locator('#result-summary').bounding_box()['height'], 1)
         self.page.keyboard.press('Tab')
         self.assertTrue(self.page.locator(':focus').is_visible())
         self.assertTrue(self.page.locator(':focus').is_enabled())

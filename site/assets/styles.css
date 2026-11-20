@@ -257,25 +257,6 @@ button {
   background: var(--yellow-hover);
 }
 
-.review-note {
-  display: flex;
-  align-items: flex-start;
-  max-width: 660px;
-  gap: 10px;
-  margin-top: 22px;
-  color: var(--gray-700);
-  font-size: 13px;
-}
-
-.review-dot {
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--black);
-}
-
 .result-note h2 {
   font-size: 14px;
   font-weight: 500;
@@ -549,19 +530,10 @@ button {
   text-align: right;
 }
 
-.table-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  min-height: 46px;
-  padding: 12px 0;
+.result-status {
+  margin-bottom: 12px;
   color: var(--gray-700);
   font-size: 13px;
-}
-
-.metric-note {
-  text-align: right;
 }
 
 .table-scroll {
@@ -886,14 +858,6 @@ button {
   margin-top: 16px;
 }
 
-.protocol-file {
-  margin-top: auto;
-  padding-top: 20px;
-  color: var(--gray-500);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-
 .protocol-callout {
   margin-top: 28px;
   padding-top: 24px;
@@ -928,7 +892,7 @@ button {
 }
 
 .public-warning {
-  max-width: var(--reading-width);
+  margin-top: 20px;
 }
 
 .site-footer {
@@ -1023,16 +987,6 @@ button {
 
 .error-actions .text-link {
   margin-top: 0;
-}
-
-.build-info {
-  margin-top: 20px;
-  color: var(--gray-700);
-  font-size: 13px;
-}
-
-.build-info a {
-  text-decoration: underline;
 }
 
 .result-details-heading {
@@ -1390,16 +1344,6 @@ button:disabled {
     padding-inline: 0;
   }
 
-  .table-meta {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .metric-note {
-    text-align: left;
-  }
-
   #leaderboard-table {
     --model-column-width: min(165px, calc(100vw - 182px));
     table-layout: fixed;
@@ -1604,7 +1548,7 @@ button:disabled {
 }
 .article-copy > p, .section-description { margin-bottom: 20px; }
 .page-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-block: 28px 0; }
-.page-intro .review-note { margin-top: 16px; max-width: var(--reading-width); }
+.page-intro .review-note { margin: 16px 0 0; }
 .project-page .leaderboard-section { padding-block: 24px 0; }
 .page-section { margin-top: var(--section-spacing); }
 .page-section > h2,
@@ -1656,6 +1600,7 @@ button:disabled {
 .guide-notes li { margin-bottom: 16px; }
 #citation > .section-description,
 #data-access > .section-description { max-width: var(--code-width); }
+[data-page="leaderboard"] .page-intro > :is(.page-lead, .review-note) { max-width: none; }
 @media (max-width: 1600px) {
   :root {
     --page-heading-size: 40px;

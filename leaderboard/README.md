@@ -69,7 +69,7 @@ The separate Linux `dgl-cpu` CI job exercises all seven existing graph models wi
 | Binary classification | AP | tolokers-2, city-reviews, artnet-exp, web-fraud |
 | Regression | R² | hm-prices, avazu-ctr, city-roads-M, city-roads-L, twitch-views, artnet-views, web-traffic |
 
-Higher is better. There is no aggregate rank across different metrics. Accuracy/AP are raw [0,1] fractions, displayed as percentages; R² is a finite raw coefficient at most 1 and has no arbitrary lower bound. Paper tables display all metrics at 100 times their canonical scale, including R²: 62.66 becomes 0.6266. Deviations use the same conversion.
+Higher is better. There is no aggregate rank across different metrics. Accuracy and AP are stored as fractions in [0, 1]. The site shows them on a 0–100 scale without a percent sign. R² is shown as a finite raw coefficient at most 1, with no fixed lower bound. The paper tables multiply all metrics by 100, so a paper R² value of 62.66 corresponds to 0.6266 on the site. Standard deviations use the same scale as their metrics.
 
 std is sample standard deviation (ddof=1); it needs at least two successful runs. Omit it when unavailable. Counts describe successful contributing runs, while research logs retain attempted/failed run details. The training code starts checkpoint selection at negative infinity, checks finite metrics and excludes failed runs/trials. --min_successful_runs declares the eligibility threshold before execution; it does not increase the attempt budget or manufacture a score.
 
@@ -90,7 +90,7 @@ The dataset release is v1, [Zenodo DOI 10.5281/zenodo.16895532](https://doi.org/
 
 ## Submission schema v2
 
-Classification standard deviations use the canonical fraction scale and cannot exceed 1. This conservative bound tolerates rounded source values and prevents percentage-display overflow. It complements the finite-number and at-least-two-runs checks.
+Classification standard deviations use the canonical fraction scale and cannot exceed 1. This conservative bound tolerates rounded source values and keeps the scaled deviations at most 100. It complements the finite-number and at-least-two-runs checks.
 
 The new Issue Form emits schema_version 2.0. Existing valid v1 records and legacy Issue bodies remain supported. v1 retains graphland_ref and global counts; the builder copies those effective counts into generated rows without rewriting source JSON. v2 separates data_release (currently v1) from evaluator_ref, an exact evaluator commit/tag or an honest attributable protocol reference when the original commit is unreported.
 
@@ -135,7 +135,7 @@ CODEOWNERS names the confirmed owner @ermakov-petr for leaderboard data, tools, 
 
 Actions needs permission to create draft PRs; the shared GitHub setting also controls whether Actions may approve PRs. Do not disable it blindly and break generation. Branch rules and human review provide the enforcement boundary. Pages uses GitHub Actions and the github-pages environment restricted to main; add required environment reviewers when the real deployment-review team is established.
 
-Deploy builds run without write access. The separate deployment job verifies freshness against current main before publishing. data/build-info.json reports the source commit SHA and explicit rollback status. An obsolete rerun is refused. An intentional rollback uses workflow_dispatch with rollback=true and rollback_sha set to an exact 40-character ancestor commit; it is validated and flagged publicly, not silently inferred from an old run. Ordinary push/manual deployment selects latest main. Published assets remain relative to /graphland/.
+Deploy builds run without write access. The separate deployment job verifies freshness against current main before publishing. The public `data/build-info.json` endpoint reports the source commit SHA and explicit rollback status. An obsolete rerun is refused. An intentional rollback uses `workflow_dispatch` with `rollback=true` and `rollback_sha` set to an exact 40-character ancestor commit. Deployment validates the request and records the rollback in the JSON endpoint. Ordinary push/manual deployment selects latest main. Published assets remain relative to /graphland/.
 
 ## Source maintenance
 
@@ -155,4 +155,6 @@ Official resources: [paper](https://arxiv.org/abs/2409.14500), [official code](h
 
 The public site has four native static pages: Home (`index.html`), Datasets (`datasets.html`), Leaderboard (`leaderboard.html`) and Getting Started (`getting-started.html`). Each shares the original linked Research logo and a separate project navigation with `aria-current`. Source HTML remains readable without JavaScript on informational pages. The builder copies all flat HTML pages and adds deterministic content versions to CSS/JS URLs.
 
-Old root links carrying leaderboard query state or leaderboard anchors redirect to the new leaderboard route without dropping query parameters or the fragment. The All datasets view presents each dataset's own Accuracy/AP/R² column; it does not calculate an aggregate ranking. HPO metadata summarizes actual per-result budgets, with unknown values kept unknown and mixed budgets shown as Varies. Bold means the highest raw reported mean among currently displayed rows, including ties. Small screens keep the metadata in each model's detail card.
+Old root links carrying leaderboard query state or leaderboard anchors redirect to the new leaderboard route without dropping query parameters or the fragment. The All datasets view presents each dataset's own Accuracy/AP/R² column. Sorting by a metric uses one dataset at a time. HPO metadata summarizes actual per-result budgets, with unknown values kept unknown and mixed budgets shown as Varies. Small screens keep the metadata in each model's detail card.
+
+In each dataset column, the highest reported mean among the models in the current view appears in bold. Equal highest means always share the emphasis. A lower mean also appears in bold if its closed interval from mean minus sample standard deviation to mean plus sample standard deviation overlaps the corresponding interval of at least one model with the highest mean. This comparison requires both standard deviations to be reported and follows [Appendix C of the paper](https://arxiv.org/html/2409.14500v5#A3).
