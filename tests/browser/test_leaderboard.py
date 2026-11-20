@@ -1775,6 +1775,29 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertGreaterEqual(bounds['height'], 44)
                 self.assertGreaterEqual(bounds['x'], 0)
                 self.assertLessEqual(bounds['x'] + bounds['width'], width)
+            access = self.page.locator('#data-access .section-description')
+            self.assertTrue(access.inner_text().startswith('Download the raw datasets from '))
+            layout = access.evaluate('''el => {
+                const loader = el.querySelector('a[href="getting-started.html"]').firstChild;
+                const phrase = document.createRange();
+                phrase.setStart(loader, loader.textContent.indexOf('PyG'));
+                phrase.setEnd(loader, loader.length);
+                const intro = document.createRange();
+                intro.selectNodeContents(el.firstChild);
+                const license = document.createRange();
+                license.selectNodeContents(el.lastChild);
+                return {
+                    introTop: intro.getClientRects()[0].top,
+                    loaderLines: phrase.getClientRects().length,
+                    loaderTop: phrase.getBoundingClientRect().top,
+                    licenseTop: license.getClientRects()[0].top,
+                };
+            }''')
+            self.assertEqual(layout['loaderLines'], 1)
+            self.assertGreater(layout['licenseTop'], layout['loaderTop'])
+            if width >= 767:
+                self.assertAlmostEqual(layout['loaderTop'], layout['introTop'], delta=1)
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
             target = self.page.get_by_role('link', name='hm-categories, hm-prices', exact=True)
             target.focus()
             self.page.keyboard.press('Enter')
@@ -2535,7 +2558,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.set_viewport_size({'width': width, 'height': 900})
                 self.page.emulate_media(reduced_motion='reduce')
                 self.page.goto(self.base+'datasets.html')
-                self.page.locator('.dataset-tags a').filter(has_text='twitch-views ·').click()
+                self.page.get_by_role('link', name='Leaderboard results on twitch-views dataset', exact=True).click()
                 self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
                 self.page.wait_for_function('''()=>{
                     const e=document.querySelector('[data-sort-key="twitch-views"]');
