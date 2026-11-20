@@ -1810,7 +1810,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertTrue(button.evaluate('(e)=>document.activeElement===e'))
                 self.assertIsNone(button.get_attribute('aria-disabled'))
                 if route == 'getting-started.html' and index == 0:
-                    self.assertEqual(expected, 'python -m pip install torch-geometric pandas scikit-learn PyYAML')
+                    self.assertEqual(expected.splitlines(), [
+                        'python -m pip install torch --index-url https://download.pytorch.org/whl/cpu',
+                        'python -m pip install torch-geometric pandas scikit-learn PyYAML',
+                    ])
                 if route == 'index.html':
                     self.assertEqual(button.inner_text(), 'Copy citation')
                     self.assertTrue(expected.startswith('@inproceedings{bazhenov2025graphland,'))
