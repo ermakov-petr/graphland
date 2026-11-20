@@ -49,9 +49,11 @@ class FrontendContractTests(unittest.TestCase):
             "model-dialog",
             "dialog-content",
             "retry-load",
-            "build-info",
         }
         self.assertEqual(required - self.document.by_id.keys(), set())
+        self.assertEqual(self.document.by_id["result-summary"][1].get("role"), "status")
+        self.assertNotIn("metric-note", self.document.by_id)
+        self.assertNotIn("build-info", self.document.by_id)
 
     def test_page_has_exact_setting_and_task_tabs_without_aggregate_score(self) -> None:
         settings = [attrs["data-setting"] for _, attrs in self.document.elements if "data-setting" in attrs]
@@ -86,6 +88,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn('href="assets/styles.css"', self.html)
         self.assertIn('src="assets/app.js"', self.html)
         self.assertIn('fetch("data/leaderboard.json"', self.javascript)
+        self.assertNotIn("data/build-info.json", self.javascript)
         self.assertGreaterEqual(self.html.count('href="leaderboard.csv"'), 2)
         for forbidden in ('href="/assets/', 'src="/assets/', 'fetch("/data/', 'href="/leaderboard.csv'):
             self.assertNotIn(forbidden, self.html + self.javascript)
@@ -124,12 +127,13 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("issues/new?template=", self.html + self.javascript)
 
     def test_metric_formatting_preserves_canonical_data_scale(self) -> None:
-        self.assertIn('display.style === "percentage" ? 100 : 1', self.javascript)
-        self.assertIn('display.style === "percentage" ? "%" : ""', self.javascript)
-        self.assertIn("result.value * multiplier", self.javascript)
-        self.assertIn("result.std * multiplier", self.javascript)
-        self.assertIn('return "—"', self.javascript)
-        self.assertIn("±", self.javascript)
+        formatter = self.javascript.split("function formatMetric", 1)[1].split("function submissionName", 1)[0]
+        self.assertIn('display.style === "percentage" ? 100 : 1', formatter)
+        self.assertNotIn("%", formatter)
+        self.assertIn("result.value * multiplier", formatter)
+        self.assertIn("result.std * multiplier", formatter)
+        self.assertIn('return "—"', formatter)
+        self.assertIn("±", formatter)
 
     def test_unavailable_precedes_missing_and_missing_values_sort_last(self) -> None:
         result_cell = self.javascript.index("function renderResultCell")

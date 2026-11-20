@@ -14,7 +14,7 @@
   .site-header { position: static; height: auto; margin-bottom: 12pt; background: #fff; }
   .header-inner { height: auto; padding: 0 0 8pt; }
   .skip-link, .project-navigation, .page-actions, .dataset-index, .code-toolbar,
-  .table-scroll-hint, .filter-row, #reset-filters, .sort-indicator,
+  .table-scroll-hint, .filter-row, #reset-filters, .sort-indicator, .result-status,
   .dialog-close { display: none !important; }
   .project-page { padding-bottom: 0; }
   .page-intro { padding: 0 0 10pt; }
@@ -39,7 +39,6 @@
   .tabs button[aria-selected="true"] { padding: 0; min-height: 0; border: 0; white-space: normal; color: #000; }
   .task-control, .catalog-scroll, .table-scroll { overflow: visible; max-height: none; border: 0; }
   .control-block, .task-control { padding-top: 0; margin-top: 8pt; }
-  .table-meta { display: block; margin-block: 10pt; }
   .filter-feedback { margin-top: 6pt; }
   .data-table, .data-table tbody, .data-table tr { display: block; }
   #leaderboard-table, .dataset-catalog { width: 100%; min-width: 0; }

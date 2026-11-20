@@ -36,7 +36,7 @@
             <a class="button" id="submit-results-link" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Submit results <span aria-hidden="true">↗</span></a>
             <a class="button button-secondary" href="leaderboard.xlsx" download>Download spreadsheet <span aria-hidden="true">↓</span></a>
             <a class="button button-secondary" id="view-results-link" href="#leaderboard">View results <span aria-hidden="true">↓</span></a>
-          </div><p class="review-note"><span class="review-dot" aria-hidden="true"></span>Every submission is manually reviewed by our team. Typical review time is about one week.</p></section>
+          </div><p class="section-description review-note">Every submission is manually reviewed by our team. Typical review time is about one week.</p></section>
 
     <aside class="shell result-note" aria-labelledby="disclosure-title">
       <div>
@@ -98,10 +98,7 @@
         </div>
 
         <div id="leaderboard-panel" class="leaderboard-panel" role="tabpanel" aria-labelledby="task-tab-multiclass_node_classification setting-tab-RL" tabindex="0" hidden>
-          <div class="table-meta">
-            <p id="result-summary" aria-live="polite">Loading leaderboard…</p>
-            <p class="metric-note" id="metric-note">Canonical metric: Accuracy · higher is better</p>
-          </div>
+          <p class="result-status" id="result-summary" role="status">Loading leaderboard…</p>
 
           <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable leaderboard table">
             <table id="leaderboard-table" class="data-table">
@@ -111,7 +108,7 @@
             </table>
           </div>
           <p class="table-scroll-hint" id="table-scroll-hint" hidden>Scroll for more datasets <span aria-hidden="true">→</span></p>
-          <p class="table-footnote" id="result-footnote" hidden>Bold values mark the highest reported mean among the models currently shown in each dataset column; ties share emphasis.</p>
+          <p class="table-footnote" id="result-footnote" hidden>Bold entries mark the highest reported mean values among the models currently shown in each dataset column. A result also ties for first if its mean ± standard deviation interval overlaps that of a result with the highest mean.</p>
 
           <div class="empty-state" id="empty-state" hidden>
             <h3>No results yet</h3>
@@ -144,9 +141,6 @@
     <section class="shell page-section legend-section" aria-labelledby="legend-title">
       <h2 id="legend-title">Reading the results</h2>
         <dl class="legend-list">
-          <div><dt>Mean ± std</dt><dd>Mean performance and sample standard deviation across the reported runs. This is not a confidence interval.</dd></div>
-          <div><dt>AP</dt><dd>Average Precision, displayed as a percentage. R² remains on its original coefficient scale.</dd></div>
-          <div><dt>HPO</dt><dd>Hyperparameter Optimization</dd></div>
           <div><dt>—</dt><dd>The model submission does not include a result for this dataset.</dd></div>
           <div><dt>N/A</dt><dd>The dataset does not support the selected experimental setting.</dd></div>
           <div><dt>Reproduced</dt><dd>The result was independently reproduced, rather than only format-reviewed.</dd></div>
@@ -160,25 +154,25 @@
           <span class="protocol-code">RL</span>
           <h3>Random Low</h3>
           <p>Random stratified split with 10% train, 10% validation, and 80% test nodes. The full graph is available transductively.</p>
-          <span class="protocol-file">split_masks_RL.csv</span>
+          <p>The boolean masks for this data split are stored in <code>split_masks_RL.csv</code>.</p>
         </article>
         <article>
           <span class="protocol-code">RH</span>
           <h3>Random High</h3>
           <p>Random stratified split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
-          <span class="protocol-file">split_masks_RH.csv</span>
+          <p>The boolean masks for this data split are stored in <code>split_masks_RH.csv</code>.</p>
         </article>
         <article>
           <span class="protocol-code">TH</span>
           <h3>Temporal High</h3>
           <p>Temporal split with 50% train, 25% validation, and 25% test nodes. The full graph is available transductively.</p>
-          <span class="protocol-file">split_masks_TH.csv</span>
+          <p>The boolean masks for this data split are stored in <code>split_masks_TH.csv</code>.</p>
         </article>
         <article class="protocol-highlight">
           <span class="protocol-code">THI</span>
           <h3>Temporal High · Inductive</h3>
           <p>Uses the TH temporal split, but in the inductive setting (with three snapshots of a temporally evolving graph). Train sees train nodes only; validation adds validation nodes; test uses the full graph snapshot.</p>
-          <span class="protocol-file">split_masks_TH.csv · no THI file</span>
+          <p>The boolean masks for this data split are stored in <code>split_masks_TH.csv</code>. For the inductive setting, use the same data split file, but process the data accordingly.</p>
         </article>
       </div>
 
@@ -191,7 +185,6 @@
 
     <section class="shell page-section submit-section" id="submit" aria-labelledby="submit-title">
       <h2 id="submit-title">How to submit</h2>
-      <p class="section-description">Authors may submit their own models; maintainers may add standard open baselines.</p>
           <ol class="steps-list">
             <li><span>01</span><p>Open the public submission form.</p></li>
             <li><span>02</span><p>Fill in model metadata and results.</p></li>
@@ -199,12 +192,9 @@
             <li><span>04</span><p>A draft pull request is created.</p></li>
             <li><span>05</span><p>After approval and merge, the result appears on the site.</p></li>
           </ol>
-          <p class="table-footnote public-warning">The GitHub Issue, draft pull request, and submission discussion are public. Format and protocol review is not independent reproduction.</p>
+          <p class="section-description public-warning">Note that the GitHub Issue, draft pull request, and submission discussion are public.</p>
       <div class="page-actions"><a class="button button-secondary" data-submission-link href="https://github.com/ermakov-petr/graphland/issues/new/choose">Open submission form <span aria-hidden="true">↗</span></a></div>
     </section>
-
-
-    <p class="shell build-info" id="build-info" hidden></p>
   </main>
 
   <footer class="site-footer">
