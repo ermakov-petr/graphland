@@ -40,7 +40,7 @@ print(<span class="syntax-string">&quot;Feature matrix:&quot;</span>, tuple(data
 <span class="syntax-keyword">for</span> split_name <span class="syntax-keyword">in</span> (<span class="syntax-string">&quot;train&quot;</span>, <span class="syntax-string">&quot;val&quot;</span>, <span class="syntax-string">&quot;test&quot;</span>):
     mask = data[<span class="syntax-string">f&quot;{split_name}_mask&quot;</span>]
     print(split_name, <span class="syntax-string">&quot;labeled nodes:&quot;</span>, int(mask.sum().item()))
-</code></pre></section><section class="shell page-section" id="inductive-loading"><h2>Load three snapshots: THI</h2><p class="section-description">THI returns train, validation, and test snapshots in that order. Each graph has its own <code>mask</code> of labeled nodes for the corresponding stage.</p><pre class="code-block" tabindex="0"><code class="language-python"><span class="syntax-keyword">from</span> torch_geometric.datasets <span class="syntax-keyword">import</span> GraphLandDataset
+</code></pre></section><section class="shell page-section" id="inductive-loading"><h2>Inductive setting (THI): load three snapshots of a dynamically evolving graph</h2><p class="section-description">THI returns train, validation, and test snapshots in that order. Each graph has its own <code>mask</code> of labeled nodes used for the corresponding stage (training, validation, or testing).</p><pre class="code-block" tabindex="0"><code class="language-python"><span class="syntax-keyword">from</span> torch_geometric.datasets <span class="syntax-keyword">import</span> GraphLandDataset
 
 dataset = GraphLandDataset(
     root=<span class="syntax-string">&quot;data/graphland&quot;</span>,
