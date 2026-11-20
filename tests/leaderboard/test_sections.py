@@ -103,7 +103,14 @@ class SectionsContractTests(unittest.TestCase):
         groups = [attrs for tag, attrs in self.inventories["datasets.html"].elements
                   if tag == "article" and "dataset-description" in str(attrs.get("class", "")).split()]
         self.assertEqual(len(groups), 9)
-        self.assertIn("computed on undirected graphs", source)
+        footnotes = re.findall(r'<p class="table-footnote">(.*?)</p>', source, re.DOTALL)
+        self.assertEqual(len(footnotes), 1)
+        self.assertEqual(re.sub(r"<[^>]+>", "", footnotes[0]),
+                         "See Appendix A.2 in the paper for conventions and further details.")
+        footnote = DocumentInventory()
+        footnote.feed(footnotes[0])
+        self.assertEqual([attrs.get("href") for tag, attrs in footnote.elements if tag == "a"],
+                         ["https://arxiv.org/html/2409.14500v5#A1.SS2"])
 
     def test_loading_examples_are_complete_python_with_correct_masks_and_three_snapshots(self):
         codes = CodeInventory()
