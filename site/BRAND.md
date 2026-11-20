@@ -25,6 +25,8 @@ Model details use the same section-heading and prose scales as the pages; metada
 
 Catalog tables own their column sizing and horizontal sticky row labels; leaderboard-specific cell and mobile sizing never apply to documentation tables. The catalog scroll hint is shown only while more columns remain to the right. Protocol and citation disclosures use the same right-aligned chevron and full-width native keyboard-operable summary.
 
+The Model column puts available Paper and Code links under each model and variant, beside any status badges. The links remain visible on narrow screens and retain their full destinations in print. The initial leaderboard order is newest submission first. The Submission date header switches direction, equal dates use model name order, and undated entries follow dated entries.
+
 Documentation shares a 760px reading measure across introductions, descriptions and notes; the page shell and data tables remain full width. Dataset-group navigation uses aligned three-column link rows (two on phones), the resource-link type scale and visible focus states. Inline API identifiers use monospace without decorative chips. Code examples use a plain square panel up to 920px wide, avoiding needless desktop scrolling, and 13px minimum mobile type; these documentation-specific adaptations preserve native horizontal scrolling and exact copyable code.
 
 Focused scroll regions (catalog, leaderboard, code) explicitly support Left/Right keys across browsers, including WebKit. The handler acts only on the region itself when it overflows; descendant controls, modifiers and composition remain native. This addresses the reproduced WebKit keyboard-scrolling issue (WebKit bug 277290), not a visual redesign.

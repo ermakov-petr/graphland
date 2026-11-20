@@ -3,6 +3,7 @@
 
   const SETTING_IDS = ["RL", "RH", "TH", "THI"];
   const DEFAULT_TASK = "multiclass_node_classification";
+  const DATE_SORT_KEY = "submitted_at";
   const TASK_IDS = [
     "all",
     "binary_node_classification",
@@ -18,8 +19,8 @@
     task: DEFAULT_TASK,
     search: "",
     codeOnly: false,
-    sortKey: "model",
-    sortDirection: "asc",
+    sortKey: DATE_SORT_KEY,
+    sortDirection: "desc",
     dialogTrigger: null,
     dialogSubmissionId: null,
     queryCodeExplicit: false,
@@ -193,15 +194,35 @@
     });
   }
 
-  function sortableValue(submission, datasetId, setting, datasetsById) {
+  function submissionDate(submission) {
+    const date = submission.submitted_at;
+    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    const timestamp = Date.parse(date);
+    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === date ? date : null;
+  }
+
+  function isGlobalSort(key) {
+    return key === "model" || key === DATE_SORT_KEY;
+  }
+
+  function resetSort() {
+    state.sortKey = DATE_SORT_KEY;
+    state.sortDirection = "desc";
+  }
+
+  function sortableValue(submission, key, setting, datasetsById) {
+    if (key === DATE_SORT_KEY) {
+      const date = submissionDate(submission);
+      return { missing: date === null, value: date };
+    }
     const dataset = datasetsById instanceof Map
-      ? datasetsById.get(datasetId)
-      : datasetsById && datasetsById[datasetId];
+      ? datasetsById.get(key)
+      : datasetsById && datasetsById[key];
 
     if (!dataset || !isSettingAvailable(dataset, setting)) {
       return { missing: true, value: null };
     }
-    const result = getResult(submission, setting, datasetId);
+    const result = getResult(submission, setting, key);
     if (!result || !Number.isFinite(result.value)) {
       return { missing: true, value: null };
     }
@@ -222,13 +243,13 @@
     const leftValue = sortableValue(left, key, setting, datasetsById);
     const rightValue = sortableValue(right, key, setting, datasetsById);
 
-    // Missing and unavailable cells always sort after numeric values, regardless of direction.
+    // Missing and unavailable values sort last in both directions.
     if (leftValue.missing !== rightValue.missing) {
       return leftValue.missing ? 1 : -1;
     }
     if (!leftValue.missing && leftValue.value !== rightValue.value) {
-      const numericComparison = leftValue.value - rightValue.value;
-      return direction === "desc" ? -numericComparison : numericComparison;
+      const comparison = leftValue.value < rightValue.value ? -1 : 1;
+      return direction === "desc" ? -comparison : comparison;
     }
     return compareModelNames(left, right);
   }
@@ -242,19 +263,21 @@
     state.search = (params.get("q") || "").slice(0, 200);
     state.queryCodeExplicit = ["0", "1"].includes(params.get("code"));
     state.codeOnly = state.queryCodeExplicit ? params.get("code") === "1" : Boolean(state.payload?.config?.default_filters?.only_models_with_code);
-    state.sortKey = (params.get("sort") || "model").slice(0, 64);
-    state.sortDirection = params.get("order") === "desc" ? "desc" : "asc";
+    const order = params.get("order");
+    state.sortKey = (params.get("sort") || DATE_SORT_KEY).slice(0, 64);
+    state.sortDirection = order === "asc" || order === "desc" ? order : (state.sortKey === DATE_SORT_KEY ? "desc" : "asc");
     const submission = params.get("submission");
     state.dialogSubmissionId = submission && /^[a-z0-9-]{1,128}$/.test(submission) ? submission : null;
   }
 
   function queryStateUrl() {
     const url = new URL(window.location.href);
+    const defaultSort = state.sortKey === DATE_SORT_KEY && state.sortDirection === "desc";
     url.searchParams.set("setting", state.setting);
     url.searchParams.set("task", state.task);
     for (const [key, value] of [["q", state.search.trim()], ["code", state.codeOnly ? "1" : "0"],
-      ["sort", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortKey],
-      ["order", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortDirection],
+      ["sort", defaultSort ? null : state.sortKey],
+      ["order", defaultSort ? null : state.sortDirection],
       ["submission", state.dialogSubmissionId]]) {
       if (value === null || value === "") url.searchParams.delete(key);
       else url.searchParams.set(key, value);
@@ -389,7 +412,7 @@
     const button = createElement("button", "sort-button");
     button.type = "button";
     button.dataset.sortKey = key;
-    button.disabled = key !== "model" && !isSettingAvailable(state.datasetsById.get(key), state.setting);
+    button.disabled = !isGlobalSort(key) && !isSettingAvailable(state.datasetsById.get(key), state.setting);
     const directionText = active
       ? (state.sortDirection === "asc" ? "descending" : "ascending")
       : (key === "model" ? "ascending" : "descending");
@@ -423,14 +446,14 @@
     elements.tableHead.replaceChildren();
     const row = document.createElement("tr");
     row.append(sortHeader("Model", "Name / variant", "model"));
-    for (const [key, label] of [["date", "Submission date"], ["hpo", "# HPO trials"],
-      ["paper", "Paper"], ["code", "Code"]]) {
-      const header = createElement("th", `metadata-column metadata-${key}`, label);
-      header.scope = "col";
-      header.dataset.metadataColumn = key;
-      if (key === "hpo") header.title = "Reported hyperparameter trials in the selected setting and task";
-      row.append(header);
-    }
+    const dateHeader = sortHeader("Submission date", null, DATE_SORT_KEY);
+    dateHeader.className = "metadata-column metadata-date";
+    dateHeader.dataset.metadataColumn = "date";
+    const hpoHeader = createElement("th", "metadata-column metadata-hpo", "# HPO trials");
+    hpoHeader.scope = "col";
+    hpoHeader.dataset.metadataColumn = "hpo";
+    hpoHeader.title = "Reported hyperparameter trials in the selected setting and task";
+    row.append(dateHeader, hpoHeader);
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
       row.append(sortHeader(dataset.display_name, task ? task.metric_label : dataset.metric, dataset.id));
@@ -450,6 +473,20 @@
     container.append(badge);
   }
 
+  function appendModelResource(container, label, candidate, submission) {
+    const url = safeExternalUrl(candidate);
+    if (!url) return;
+    const link = createElement("a", "model-resource-link");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.setAttribute("aria-label", `${label} for ${submissionName(submission)} (opens in a new tab)`);
+    const icon = createElement("span", null, "↗");
+    icon.setAttribute("aria-hidden", "true");
+    link.append(createElement("span", null, label), icon);
+    container.append(link);
+  }
+
   function renderModelCell(row, submission) {
     const cell = document.createElement("th");
     cell.scope = "row";
@@ -465,21 +502,22 @@
     button.addEventListener("click", () => openDialog(submission, button));
     cell.append(button);
 
-    const badges = createElement("div", "model-cell-badges");
-    const demo = isDemoSubmission(submission);
-    if (demo) appendMiniBadge(badges, "Synthetic demo", "synthetic");
-    if (submission.review?.status !== "approved") appendMiniBadge(badges, "Pending review");
+    const extras = createElement("div", "model-cell-extras");
+    appendModelResource(extras, "Paper", submission.paper_url, submission);
     if (submission.code_availability === "available") {
-      appendMiniBadge(badges, "Code", "code");
+      appendModelResource(extras, "Code", submission.training_code_url, submission);
     }
+    const demo = isDemoSubmission(submission);
+    if (demo) appendMiniBadge(extras, "Synthetic demo", "synthetic");
+    if (submission.review?.status !== "approved") appendMiniBadge(extras, "Pending review");
     if (!demo && submission.verification === "reproduced") {
-      appendMiniBadge(badges, "Reproduced", "reproduced");
+      appendMiniBadge(extras, "Reproduced", "reproduced");
     }
     if (submission.method_type === "in_context") {
-      appendMiniBadge(badges, "In-context");
+      appendMiniBadge(extras, "In-context");
     }
-    if (badges.childElementCount) {
-      cell.append(badges);
+    if (extras.childElementCount) {
+      cell.append(extras);
     }
     row.append(cell);
   }
@@ -487,9 +525,10 @@
   function renderMetadataCells(row, submission, datasets) {
     const dateCell = createElement("td", "metadata-column metadata-date");
     dateCell.dataset.metadataColumn = "date";
-    if (typeof submission.submitted_at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(submission.submitted_at)) {
-      const time = createElement("time", null, submission.submitted_at);
-      time.dateTime = submission.submitted_at;
+    const date = submissionDate(submission);
+    if (date !== null) {
+      const time = createElement("time", null, date);
+      time.dateTime = date;
       dateCell.append(time);
     } else {
       dateCell.textContent = "—";
@@ -503,35 +542,6 @@
     budgetCell.title = budget.details;
     budgetCell.setAttribute("aria-label", `Hyperparameter trials for ${submissionName(submission)}: ${budget.label}. ${budget.details}`);
     row.append(budgetCell);
-
-    for (const [key, label, candidate] of [["paper", "Paper", submission.paper_url],
-      ["code", "Code", submission.code_availability === "available" ? submission.training_code_url : null]]) {
-      const cell = createElement("td", `metadata-column metadata-${key}`);
-      cell.dataset.metadataColumn = key;
-      const url = safeExternalUrl(candidate);
-      const accessibleLabel = `${label} for ${submissionName(submission)} (opens in a new tab)`;
-      if (url) {
-        const link = createElement("a", "metadata-link");
-        link.href = url;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.setAttribute("aria-label", accessibleLabel);
-        link.title = accessibleLabel;
-        const icon = createElement("span", null, "↗");
-        icon.setAttribute("aria-hidden", "true");
-        link.append(icon);
-        cell.append(link);
-      } else {
-        const unavailable = createElement("span", "metadata-unavailable");
-        unavailable.setAttribute("role", "img");
-        unavailable.setAttribute("aria-label", `${label} unavailable for ${submissionName(submission)}`);
-        const icon = createElement("span", null, "×");
-        icon.setAttribute("aria-hidden", "true");
-        unavailable.append(icon);
-        cell.append(unavailable);
-      }
-      row.append(cell);
-    }
   }
 
   function renderResultCell(row, submission, dataset, bestMean) {
@@ -663,7 +673,7 @@
   function revealLinkedSortColumn() {
     const key = state.sortKey;
     const viewport = elements.tableScroll;
-    if (key === "model" || viewport.hidden) return;
+    if (isGlobalSort(key) || viewport.hidden) return;
     let expectedScroll = viewport.scrollLeft;
     // Reveal the ranked column immediately, then refine late font geometry.
     // Do not undo a user's intervening horizontal scroll in the second pass.
@@ -694,9 +704,8 @@
 
     const datasets = taskDatasets();
     elements.table.style.setProperty("--dataset-count", String(datasets.length));
-    if (state.sortKey !== "model" && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
-      state.sortKey = "model";
-      state.sortDirection = "asc";
+    if (!isGlobalSort(state.sortKey) && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
+      resetSort();
       if (!tabGesture) writeQueryState();
     }
     const task = state.tasksById.get(state.task);
@@ -758,8 +767,7 @@
       return;
     }
     state.task = task;
-    state.sortKey = "model";
-    state.sortDirection = "asc";
+    resetSort();
     if (updateUrl) {
       writeQueryState("push");
     }

@@ -61,10 +61,11 @@
   .model-button { font-size: 12pt; }
   .model-button strong { text-decoration: none !important; }
   .model-button span { font-size: 10pt; }
-  #leaderboard-table .metadata-link { display: block; width: auto; height: auto; font-size: 9pt; line-height: 1.4; overflow-wrap: anywhere; }
-  .metadata-link > span { display: none; }
-  .metadata-link::after { content: attr(href); }
-  .metadata-unavailable { width: auto; height: auto; color: #666; font-size: 12pt; }
+  .model-cell-extras { display: block; margin-top: 4pt; }
+  .data-table .model-resource-link,
+  .print-record .model-resource-link { display: block; min-height: 0; max-width: 100%; font-size: 9pt; line-height: 1.4; overflow-wrap: anywhere; }
+  .model-resource-link > [aria-hidden="true"] { display: none; }
+  .model-resource-link::after { content: " (" attr(href) ")"; }
   .code-example { border: 1px solid #ddd; margin-block: 8pt; background: #fff; break-inside: avoid; }
   .code-block { max-width: none; margin-block: 8pt; padding: 8pt; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9pt; line-height: 1.45; background: #fff; break-inside: avoid; }
   .code-example .code-block { padding: 8pt; }
@@ -96,7 +97,6 @@
   .print-record tbody :is(th, td) { padding: 4pt 0; border-bottom: 1px solid #ddd; vertical-align: top; overflow-wrap: anywhere; }
   .print-record tbody th { width: 43%; padding-right: 10pt; text-align: left; font-weight: 400; color: #444; }
   .print-record tbody td { text-align: right; }
-  .print-record .metadata-link { display: inline; font-size: 9pt; }
   .print-model-details { overflow: visible; height: auto; max-height: none; }
   .print-model-details .print-prose-field { display: block; break-inside: auto; }
   .print-prose-field dt { margin-bottom: 4pt; font-weight: 500; color: #000; break-after: avoid; }

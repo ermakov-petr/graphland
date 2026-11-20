@@ -717,11 +717,30 @@ button {
   white-space: nowrap;
 }
 
-.model-cell-badges {
+.model-cell-extras {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 8px;
+  gap: 4px 8px;
+  margin-top: 5px;
+}
+
+.data-table .model-resource-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  max-width: 100%;
+  color: var(--black);
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.model-resource-link > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .mini-badge,
@@ -743,15 +762,10 @@ button {
   text-transform: uppercase;
 }
 
-.model-cell-badges .mini-badge {
+.model-cell-extras .mini-badge {
   max-width: 100%;
   white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.mini-badge.code {
-  background: var(--black);
-  color: var(--white);
 }
 
 .mini-badge.reproduced {
