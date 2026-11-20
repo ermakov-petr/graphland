@@ -1814,7 +1814,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 if route == 'getting-started.html' and index == 0:
                     self.assertEqual(expected.splitlines(), [
                         'python -m pip install torch --index-url https://download.pytorch.org/whl/cpu',
-                        'python -m pip install torch-geometric pandas scikit-learn PyYAML',
+                        'python -m pip install "torch-geometric>=2.8.0" pandas scikit-learn PyYAML',
                     ])
                 if route == 'index.html':
                     self.assertEqual(button.inner_text(), 'Copy citation')
