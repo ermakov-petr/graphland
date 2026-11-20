@@ -45,6 +45,15 @@
 
 .mobile-date-sort {
   display: none;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+@media screen {
+  /* Keep focus when resizing a narrow view until the user leaves the button. */
+  .mobile-date-sort:focus {
+    display: block;
+  }
 }
 
 @media (max-width: 767px) {
@@ -56,7 +65,5 @@
 @media screen and (max-width: 767px) {
   .mobile-date-sort {
     display: block;
-    margin-bottom: 8px;
-    font-size: 14px;
   }
 }
