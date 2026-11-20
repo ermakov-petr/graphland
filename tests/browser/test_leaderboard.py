@@ -783,10 +783,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_sort_keeps_keyboard_focus_and_numeric_order(self):
         self.open()
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort descending', exact=True)
         header.focus()
         header.press('Space')
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort ascending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort ascending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'descending')
         names = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
@@ -795,7 +795,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             item['model_name']))
         self.assertEqual(names, [item['model_name'] for item in expected])
         header.press('Enter')
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort descending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'ascending')
 
@@ -2009,9 +2009,12 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(len(keys) - 2, 14)
         tasks = {task['id']: task for task in self.payload['config']['task_families']}
         for dataset in self.payload['datasets']:
+            label = dataset['id'].lower()
+            header = self.page.locator(f'[data-sort-key="{dataset["id"]}"]')
+            self.assertEqual(header.locator('.sort-label > span').inner_text(), label)
             self.assertIn(tasks[dataset['task']]['metric_label'],
-                          self.page.locator(f'[data-sort-key="{dataset["id"]}"]').inner_text())
-            name = f"{dataset['display_name']} {tasks[dataset['task']]['metric_label']}: sort descending"
+                          header.inner_text())
+            name = f"{label} {tasks[dataset['task']]['metric_label']}: sort descending"
             self.assertEqual(self.page.get_by_role('button', name=name, exact=True).count(), 1)
         self.assertEqual(self.page.get_by_role('button', name='Model Name / variant: sort ascending', exact=True).count(), 1)
         setting_tabs = self.page.get_by_role('tablist', name='Experimental setting', exact=True)

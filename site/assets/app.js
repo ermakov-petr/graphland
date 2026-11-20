@@ -456,7 +456,7 @@
     row.append(dateHeader, hpoHeader);
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
-      row.append(sortHeader(dataset.display_name, task ? task.metric_label : dataset.metric, dataset.id));
+      row.append(sortHeader(dataset.id.toLowerCase(), task ? task.metric_label : dataset.metric, dataset.id));
     });
     elements.tableHead.append(row);
     if (focusedSort) {
@@ -546,6 +546,7 @@
 
   function renderResultCell(row, submission, dataset, bestMean) {
     const cell = document.createElement("td");
+    const datasetLabel = dataset.id.toLowerCase();
 
     // Availability takes precedence over the presence or absence of a submitted result.
     if (!isSettingAvailable(dataset, state.setting)) {
@@ -554,7 +555,7 @@
       cell.textContent = "N/A";
       cell.setAttribute(
         "aria-label",
-        `${dataset.display_name} is not available in the ${state.setting} setting`,
+        `${datasetLabel} is not available in the ${state.setting} setting`,
       );
       row.append(cell);
       return;
@@ -565,7 +566,7 @@
       cell.className = "metric-missing";
       cell.dataset.state = "missing";
       cell.textContent = "—";
-      cell.setAttribute("aria-label", `No result submitted for ${dataset.display_name}`);
+      cell.setAttribute("aria-label", `No result submitted for ${datasetLabel}`);
       row.append(cell);
       return;
     }
@@ -579,7 +580,7 @@
     const trials = effectiveHparamTrials(submission, result);
     const evidence = `Runs: ${runs ?? "unknown"}; hyperparameter trials: ${trials ?? "unknown"}`;
     cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; sample standard deviation: ${result.std}` : ""}; ${evidence}`;
-    cell.setAttribute("aria-label", `${dataset.display_name}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
+    cell.setAttribute("aria-label", `${datasetLabel}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
     row.append(cell);
   }
 
