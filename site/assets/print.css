@@ -13,7 +13,7 @@
   .shell { width: 100%; max-width: none; padding-inline: 0; }
   .site-header { position: static; height: auto; margin-bottom: 12pt; background: #fff; }
   .header-inner { height: auto; padding: 0 0 8pt; }
-  .skip-link, .project-navigation, .page-actions, .dataset-index, .code-toolbar,
+  .skip-link, .project-navigation, .page-actions, .dataset-index, .code-toolbar, .code-scroll-hint,
   .table-scroll-hint, .filter-row, #reset-filters, .sort-indicator, .result-status,
   .dialog-close { display: none !important; }
   .project-page { padding-bottom: 0; }
@@ -68,6 +68,9 @@
   .code-block { max-width: none; margin-block: 8pt; padding: 8pt; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 9pt; line-height: 1.45; background: #fff; break-inside: avoid; }
   .code-example .code-block { padding: 8pt; }
   .code-block span { color: inherit; }
+  .training-example > .section-description { break-after: avoid; }
+  .training-example :is(.code-example, .code-block) { break-inside: auto; }
+  .training-example .code-block { line-height: 1.35; orphans: 5; widows: 5; }
   .site-footer { padding-block: 8pt 0; margin-top: 0; color: #000; background: #fff; border-top: 1px solid #000; break-inside: avoid; }
   .site-footer * { color: inherit; }
   .footer-links { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4pt 12pt; }

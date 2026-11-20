@@ -44,6 +44,7 @@
     elements.filterFeedback = document.getElementById("filter-feedback");
     elements.filterStatus = document.getElementById("filter-status");
     elements.resetFilters = document.getElementById("reset-filters");
+    elements.mobileDateSort = document.getElementById("mobile-date-sort");
     elements.panel = document.getElementById("leaderboard-panel");
     elements.controls = document.getElementById("leaderboard-controls");
     elements.fallback = document.getElementById("leaderboard-fallback");
@@ -231,6 +232,10 @@
     return key === "model" || key === DATE_SORT_KEY;
   }
 
+  function isDefaultSort() {
+    return state.sortKey === DATE_SORT_KEY && state.sortDirection === "desc";
+  }
+
   function resetSort() {
     state.sortKey = DATE_SORT_KEY;
     state.sortDirection = "desc";
@@ -298,7 +303,7 @@
 
   function queryStateUrl() {
     const url = new URL(window.location.href);
-    const defaultSort = state.sortKey === DATE_SORT_KEY && state.sortDirection === "desc";
+    const defaultSort = isDefaultSort();
     url.searchParams.set("setting", state.setting);
     url.searchParams.set("task", state.task);
     for (const [key, value] of [["q", state.search.trim()], ["code", state.codeOnly ? "1" : "0"],
@@ -746,6 +751,12 @@
     elements.tableCaption.textContent = `${state.setting} ${task ? task.label : "All datasets"} leaderboard`;
     updateEmptyState(submissions.length, matching.length, sliceCount);
     updateFilterFeedback(sliceSubmissions, submissions.length);
+    const hideDateSort = isDefaultSort();
+    if (hideDateSort && document.activeElement === elements.mobileDateSort) {
+      const target = elements.tableScroll.hidden ? elements.search : elements.tableScroll;
+      target.focus({ preventScroll: true });
+    }
+    elements.mobileDateSort.hidden = hideDateSort;
     scheduleTableHint();
   }
 
@@ -1080,6 +1091,11 @@
       writeQueryState("push");
       render();
     });
+    elements.mobileDateSort.addEventListener("click", () => {
+      resetSort();
+      writeQueryState();
+      renderTable();
+    });
     window.addEventListener("popstate", () => {
       cancelQueryReplace();
       tabGesture = null;
@@ -1135,7 +1151,8 @@
     elements.resultSummary.classList.toggle("visually-hidden", !loading);
     const taskGroupHadFocus = document.activeElement === elements.taskGroup;
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
-      elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
+      elements.search, elements.codeFilter, elements.resetFilters, elements.mobileDateSort]
+      .forEach((control) => { control.disabled = loading || !state.loaded; });
     // Keep the group reachable while its tabs are disabled, then move focus
     // to the selected tab if the reader is still on the group.
     elements.taskGroup.tabIndex = loading || !state.loaded ? 0 : -1;

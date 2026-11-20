@@ -43,8 +43,20 @@
   font-weight: 700;
 }
 
+.mobile-date-sort {
+  display: none;
+}
+
 @media (max-width: 767px) {
   #leaderboard-table .metadata-column {
     display: none;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .mobile-date-sort {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
   }
 }
