@@ -2,24 +2,25 @@
   "use strict";
 
   const SETTING_IDS = ["RL", "RH", "TH", "THI"];
+  const DEFAULT_TASK = "multiclass_node_classification";
+  const DATE_SORT_KEY = "submitted_at";
   const TASK_IDS = [
-    "multiclass_node_classification",
-    "binary_node_classification",
-    "node_regression",
     "all",
+    "binary_node_classification",
+    DEFAULT_TASK,
+    "node_regression",
   ];
 
   const state = {
     payload: null,
     datasetsById: new Map(),
-    settingsById: new Map(),
     tasksById: new Map(),
     setting: "RL",
-    task: "multiclass_node_classification",
+    task: DEFAULT_TASK,
     search: "",
     codeOnly: false,
-    sortKey: "model",
-    sortDirection: "asc",
+    sortKey: DATE_SORT_KEY,
+    sortDirection: "desc",
     dialogTrigger: null,
     dialogSubmissionId: null,
     queryCodeExplicit: false,
@@ -37,8 +38,7 @@
   function cacheElements() {
     elements.settingTabs = document.getElementById("setting-tabs");
     elements.taskTabs = document.getElementById("task-tabs");
-    elements.taskViewport = elements.taskTabs.parentElement;
-    elements.settingDescription = document.getElementById("setting-description");
+    elements.taskGroup = elements.taskTabs.parentElement;
     elements.search = document.getElementById("model-search");
     elements.codeFilter = document.getElementById("code-filter");
     elements.filterFeedback = document.getElementById("filter-feedback");
@@ -194,15 +194,35 @@
     });
   }
 
-  function sortableValue(submission, datasetId, setting, datasetsById) {
+  function submissionDate(submission) {
+    const date = submission.submitted_at;
+    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    const timestamp = Date.parse(date);
+    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === date ? date : null;
+  }
+
+  function isGlobalSort(key) {
+    return key === "model" || key === DATE_SORT_KEY;
+  }
+
+  function resetSort() {
+    state.sortKey = DATE_SORT_KEY;
+    state.sortDirection = "desc";
+  }
+
+  function sortableValue(submission, key, setting, datasetsById) {
+    if (key === DATE_SORT_KEY) {
+      const date = submissionDate(submission);
+      return { missing: date === null, value: date };
+    }
     const dataset = datasetsById instanceof Map
-      ? datasetsById.get(datasetId)
-      : datasetsById && datasetsById[datasetId];
+      ? datasetsById.get(key)
+      : datasetsById && datasetsById[key];
 
     if (!dataset || !isSettingAvailable(dataset, setting)) {
       return { missing: true, value: null };
     }
-    const result = getResult(submission, setting, datasetId);
+    const result = getResult(submission, setting, key);
     if (!result || !Number.isFinite(result.value)) {
       return { missing: true, value: null };
     }
@@ -223,13 +243,13 @@
     const leftValue = sortableValue(left, key, setting, datasetsById);
     const rightValue = sortableValue(right, key, setting, datasetsById);
 
-    // Missing and unavailable cells always sort after numeric values, regardless of direction.
+    // Missing and unavailable values sort last in both directions.
     if (leftValue.missing !== rightValue.missing) {
       return leftValue.missing ? 1 : -1;
     }
     if (!leftValue.missing && leftValue.value !== rightValue.value) {
-      const numericComparison = leftValue.value - rightValue.value;
-      return direction === "desc" ? -numericComparison : numericComparison;
+      const comparison = leftValue.value < rightValue.value ? -1 : 1;
+      return direction === "desc" ? -comparison : comparison;
     }
     return compareModelNames(left, right);
   }
@@ -239,23 +259,25 @@
     const setting = params.get("setting");
     const task = params.get("task");
     state.setting = SETTING_IDS.includes(setting) ? setting : "RL";
-    state.task = TASK_IDS.includes(task) ? task : TASK_IDS[0];
+    state.task = TASK_IDS.includes(task) ? task : DEFAULT_TASK;
     state.search = (params.get("q") || "").slice(0, 200);
     state.queryCodeExplicit = ["0", "1"].includes(params.get("code"));
     state.codeOnly = state.queryCodeExplicit ? params.get("code") === "1" : Boolean(state.payload?.config?.default_filters?.only_models_with_code);
-    state.sortKey = (params.get("sort") || "model").slice(0, 64);
-    state.sortDirection = params.get("order") === "desc" ? "desc" : "asc";
+    const order = params.get("order");
+    state.sortKey = (params.get("sort") || DATE_SORT_KEY).slice(0, 64);
+    state.sortDirection = order === "asc" || order === "desc" ? order : (state.sortKey === DATE_SORT_KEY ? "desc" : "asc");
     const submission = params.get("submission");
     state.dialogSubmissionId = submission && /^[a-z0-9-]{1,128}$/.test(submission) ? submission : null;
   }
 
   function queryStateUrl() {
     const url = new URL(window.location.href);
+    const defaultSort = state.sortKey === DATE_SORT_KEY && state.sortDirection === "desc";
     url.searchParams.set("setting", state.setting);
     url.searchParams.set("task", state.task);
     for (const [key, value] of [["q", state.search.trim()], ["code", state.codeOnly ? "1" : "0"],
-      ["sort", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortKey],
-      ["order", state.sortKey === "model" && state.sortDirection === "asc" ? null : state.sortDirection],
+      ["sort", defaultSort ? null : state.sortKey],
+      ["order", defaultSort ? null : state.sortDirection],
       ["submission", state.dialogSubmissionId]]) {
       if (value === null || value === "") url.searchParams.delete(key);
       else url.searchParams.set(key, value);
@@ -318,32 +340,8 @@
     });
     elements.panel.setAttribute(
       "aria-labelledby",
-      `setting-tab-${state.setting} task-tab-${state.task}`,
+      `task-tab-${state.task} setting-tab-${state.setting}`,
     );
-    revealActiveTask();
-  }
-
-  function revealActiveTask() {
-    const selected = elements.taskTabs.querySelector('[aria-selected="true"]');
-    if (!selected) return;
-    const viewport = elements.taskTabs.parentElement;
-    const bounds = viewport.getBoundingClientRect();
-    const tab = selected.getBoundingClientRect();
-    // Change only horizontal scroll: deep links must not jump down the page.
-    if (tab.left < bounds.left) viewport.scrollLeft += tab.left - bounds.left;
-    else if (tab.right > bounds.right) viewport.scrollLeft += tab.right - bounds.right;
-  }
-
-  function updateSettingDescription() {
-    const setting = state.settingsById.get(state.setting);
-    elements.settingDescription.replaceChildren();
-    if (!setting) {
-      return;
-    }
-    const access = setting.information_access === "inductive" ? "Inductive" : "Transductive";
-    const name = createElement("span", "setting-name", `${setting.name} · ${access}`);
-    const description = createElement("span", null, setting.description);
-    elements.settingDescription.append(name, description);
   }
 
   function updateMetricNote() {
@@ -402,7 +400,7 @@
     const button = createElement("button", "sort-button");
     button.type = "button";
     button.dataset.sortKey = key;
-    button.disabled = key !== "model" && !isSettingAvailable(state.datasetsById.get(key), state.setting);
+    button.disabled = !isGlobalSort(key) && !isSettingAvailable(state.datasetsById.get(key), state.setting);
     const directionText = active
       ? (state.sortDirection === "asc" ? "descending" : "ascending")
       : (key === "model" ? "ascending" : "descending");
@@ -436,17 +434,17 @@
     elements.tableHead.replaceChildren();
     const row = document.createElement("tr");
     row.append(sortHeader("Model", "Name / variant", "model"));
-    for (const [key, label] of [["date", "Submission date"], ["hpo", "# HPO trials"],
-      ["paper", "Paper"], ["code", "Code"]]) {
-      const header = createElement("th", `metadata-column metadata-${key}`, label);
-      header.scope = "col";
-      header.dataset.metadataColumn = key;
-      if (key === "hpo") header.title = "Reported hyperparameter trials in the selected setting and task";
-      row.append(header);
-    }
+    const dateHeader = sortHeader("Submission date", null, DATE_SORT_KEY);
+    dateHeader.className = "metadata-column metadata-date";
+    dateHeader.dataset.metadataColumn = "date";
+    const hpoHeader = createElement("th", "metadata-column metadata-hpo", "# HPO trials");
+    hpoHeader.scope = "col";
+    hpoHeader.dataset.metadataColumn = "hpo";
+    hpoHeader.title = "Reported hyperparameter trials in the selected setting and task";
+    row.append(dateHeader, hpoHeader);
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
-      row.append(sortHeader(dataset.display_name, task ? task.metric_label : dataset.metric, dataset.id));
+      row.append(sortHeader(dataset.id.toLowerCase(), task ? task.metric_label : dataset.metric, dataset.id));
     });
     elements.tableHead.append(row);
     if (focusedSort) {
@@ -461,6 +459,20 @@
   function appendMiniBadge(container, text, className) {
     const badge = createElement("span", `mini-badge${className ? ` ${className}` : ""}`, text);
     container.append(badge);
+  }
+
+  function appendModelResource(container, label, candidate, submission) {
+    const url = safeExternalUrl(candidate);
+    if (!url) return;
+    const link = createElement("a", "model-resource-link");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.setAttribute("aria-label", `${label} for ${submissionName(submission)} (opens in a new tab)`);
+    const icon = createElement("span", null, "↗");
+    icon.setAttribute("aria-hidden", "true");
+    link.append(createElement("span", null, label), icon);
+    container.append(link);
   }
 
   function renderModelCell(row, submission) {
@@ -478,21 +490,22 @@
     button.addEventListener("click", () => openDialog(submission, button));
     cell.append(button);
 
-    const badges = createElement("div", "model-cell-badges");
-    const demo = isDemoSubmission(submission);
-    if (demo) appendMiniBadge(badges, "Synthetic demo", "synthetic");
-    if (submission.review?.status !== "approved") appendMiniBadge(badges, "Pending review");
+    const extras = createElement("div", "model-cell-extras");
+    appendModelResource(extras, "Paper", submission.paper_url, submission);
     if (submission.code_availability === "available") {
-      appendMiniBadge(badges, "Code", "code");
+      appendModelResource(extras, "Code", submission.training_code_url, submission);
     }
+    const demo = isDemoSubmission(submission);
+    if (demo) appendMiniBadge(extras, "Synthetic demo", "synthetic");
+    if (submission.review?.status !== "approved") appendMiniBadge(extras, "Pending review");
     if (!demo && submission.verification === "reproduced") {
-      appendMiniBadge(badges, "Reproduced", "reproduced");
+      appendMiniBadge(extras, "Reproduced", "reproduced");
     }
     if (submission.method_type === "in_context") {
-      appendMiniBadge(badges, "In-context");
+      appendMiniBadge(extras, "In-context");
     }
-    if (badges.childElementCount) {
-      cell.append(badges);
+    if (extras.childElementCount) {
+      cell.append(extras);
     }
     row.append(cell);
   }
@@ -500,9 +513,10 @@
   function renderMetadataCells(row, submission, datasets) {
     const dateCell = createElement("td", "metadata-column metadata-date");
     dateCell.dataset.metadataColumn = "date";
-    if (typeof submission.submitted_at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(submission.submitted_at)) {
-      const time = createElement("time", null, submission.submitted_at);
-      time.dateTime = submission.submitted_at;
+    const date = submissionDate(submission);
+    if (date !== null) {
+      const time = createElement("time", null, date);
+      time.dateTime = date;
       dateCell.append(time);
     } else {
       dateCell.textContent = "—";
@@ -516,39 +530,11 @@
     budgetCell.title = budget.details;
     budgetCell.setAttribute("aria-label", `Hyperparameter trials for ${submissionName(submission)}: ${budget.label}. ${budget.details}`);
     row.append(budgetCell);
-
-    for (const [key, label, candidate] of [["paper", "Paper", submission.paper_url],
-      ["code", "Code", submission.code_availability === "available" ? submission.training_code_url : null]]) {
-      const cell = createElement("td", `metadata-column metadata-${key}`);
-      cell.dataset.metadataColumn = key;
-      const url = safeExternalUrl(candidate);
-      const accessibleLabel = `${label} for ${submissionName(submission)} (opens in a new tab)`;
-      if (url) {
-        const link = createElement("a", "metadata-link");
-        link.href = url;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.setAttribute("aria-label", accessibleLabel);
-        link.title = accessibleLabel;
-        const icon = createElement("span", null, "↗");
-        icon.setAttribute("aria-hidden", "true");
-        link.append(icon);
-        cell.append(link);
-      } else {
-        const unavailable = createElement("span", "metadata-unavailable");
-        unavailable.setAttribute("role", "img");
-        unavailable.setAttribute("aria-label", `${label} unavailable for ${submissionName(submission)}`);
-        const icon = createElement("span", null, "×");
-        icon.setAttribute("aria-hidden", "true");
-        unavailable.append(icon);
-        cell.append(unavailable);
-      }
-      row.append(cell);
-    }
   }
 
   function renderResultCell(row, submission, dataset, bestMean) {
     const cell = document.createElement("td");
+    const datasetLabel = dataset.id.toLowerCase();
 
     // Availability takes precedence over the presence or absence of a submitted result.
     if (!isSettingAvailable(dataset, state.setting)) {
@@ -557,7 +543,7 @@
       cell.textContent = "N/A";
       cell.setAttribute(
         "aria-label",
-        `${dataset.display_name} is not available in the ${state.setting} setting`,
+        `${datasetLabel} is not available in the ${state.setting} setting`,
       );
       row.append(cell);
       return;
@@ -568,7 +554,7 @@
       cell.className = "metric-missing";
       cell.dataset.state = "missing";
       cell.textContent = "—";
-      cell.setAttribute("aria-label", `No result submitted for ${dataset.display_name}`);
+      cell.setAttribute("aria-label", `No result submitted for ${datasetLabel}`);
       row.append(cell);
       return;
     }
@@ -582,7 +568,7 @@
     const trials = effectiveHparamTrials(submission, result);
     const evidence = `Runs: ${runs ?? "unknown"}; hyperparameter trials: ${trials ?? "unknown"}`;
     cell.title = `Canonical value: ${result.value}${Number.isFinite(result.std) ? `; sample standard deviation: ${result.std}` : ""}; ${evidence}`;
-    cell.setAttribute("aria-label", `${dataset.display_name}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
+    cell.setAttribute("aria-label", `${datasetLabel}: ${cell.textContent}. ${evidence}${isBest ? ". Highest reported mean in this view" : ""}`);
     row.append(cell);
   }
 
@@ -676,7 +662,7 @@
   function revealLinkedSortColumn() {
     const key = state.sortKey;
     const viewport = elements.tableScroll;
-    if (key === "model" || viewport.hidden) return;
+    if (isGlobalSort(key) || viewport.hidden) return;
     let expectedScroll = viewport.scrollLeft;
     // Reveal the ranked column immediately, then refine late font geometry.
     // Do not undo a user's intervening horizontal scroll in the second pass.
@@ -707,9 +693,8 @@
 
     const datasets = taskDatasets();
     elements.table.style.setProperty("--dataset-count", String(datasets.length));
-    if (state.sortKey !== "model" && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
-      state.sortKey = "model";
-      state.sortDirection = "asc";
+    if (!isGlobalSort(state.sortKey) && !datasets.some((dataset) => dataset.id === state.sortKey && isSettingAvailable(dataset, state.setting))) {
+      resetSort();
       if (!tabGesture) writeQueryState();
     }
     const task = state.tasksById.get(state.task);
@@ -750,7 +735,6 @@
     elements.search.value = state.search;
     elements.codeFilter.checked = state.codeOnly;
     setActiveTabs();
-    updateSettingDescription();
     updateMetricNote();
     renderTable();
     syncDialogWithUrl();
@@ -772,8 +756,7 @@
       return;
     }
     state.task = task;
-    state.sortKey = "model";
-    state.sortDirection = "asc";
+    resetSort();
     if (updateUrl) {
       writeQueryState("push");
     }
@@ -1060,14 +1043,6 @@
   function bindControls() {
     bindTablist(elements.settingTabs, "setting", activateSetting);
     bindTablist(elements.taskTabs, "task", activateTask);
-    window.addEventListener('resize', revealActiveTask, { passive: true });
-    if (document.fonts) document.fonts.ready.then(revealActiveTask);
-    // User text-spacing or font overrides can resize the strip without a window
-    // resize. Observe its size, not scrolling, so manual browsing remains free.
-    if (typeof ResizeObserver === 'function') {
-      const taskSizeObserver = new ResizeObserver(revealActiveTask);
-      taskSizeObserver.observe(elements.taskTabs);
-    }
     elements.search.addEventListener("input", () => {
       state.search = elements.search.value;
       renderTable();
@@ -1141,13 +1116,13 @@
     state.loading = loading;
     elements.panel.setAttribute("aria-busy", String(loading));
     elements.metricNote.hidden = !state.loaded;
-    const taskRegionHadFocus = document.activeElement === elements.taskViewport;
+    const taskGroupHadFocus = document.activeElement === elements.taskGroup;
     [...elements.settingTabs.querySelectorAll("button"), ...elements.taskTabs.querySelectorAll("button"),
       elements.search, elements.codeFilter, elements.resetFilters].forEach((control) => { control.disabled = loading || !state.loaded; });
-    // Disabled tabs cannot make their overflow region keyboard-accessible.
-    // Keep that region readable while waiting, then restore the selected tab.
-    elements.taskViewport.tabIndex = loading || !state.loaded ? 0 : -1;
-    if (!loading && state.loaded && taskRegionHadFocus) {
+    // Keep the group reachable while its tabs are disabled, then move focus
+    // to the selected tab if the reader is still on the group.
+    elements.taskGroup.tabIndex = loading || !state.loaded ? 0 : -1;
+    if (!loading && state.loaded && taskGroupHadFocus) {
       elements.taskTabs.querySelector('[aria-selected="true"]').focus({ preventScroll: true });
     }
     // Keep the retry target focused while its request is pending. The loading
@@ -1185,7 +1160,6 @@
     try {
       state.payload = await loadData();
       state.datasetsById = new Map(state.payload.datasets.map((dataset) => [dataset.id, dataset]));
-      state.settingsById = new Map(state.payload.config.settings.map((setting) => [setting.id, setting]));
       state.tasksById = new Map(state.payload.config.task_families.map((task) => [task.id, task]));
       state.loaded = true;
       readQueryState();
@@ -1255,7 +1229,6 @@
     cacheElements();
     readQueryState();
     setActiveTabs();
-    updateSettingDescription();
     bindControls();
     bindTableHint();
     bindDialog();

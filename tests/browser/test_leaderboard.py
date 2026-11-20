@@ -546,7 +546,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(self.page.locator('.dataset-catalog').inner_text(), original)
             self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
 
-    def test_catalog_scroll_and_native_disclosures_work_with_keyboard(self):
+    def test_catalog_scroll_and_citation_disclosure_work_with_keyboard(self):
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.page.goto(self.base)
         self.page.evaluate('document.fonts.ready')
@@ -569,16 +569,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.set_viewport_size({'width': 1920, 'height': 900})
         self.page.wait_for_function("document.getElementById('catalog-scroll-hint').hidden")
         self.assertTrue(viewport.evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'))
-        for route, selector in (('', '.citation-disclosure'), ('leaderboard.html', '.protocol-disclosure')):
-            self.page.goto(self.base + route)
-            disclosure = self.page.locator(selector)
-            summary = disclosure.locator('summary')
-            summary.focus()
-            self.page.keyboard.press('Enter')
-            self.assertIsNotNone(disclosure.get_attribute('open'))
-            self.page.keyboard.press('Space')
-            self.assertIsNone(disclosure.get_attribute('open'))
-            self.assertEqual(summary.evaluate('(el) => document.activeElement === el'), True)
+        disclosure = self.page.locator('.citation-disclosure')
+        summary = disclosure.locator('summary')
+        summary.focus()
+        self.page.keyboard.press('Enter')
+        self.assertIsNotNone(disclosure.get_attribute('open'))
+        self.page.keyboard.press('Space')
+        self.assertIsNone(disclosure.get_attribute('open'))
+        self.assertTrue(summary.evaluate('(el) => document.activeElement === el'))
 
     def test_legacy_section_fragments_redirect_without_losing_state(self):
         for fragment in ('protocol', 'submit', 'model-search'):
@@ -590,7 +588,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertTrue(self.page.url.endswith(query + '#' + fragment))
                     self.assertEqual(self.page.locator('#' + fragment).count(), 1)
                     if fragment == 'protocol':
-                        self.assertIsNotNone(self.page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.assertTrue(self.page.locator('#protocol .protocol-grid').is_visible())
                         self.page.wait_for_function('''()=>{
                             const target=document.querySelector('#protocol-title').getBoundingClientRect();
                             const header=document.querySelector('.site-header').getBoundingClientRect();
@@ -599,7 +597,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.goto(self.base + '#main-content')
         self.assertEqual(self.page.locator('body').get_attribute('data-page'), 'home')
 
-    def test_protocol_links_reveal_content_without_javascript_or_extra_history(self):
+    def test_protocol_is_visible_on_screen_and_in_print_with_native_fragment_links(self):
         for javascript in (True, False):
             for width in (375, 1280):
                 with self.subTest(javascript=javascript, width=width):
@@ -607,26 +605,32 @@ class LeaderboardBrowserTests(unittest.TestCase):
                                                  viewport={'width': width, 'height': 900}, reduced_motion='reduce')
                     try:
                         page.goto(self.base + 'leaderboard.html')
-                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        page.goto(self.base + 'leaderboard.html#protocol')
                         page.evaluate('document.fonts.ready')
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        summary = page.locator('#protocol-title')
-                        header = page.locator('.site-header').bounding_box()
-                        self.assertGreaterEqual(summary.bounding_box()['y'], header['y'] + header['height'] - 1)
-                        self.assertLess(summary.bounding_box()['y'], 200)
-                        summary.focus()
-                        page.keyboard.press('Space')
-                        self.assertIsNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        if javascript:
+                            page.wait_for_function("document.getElementById('leaderboard-panel').getAttribute('aria-busy') === 'false'")
+                        protocol = page.get_by_role('region', name='Benchmark protocol', exact=True)
+                        heading = protocol.get_by_role('heading', name='Benchmark protocol', level=2, exact=True)
+                        cards = protocol.locator('.protocol-grid article')
+                        self.assertTrue(heading.is_visible())
+                        self.assertEqual(cards.count(), 4)
+                        self.assertTrue(all(card.is_visible() for card in cards.all()))
                         history_length = page.evaluate('history.length')
-                        page.locator('.footer-links a[href="#protocol"]').focus()
-                        page.keyboard.press('Enter')
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                        self.assertEqual(page.evaluate('history.length'), history_length)
+                        footer_link = page.locator('.footer-links a[href="#protocol"]')
+                        footer_link.press('Enter')
+                        self.assertTrue(page.url.endswith('#protocol'))
+                        header = page.locator('.site-header').bounding_box()
+                        self.assertGreaterEqual(heading.bounding_box()['y'], header['y'] + header['height'] - 1)
+                        self.assertLess(heading.bounding_box()['y'], 200)
+                        self.assertEqual(page.evaluate('history.length'), history_length + 1)
+                        footer_link.press('Enter')
+                        self.assertEqual(page.evaluate('history.length'), history_length + 1)
                         page.locator('.footer-links a[href="#submit"]').click()
                         page.go_back()
                         self.assertTrue(page.url.endswith('#protocol'))
-                        self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
+                        self.assertTrue(heading.is_visible())
+                        page.emulate_media(media='print')
+                        self.assertTrue(heading.is_visible())
+                        self.assertTrue(all(card.is_visible() for card in cards.all()))
                     finally:
                         page.close()
 
@@ -657,10 +661,9 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     page.evaluate('document.fonts.ready')
                     page.wait_for_timeout(800)
                     header = page.locator('.site-header').bounding_box()
-                    summary = page.locator('#protocol-title').bounding_box()
-                    self.assertIsNotNone(page.locator('.protocol-disclosure').get_attribute('open'))
-                    self.assertGreaterEqual(summary['y'], header['y'] + header['height'] - 1)
-                    self.assertLess(summary['y'], 200)
+                    heading = page.locator('#protocol-title').bounding_box()
+                    self.assertGreaterEqual(heading['y'], header['y'] + header['height'] - 1)
+                    self.assertLess(heading['y'], 200)
                 finally:
                     page.close()
 
@@ -773,6 +776,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(self.page.locator('#setting-tab-RH').get_attribute('aria-selected'), 'true')
                 self.assertEqual(self.page.locator('#task-tab-binary_node_classification').get_attribute('aria-selected'), 'true')
                 self.page.keyboard.press('Tab')
+                self.assertEqual(self.page.evaluate('document.activeElement.id'), 'task-tab-binary_node_classification')
+                self.page.keyboard.press('Tab')
                 self.assertEqual(self.page.evaluate('document.activeElement.id'), 'setting-tab-RH')
                 self.brand_observations.append({'check': 'view_results_anchor', 'width': width,
                                                 'focused_controls_id': 'leaderboard-controls',
@@ -781,10 +786,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_sort_keeps_keyboard_focus_and_numeric_order(self):
         self.open()
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort descending', exact=True)
         header.focus()
         header.press('Space')
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort ascending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort ascending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'descending')
         names = self.page.locator('#leaderboard-body .model-button strong').all_text_contents()
@@ -793,9 +798,56 @@ class LeaderboardBrowserTests(unittest.TestCase):
             item['model_name']))
         self.assertEqual(names, [item['model_name'] for item in expected])
         header.press('Enter')
-        header = self.page.get_by_role('button', name='H&M Categories Accuracy: sort descending', exact=True)
+        header = self.page.get_by_role('button', name='hm-categories Accuracy: sort descending', exact=True)
         self.assertEqual(self.page.evaluate('document.activeElement.dataset.sortKey'), 'hm-categories')
         self.assertEqual(header.locator('..').get_attribute('aria-sort'), 'ascending')
+
+    def test_submission_date_sorts_newest_first_and_keeps_undated_rows_last(self):
+        payload = copy.deepcopy(self.payload)
+        seed = payload['submissions'][0]
+        payload['submissions'] = []
+        for name, date in (('Zeta', '2026-10-10'), ('Aster', '2026-09-07'), ('Missing', None),
+                           ('Beta', '2026-10-10'), ('Invalid', '2026-09-31')):
+            submission = copy.deepcopy(seed)
+            submission.update(id=f'demo-{name.lower()}', model_name=name, submitted_at=date)
+            payload['submissions'].append(submission)
+        self.with_payload(payload)
+        self.open('?task=all')
+        names = self.page.locator('#leaderboard-body .model-button strong')
+        dates = self.page.locator('#leaderboard-body .metadata-date')
+        newest_first = ['Beta', 'Zeta', 'Aster', 'Invalid', 'Missing']
+        oldest_first = ['Aster', 'Beta', 'Zeta', 'Invalid', 'Missing']
+        date_sort = self.page.get_by_role('button', name='Submission date: sort ascending', exact=True)
+        self.assertEqual(date_sort.locator('..').get_attribute('aria-sort'), 'descending')
+        self.assertEqual(names.all_text_contents(), newest_first)
+        self.assertEqual(dates.all_text_contents(), ['2026-10-10', '2026-10-10', '2026-09-07', '—', '—'])
+
+        date_sort.focus()
+        date_sort.press('Enter')
+        self.assertEqual(names.all_text_contents(), oldest_first)
+        reversed_sort = self.page.get_by_role('button', name='Submission date: sort descending', exact=True)
+        self.assertEqual(reversed_sort.locator('..').get_attribute('aria-sort'), 'ascending')
+        self.assertTrue(reversed_sort.evaluate('e => e === document.activeElement'))
+        self.assertIn('sort=submitted_at&order=asc', self.page.url)
+        self.page.reload()
+        self.page.wait_for_function("document.getElementById('leaderboard-panel').getAttribute('aria-busy') === 'false'")
+        self.assertEqual(names.all_text_contents(), oldest_first)
+        reversed_sort.click()
+        self.assertEqual(names.all_text_contents(), newest_first)
+        self.assertNotIn('sort=', self.page.url)
+
+        self.open('?task=all&sort=model&order=asc')
+        self.assertEqual(names.all_text_contents(), ['Aster', 'Beta', 'Invalid', 'Missing', 'Zeta'])
+        self.page.locator('#task-tab-multiclass_node_classification').click()
+        self.assertEqual(names.all_text_contents(), newest_first)
+        self.page.go_back()
+        self.assertEqual(names.all_text_contents(), ['Aster', 'Beta', 'Invalid', 'Missing', 'Zeta'])
+
+        self.page.set_viewport_size({'width': 320, 'height': 800})
+        self.open('?task=all')
+        self.assertEqual(names.all_text_contents(), newest_first)
+        self.assertFalse(self.page.locator('#leaderboard-head .metadata-date').is_visible())
+        self.assertEqual(self.page.locator('.table-scroll').evaluate('e => e.scrollLeft'), 0)
 
     def test_tabs_filters_dialog_deep_link_and_history(self):
         def close_and_wait(action):
@@ -935,54 +987,56 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     'tab_order': 'skip link → logo → project page links → Submit', 'logo_focus_outline': outline,
                     'focused_content_id': 'model-search', 'content_inert': False})
 
-    def test_selected_task_is_visible_on_deep_links_history_and_resize(self):
+    def assert_dataset_tabs_fit(self):
+        group = self.page.locator('.task-control').bounding_box()
+        for tab in self.page.locator('#task-tabs [role="tab"]').all():
+            bounds = tab.bounding_box()
+            self.assertIsNotNone(bounds)
+            self.assertGreaterEqual(bounds['x'], group['x'] - 1, tab.inner_text())
+            self.assertLessEqual(bounds['x'] + bounds['width'], group['x'] + group['width'] + 1,
+                                 tab.inner_text())
+
+    def test_all_dataset_tabs_stay_visible_on_narrow_screens_and_deep_links(self):
         for width in (320, 375, 560, 767, 768):
             with self.subTest(width=width):
                 self.page.set_viewport_size({'width': width, 'height': 800})
-                self.open('?task=all')
-                self.page.wait_for_function('''()=>{
-                    const tab=document.querySelector('#task-tabs [aria-selected="true"]').getBoundingClientRect();
-                    const view=document.querySelector('.task-control').getBoundingClientRect();
-                    return tab.left>=view.left-1&&tab.right<=view.right+1;
-                }''')
+                self.open()
+                tabs = self.page.get_by_role('tablist', name='Datasets').get_by_role('tab')
+                self.assertEqual(tabs.all_text_contents(), [
+                    'All datasets', 'Binary node classification',
+                    'Multiclass node classification', 'Node regression',
+                ])
+                self.assertEqual(tabs.nth(2).get_attribute('aria-selected'), 'true')
+                self.assert_dataset_tabs_fit()
                 self.assertEqual(self.page.evaluate('scrollY'), 0)
-                self.page.locator('#task-tab-all').focus()
+
+                self.open('?task=node_regression')
+                self.assert_dataset_tabs_fit()
+                self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
+                self.assertEqual(self.page.evaluate('scrollY'), 0)
+                self.page.locator('#task-tab-node_regression').focus()
                 self.page.keyboard.press('Home')
-                self.assertEqual(self.page.locator('#task-tab-multiclass_node_classification').get_attribute('aria-selected'), 'true')
-                self.page.keyboard.press('End')
                 self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
+                self.page.keyboard.press('End')
+                self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
                 self.page.go_back()
-                self.page.wait_for_function("document.querySelector('#task-tab-multiclass_node_classification').getAttribute('aria-selected')==='true'")
-                self.page.wait_for_function("document.querySelector('.task-control').scrollLeft<1")
+                self.page.wait_for_function("document.querySelector('#task-tab-all').getAttribute('aria-selected')==='true'")
+                self.assert_dataset_tabs_fit()
         self.page.set_viewport_size({'width': 1920, 'height': 900})
-        self.open('?task=all')
+        self.open('?task=node_regression')
         self.page.set_viewport_size({'width': 320, 'height': 800})
-        self.page.wait_for_function('''()=>{
-            const t=document.querySelector('#task-tab-all').getBoundingClientRect(),v=document.querySelector('.task-control').getBoundingClientRect();
-            return t.left>=v.left-1&&t.right<=v.right+1;
-        }''')
+        self.assert_dataset_tabs_fit()
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
-    def test_selected_task_remains_visible_after_text_spacing_changes(self):
+    def test_dataset_tabs_remain_visible_after_text_spacing_changes(self):
         self.page.set_viewport_size({'width': 320, 'height': 800})
-        self.open('?task=all')
+        self.open('?task=node_regression')
         self.page.add_style_tag(content='''
             * { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; }
             p { margin-bottom: 2em !important; }
         ''')
-        # Let the new styles and ResizeObserver delivery settle before inspecting selection.
-        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.page.wait_for_function('''()=>{
-            const tab=document.querySelector('#task-tab-all').getBoundingClientRect();
-            const view=document.querySelector('.task-control').getBoundingClientRect();
-            return tab.left>=view.left-1&&tab.right<=view.right+1;
-        }''')
-        self.assertEqual(self.page.evaluate('scrollY'), 0)
-        self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
-        # Looking back through other tasks must not snap to the selected one.
-        self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft=0')
-        self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.assertEqual(self.page.locator('.task-control').evaluate('(e)=>e.scrollLeft'), 0)
+        self.assert_dataset_tabs_fit()
+        self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
         self.assertEqual(self.page.evaluate('scrollY'), 0)
 
     def test_tablist_preserves_modified_keys(self):
@@ -1486,9 +1540,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     h1_size, h1_line, lead_size, nav_size, h2_size = (
                         (48, 48, 22, 20, 32) if width > 1600 else
                         (40, 40, 17, 16, 24) if width >= 768 else (30, 32.4, 15, 16, 24))
+                    if marker == 'home':
+                        h1_size = min(64, max(42, 32 + width * .016))
+                        h1_line = h1_size * 1.06
                     self.assertAlmostEqual(styles['h1']['size'], h1_size, delta=.05)
                     self.assertAlmostEqual(styles['h1']['line'], h1_line, delta=.05)
                     self.assertEqual(styles['h1']['weight'], 500)
+                    self.assertIn('YSText', styles['h1']['family'])
                     self.assertAlmostEqual(styles['lead']['size'], lead_size, delta=.05)
                     self.assertIn('Merriweather', styles['lead']['family'])
                     self.assertTrue(styles['h2Renderable'], 'Compare rendered content headings, not visually hidden labels')
@@ -1504,12 +1562,14 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertGreater(active_rgb[0], normal_rgb[0])
                     self.assertLess(active_rgb[0], 255)
                     self.assertEqual(styles['leadMargin']['top'], '32px' if width > 1600 else '20px')
-                    parity = {key: styles[key] for key in ('h1', 'lead', 'h2', 'nav', 'activeNav', 'introPadding', 'leadMargin')}
+                    parity = {key: styles[key] for key in ('lead', 'h2', 'nav', 'activeNav', 'introPadding', 'leadMargin')}
+                    if marker != 'home':
+                        parity['h1'] = styles['h1']
                     if shared_styles is None:
                         shared_styles = parity
                     else:
                         for component, metrics in parity.items():
-                            self.assertEqual(metrics, shared_styles[component],
+                            self.assertEqual(metrics, shared_styles.setdefault(component, metrics),
                                              f'Shared {component} style differs on {path} at {width}px')
                     if marker == 'home':
                         self.assertEqual(self.page.locator('.dataset-catalog tbody tr').count(), 14)
@@ -1559,7 +1619,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 focus = self.page.locator(download).evaluate('(el)=>getComputedStyle(el).outlineStyle')
                 self.assertNotEqual(focus, 'none')
                 self.page.mouse.move(0, 0)
-                self.page.locator('.protocol-disclosure > summary').click()
                 for selector in ('.legend-list dd', '.protocol-grid p', '.protocol-callout p', '.steps-list p'):
                     actual = style(selector)
                     for key in ('family', 'size', 'weight', 'line', 'color'):
@@ -1612,7 +1671,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     for key in ('font','size','line','color','padding','border','vertical'):
                         self.assertEqual(value[key], baseline[1][key], (key,width))
                         self.assertEqual(first_cell[key], baseline[2][key], (key,width))
-                    for sort in table.locator('.sort-button').all():
+                    for sort in table.locator('.sort-button:visible').all():
                         self.assertGreaterEqual(sort.bounding_box()['height'],44)
                 action = table.locator('tbody th a' if route=='index.html' else '.model-button').first
                 action.focus()
@@ -1623,17 +1682,16 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(table.locator('caption').count(),1)
                 self.assertEqual(table.locator('caption').evaluate('(e)=>e.getBoundingClientRect().width'),1)
 
-    def test_held_pointer_click_on_clipped_table_controls_is_not_lost(self):
+    def test_held_pointer_click_on_clipped_sort_control_is_not_lost(self):
         self.page.emulate_media(reduced_motion='reduce')
-        for kind in ('sort','link'):
-            for edge in ('left','right'):
+        for edge in ('left','right'):
+            with self.subTest(edge=edge):
                 self.open('?task=all')
                 viewport = self.page.locator('.table-scroll')
                 viewport.evaluate("e=>{e.style.width='400px';scrollTo(0,scrollY+e.getBoundingClientRect().top-80)}")
-                control = self.page.locator('.sort-button').nth(8) if kind=='sort' else self.page.locator('.metadata-link').first
+                control = self.page.locator('.sort-button[data-sort-key="pokec-regions"]')
                 key = control.get_attribute('data-sort-key')
-                control.evaluate("""e=>{window.probeClicks=0;e.addEventListener('click',ev=>{
-                    window.probeClicks++;if(e.tagName==='A')ev.preventDefault()})}""")
+                control.evaluate("e=>{window.probeClicks=0;e.addEventListener('click',()=>window.probeClicks++)}")
                 point = control.evaluate("""(e,edge)=>{
                     document.activeElement.blur();const v=document.querySelector('.table-scroll'),b=v.getBoundingClientRect();
                     const first=e.closest('tr').cells[0],r=e.getBoundingClientRect();
@@ -1647,8 +1705,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertEqual(viewport.evaluate('(e)=>e.scrollLeft'),point['scroll'])
                 self.page.mouse.up()
                 self.assertEqual(self.page.evaluate('window.probeClicks'),1)
-                if kind=='sort':
-                    self.assertEqual(self.page.locator(f'.sort-button[data-sort-key="{key}"]').locator('..').get_attribute('aria-sort'),'descending')
+                self.assertEqual(self.page.locator(f'.sort-button[data-sort-key="{key}"]').locator('..').get_attribute('aria-sort'),'descending')
 
     def test_keyboard_table_controls_stay_visible_beside_sticky_column(self):
         self.page.emulate_media(reduced_motion='reduce')
@@ -1698,13 +1755,17 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.page.evaluate('document.fonts.ready')
             links = self.page.locator('.dataset-index a')
             self.assertEqual(links.count(), 9)
+            self.assertEqual(links.all_text_contents(), [
+                'web-fraud, web-topics, web-traffic', 'artnet-views, artnet-exp',
+                'city-roads-m, city-roads-l', 'city-reviews', 'avazu-ctr',
+                'hm-categories, hm-prices', 'pokec-regions', 'twitch-views', 'tolokers-2',
+            ])
             for link in links.all():
                 bounds = link.bounding_box()
                 self.assertGreaterEqual(bounds['height'], 44)
                 self.assertGreaterEqual(bounds['x'], 0)
                 self.assertLessEqual(bounds['x'] + bounds['width'], width)
-                self.assertTrue(link.get_attribute('aria-label').startswith(link.inner_text()))
-            target = self.page.locator('.dataset-index a[href="#hm"]')
+            target = self.page.get_by_role('link', name='hm-categories, hm-prices', exact=True)
             target.focus()
             self.page.keyboard.press('Enter')
             self.page.wait_for_url('**/datasets.html#hm')
@@ -1751,7 +1812,10 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertTrue(button.evaluate('(e)=>document.activeElement===e'))
                 self.assertIsNone(button.get_attribute('aria-disabled'))
                 if route == 'getting-started.html' and index == 0:
-                    self.assertEqual(expected, 'python -m pip install torch-geometric pandas scikit-learn PyYAML')
+                    self.assertEqual(expected.splitlines(), [
+                        'python -m pip install torch --index-url https://download.pytorch.org/whl/cpu',
+                        'python -m pip install "torch-geometric>=2.8.0" pandas scikit-learn PyYAML',
+                    ])
                 if route == 'index.html':
                     self.assertEqual(button.inner_text(), 'Copy citation')
                     self.assertTrue(expected.startswith('@inproceedings{bazhenov2025graphland,'))
@@ -1845,7 +1909,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.page.keyboard.press('Escape')
                 self.assertFalse(dialog.is_visible())
 
-    def test_metadata_columns_preserve_budget_unknown_zero_and_accessible_safe_links(self):
+    def test_metadata_columns_and_model_resources_preserve_budget_and_safe_links(self):
         payload = copy.deepcopy(self.payload)
         payload['submissions'] = payload['submissions'][:3]
         payload['config']['default_filters']['only_models_with_code'] = False
@@ -1865,10 +1929,11 @@ class LeaderboardBrowserTests(unittest.TestCase):
         payload['submissions'][2]['method_type'] = 'in_context'
         payload['submissions'][2]['paper_url'] = 'http://example.test/insecure-paper'
         payload['submissions'][2]['code_availability'] = 'unavailable'
+        payload['submissions'][2]['training_code_url'] = 'https://example.test/unavailable-code'
         self.with_payload(payload)
         self.open()
         headers = self.page.locator('#leaderboard-head th[data-metadata-column]')
-        self.assertEqual(headers.evaluate_all('(cells) => cells.map(el => el.dataset.metadataColumn)'), ['date', 'hpo', 'paper', 'code'])
+        self.assertEqual(headers.evaluate_all('(cells) => cells.map(el => el.dataset.metadataColumn)'), ['date', 'hpo'])
         budgets = []
         for index, expected_budget in enumerate(('Varies', '—', '0')):
             name = payload['submissions'][index]['model_name']
@@ -1880,24 +1945,30 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertIn('unknown', hpo.get_attribute('aria-label'))
             time = row.locator('[data-metadata-column="date"] time')
             self.assertEqual(time.get_attribute('datetime'), payload['submissions'][index]['submitted_at'])
-            for kind in ('paper', 'code'):
-                cell = row.locator(f'[data-metadata-column="{kind}"]')
-                if index == 0:
-                    link = cell.locator('a')
-                    expected_url = payload['submissions'][index]['paper_url' if kind == 'paper' else 'training_code_url']
-                    self.assertEqual(link.get_attribute('href'), expected_url)
+            links = row.locator('th[scope="row"] .model-resource-link')
+            self.assertEqual(links.count(), 2 if index == 0 else 0)
+            if index == 0:
+                for link, label, field in zip(links.all(), ('Paper', 'Code'), ('paper_url', 'training_code_url')):
+                    self.assertEqual(link.get_attribute('href'), payload['submissions'][index][field])
                     self.assertEqual(link.get_attribute('target'), '_blank')
                     self.assertEqual(set(link.get_attribute('rel').split()), {'noopener', 'noreferrer'})
-                    label = link.get_attribute('aria-label')
-                    self.assertIn(f'{kind.title()} for {name}', label)
-                    self.assertIn('opens in a new tab', label)
-                else:
-                    self.assertEqual(cell.locator('a').count(), 0)
-                    self.assertIn(f'{kind.title()} unavailable for {name}', cell.locator('[role="img"]').get_attribute('aria-label'))
+                    self.assertIn(f'{label} for {name}', link.get_attribute('aria-label'))
+                    self.assertIn('opens in a new tab', link.get_attribute('aria-label'))
             budgets.append({'model': name, 'budget': hpo.inner_text(), 'details': hpo.get_attribute('aria-label')})
         self.page.set_viewport_size({'width': 375, 'height': 900})
         self.page.wait_for_function("[...document.querySelectorAll('.metadata-column')].every(el => getComputedStyle(el).display === 'none')")
-        self.page.locator('#leaderboard-body .model-button').first.click()
+        model_row = self.page.locator('#leaderboard-body tr').filter(has_text=payload['submissions'][0]['model_name'])
+        self.page.context.route('https://example.test/**', lambda route: route.fulfill(body='Resource test'))
+        for link in model_row.locator('.model-resource-link').all():
+            self.assertTrue(link.is_visible())
+            with self.page.expect_popup() as popup:
+                link.press('Enter')
+            tab = popup.value
+            tab.wait_for_load_state()
+            self.assertEqual(tab.url, link.get_attribute('href'))
+            tab.close()
+            self.assertFalse(self.page.locator('#model-dialog').is_visible())
+        model_row.locator('.model-button').click()
         self.assertTrue(self.page.locator('#model-dialog').is_visible())
         self.assertIn('Varies', self.page.locator('#dialog-content').inner_text())
         self.brand_observations.append({'check': 'metadata_budget_and_links', 'budgets': budgets,
@@ -1941,15 +2012,18 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.locator('#task-tab-all').get_attribute('aria-selected'), 'true')
         self.assertIn('Dataset-specific metrics', self.page.locator('#metric-note').inner_text())
         keys = self.page.locator('#leaderboard-head [data-sort-key]').evaluate_all('(buttons) => buttons.map(el => el.dataset.sortKey)')
-        self.assertEqual(keys, ['model'] + [dataset['id'] for dataset in self.payload['datasets']])
-        self.assertEqual(len(keys) - 1, 14)
+        self.assertEqual(keys, ['model', 'submitted_at'] + [dataset['id'] for dataset in self.payload['datasets']])
+        self.assertEqual(len(keys) - 2, 14)
         tasks = {task['id']: task for task in self.payload['config']['task_families']}
         for dataset in self.payload['datasets']:
+            label = dataset['id'].lower()
+            header = self.page.locator(f'[data-sort-key="{dataset["id"]}"]')
+            self.assertEqual(header.locator('.sort-label > span').inner_text(), label)
             self.assertIn(tasks[dataset['task']]['metric_label'],
-                          self.page.locator(f'[data-sort-key="{dataset["id"]}"]').inner_text())
-            name = f"{dataset['display_name']} {tasks[dataset['task']]['metric_label']}: sort descending"
+                          header.inner_text())
+            name = f"{label} {tasks[dataset['task']]['metric_label']}: sort descending"
             self.assertEqual(self.page.get_by_role('button', name=name, exact=True).count(), 1)
-        self.assertEqual(self.page.get_by_role('button', name='Model Name / variant: sort descending', exact=True).count(), 1)
+        self.assertEqual(self.page.get_by_role('button', name='Model Name / variant: sort ascending', exact=True).count(), 1)
         setting_tabs = self.page.get_by_role('tablist', name='Experimental setting', exact=True)
         self.assertEqual(setting_tabs.get_by_role('tab').all_text_contents(), ['RL', 'RH', 'TH', 'THI'])
         hidden_label = self.page.locator('#setting-tabs-label').bounding_box()
@@ -1963,7 +2037,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                          [submission['model_name'] for submission in expected])
         self.page.locator('#task-tab-node_regression').click()
         self.assertEqual(self.page.locator('#task-tab-node_regression').get_attribute('aria-selected'), 'true')
-        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 1, 7)
+        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 2, 7)
         self.page.go_back()
         self.page.wait_for_function("document.getElementById('task-tab-all').getAttribute('aria-selected') === 'true'")
         self.assertEqual(self.page.locator('[data-sort-key="city-reviews"]').locator('..').get_attribute('aria-sort'), 'descending')
@@ -1973,7 +2047,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.go_forward()
         self.page.wait_for_function("document.getElementById('task-tab-node_regression').getAttribute('aria-selected') === 'true'")
         self.page.locator('#task-tab-all').click()
-        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 1, 14)
+        self.assertEqual(self.page.locator('#leaderboard-head [data-sort-key]').count() - 2, 14)
         self.brand_observations.append({'check': 'all_datasets_individual_metrics', 'dataset_columns': 14,
                                         'settings': ['RL', 'RH', 'TH', 'THI'], 'sort_dataset': 'city-reviews',
                                         'history_preserved': True, 'separate_view_return': True,
@@ -1990,6 +2064,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     (cell.querySelector('.sort-label') || cell).textContent.trim().replace(/\\s+/g, ' '));
                 return [...table.tBodies[0].rows].map(row => ({
                     name: row.cells[0].querySelector('.model-button').textContent,
+                    links: [...row.cells[0].querySelectorAll('a')].map(a => [a.textContent, a.href]),
                     fields: [...row.cells].slice(1).map((cell, i) => ({
                         label: labels[i], text: cell.textContent, html: cell.innerHTML,
                         best: cell.classList.contains('metric-best')
@@ -2000,6 +2075,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertFalse(self.page.locator('.print-tables').is_visible())
             actual = self.page.evaluate('''() => [...document.querySelectorAll('.print-record')].map(table => ({
                 name: table.querySelector('.print-model-name').textContent,
+                links: [...table.tHead.querySelectorAll('a')].map(a => [a.textContent, a.href]),
                 fields: [...table.tBodies[0].rows].map(row => ({
                     label: row.cells[0].textContent, text: row.cells[1].textContent,
                     html: row.cells[1].innerHTML, best: row.cells[1].classList.contains('metric-best')
@@ -2009,6 +2085,8 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.page.emulate_media(media='print')
             self.assertTrue(self.page.locator('.print-tables').is_visible())
             self.assertFalse(self.page.locator('#leaderboard-table').is_visible())
+            for link in self.page.locator('.print-record .model-resource-link').all():
+                self.assertIn(link.get_attribute('href'), link.evaluate("a => getComputedStyle(a, '::after').content"))
             for value in self.page.locator('.print-record .metric-value').all():
                 expected_weight = '700' if 'metric-best' in value.get_attribute('class') else '400'
                 self.assertEqual(value.evaluate('(e)=>getComputedStyle(e).fontWeight'), expected_weight)
@@ -2269,7 +2347,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
     def test_held_tab_navigation_uses_one_history_entry_and_restores_final_selection(self):
         for selector, parameter, initial, final, repetitions in (
             ('#setting-tabs', 'setting', 'RL', 'THI', 19),
-            ('#task-tabs', 'task', 'multiclass_node_classification', 'all', 7),
+            ('#task-tabs', 'task', 'multiclass_node_classification', 'all', 6),
         ):
             with self.subTest(parameter=parameter):
                 self.open()
@@ -2398,13 +2476,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 self.assertTrue(visible)
                 self.assertTrue(all(visible))
 
-    def test_model_badges_stay_inside_the_sticky_column_with_text_spacing(self):
+    def test_model_links_and_badges_stay_inside_the_sticky_column_with_text_spacing(self):
         self.page.set_viewport_size({'width':320,'height':900})
         self.open('?task=all')
         self.page.add_style_tag(content='*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}')
-        for badge in self.page.locator('.model-cell-badges .mini-badge').all():
-            bounds=badge.evaluate('(e)=>({badge:e.getBoundingClientRect().right,cell:e.closest("th,td").getBoundingClientRect().right})')
-            self.assertLessEqual(bounds['badge'],bounds['cell']-11)
+        for control in self.page.locator('.model-cell-extras > *').all():
+            bounds=control.evaluate('(e)=>({right:e.getBoundingClientRect().right,cell:e.closest("th,td").getBoundingClientRect().right})')
+            self.assertLessEqual(bounds['right'],bounds['cell']-11)
 
     def test_narrow_table_fits_one_complete_score_beside_model_names(self):
         self.page.emulate_media(reduced_motion='reduce')
@@ -2490,7 +2568,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
                 else:self.assertGreater(viewport.evaluate('(e)=>e.scrollLeft'),500)
                 self.page.unroute('**/assets/brand/ys-text-medium.woff2')
 
-    def test_loading_task_strip_scrolls_by_keyboard_and_focus_moves_to_ready_tab(self):
+    def test_loading_task_group_is_keyboard_reachable_and_focus_moves_to_ready_tab(self):
         pending=[]
         self.page.set_viewport_size({'width':375,'height':800})
         self.page.emulate_media(reduced_motion='reduce')
@@ -2499,18 +2577,13 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="true"')
         self.page.evaluate('document.fonts.ready')
         self.page.evaluate('()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
-        self.assertEqual(self.page.locator('#setting-description').inner_text(), '')
         self.assertFalse(self.page.locator('#metric-note').is_visible())
         self.assertTrue(self.page.locator('#task-tab-node_regression').is_disabled())
         self.page.locator('#leaderboard-controls').focus()
         self.page.keyboard.press('Tab')
         region=self.page.locator('.task-control')
         self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
-        region.evaluate('(e)=>e.scrollLeft=0')
-        url=self.page.url
-        self.page.keyboard.press('ArrowRight')
-        self.assertGreater(region.evaluate('(e)=>e.scrollLeft'), 0)
-        self.assertEqual(self.page.url,url)
+        self.assert_dataset_tabs_fit()
         pending[0].fulfill(json=self.payload)
         self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
         self.assertEqual(self.page.evaluate('document.activeElement.id'),'task-tab-node_regression')
@@ -2531,7 +2604,6 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertTrue(region.evaluate('(e)=>e===document.activeElement'))
         self.assertEqual(region.get_attribute('tabindex'),'0')
         self.assertFalse(self.page.locator('#metric-note').is_visible())
-        self.assertEqual(self.page.locator('#setting-description').inner_text(),'')
         self.page.keyboard.press('Tab')
         self.assertTrue(self.page.locator(':focus').is_visible())
         self.assertTrue(self.page.locator(':focus').is_enabled())
@@ -2573,7 +2645,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
 
     def test_enlarged_text_keeps_navigation_and_page_titles_inside_viewport(self):
         for width in (320, 375, 560, 561):
-            for route in ('leaderboard.html', 'getting-started.html'):
+            for route in ('index.html', 'leaderboard.html', 'getting-started.html'):
                 with self.subTest(width=width, route=route):
                     self.page.set_viewport_size({'width': width, 'height': 900})
                     self.page.goto(self.base + route)

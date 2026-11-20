@@ -78,8 +78,10 @@ class DatasetAPIRealTests(unittest.TestCase):
             wrapper = self.module.PyGDataset('fixture', split='THI')
         predictions_raw = self.np.array([1., 4., 9., 8.])
         predictions = torch.tensor(transform.transform(predictions_raw[:, None]).ravel())
+        # The tiny fit can yield a near-zero Yeo–Johnson power, with slight
+        # round-trip error that depends on the SciPy optimizer version.
         self.assertAlmostEqual(wrapper.compute_regression_metric(predictions),
-                               self.r2_score(raw[2:], predictions_raw[2:]))
+                               self.r2_score(raw[2:], predictions_raw[2:]), delta=1e-6)
         self.assertAlmostEqual(wrapper.compute_regression_metric(predictions[:2], snapshot=0), 1.)
 
 

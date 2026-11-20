@@ -39,7 +39,6 @@ class FrontendContractTests(unittest.TestCase):
             "task-tabs",
             "model-search",
             "code-filter",
-            "setting-description",
             "result-summary",
             "leaderboard-table",
             "leaderboard-head",
@@ -60,13 +59,14 @@ class FrontendContractTests(unittest.TestCase):
         self.assertEqual(settings, ["RL", "RH", "TH", "THI"])
         self.assertEqual(
             tasks,
-            ["multiclass_node_classification", "binary_node_classification", "node_regression", "all"],
+            ["all", "binary_node_classification", "multiclass_node_classification", "node_regression"],
         )
         self.assertNotRegex(self.html, r'data-setting=["\']All["\']')
         self.assertNotRegex(self.html, r'data-task=["\'](?:aggregate|overall_score)["\']')
         self.assertEqual(self.document.by_id["setting-tabs"][1].get("role"), "tablist")
         self.assertEqual(self.document.by_id["task-tabs"][1].get("role"), "tablist")
         self.assertIn("visually-hidden", str(self.document.by_id["setting-tabs-label"][1].get("class", "")).split())
+        self.assertNotIn("setting-description", self.document.by_id)
 
     def test_header_contains_only_the_accessible_external_logo_link(self) -> None:
         header_match = re.search(r"<header\b[^>]*>.*?</header>", self.html, re.DOTALL | re.IGNORECASE)
