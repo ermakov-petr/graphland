@@ -1852,7 +1852,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
             self.assertEqual(links.count(), 9)
             self.assertEqual(links.all_text_contents(), [
                 'web-fraud, web-topics, web-traffic', 'artnet-views, artnet-exp',
-                'city-roads-m, city-roads-l', 'city-reviews', 'avazu-ctr',
+                'city-roads-M, city-roads-L', 'city-reviews', 'avazu-ctr',
                 'hm-categories, hm-prices', 'pokec-regions', 'twitch-views', 'tolokers-2',
             ])
             for link in links.all():
@@ -2170,7 +2170,7 @@ class LeaderboardBrowserTests(unittest.TestCase):
         self.assertEqual(len(keys) - 2, 14)
         tasks = {task['id']: task for task in self.payload['config']['task_families']}
         for dataset in self.payload['datasets']:
-            label = dataset['id'].lower()
+            label = dataset['id']
             header = self.page.locator(f'[data-sort-key="{dataset["id"]}"]')
             self.assertEqual(header.locator('.sort-label > span').inner_text(), label)
             self.assertIn(tasks[dataset['task']]['metric_label'],
@@ -2689,22 +2689,28 @@ class LeaderboardBrowserTests(unittest.TestCase):
                     self.assertLessEqual(line['right'],geometry['right']+1)
 
     def test_dataset_description_links_reveal_the_ranked_column(self):
+        self.page.emulate_media(reduced_motion='reduce')
         for width in (320, 1280):
-            with self.subTest(width=width):
-                self.page.set_viewport_size({'width': width, 'height': 900})
-                self.page.emulate_media(reduced_motion='reduce')
-                self.page.goto(self.base+'datasets.html')
-                self.page.get_by_role('link', name='Leaderboard results on twitch-views dataset', exact=True).click()
-                self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
-                self.page.wait_for_function('''()=>{
-                    const e=document.querySelector('[data-sort-key="twitch-views"]');
-                    if(!e)return false;
-                    const c=e.parentElement.getBoundingClientRect(),v=e.closest('.table-scroll').getBoundingClientRect(),s=e.closest('tr').cells[0].getBoundingClientRect();
-                    return c.left>=Math.max(v.left,s.right)-1&&c.right<=v.right+1;
-                }''')
-                self.assertEqual(self.page.locator('[data-sort-key="twitch-views"]').locator('..').get_attribute('aria-sort'),'descending')
-                self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("task")'),'node_regression')
-                self.assertEqual(self.page.evaluate('location.hash'),'#leaderboard')
+            self.page.set_viewport_size({'width': width, 'height': 900})
+            for dataset_id in ('twitch-views', 'city-roads-M', 'city-roads-L'):
+                with self.subTest(width=width, dataset=dataset_id):
+                    self.page.goto(self.base + 'datasets.html')
+                    self.page.get_by_role('link', name=f'Leaderboard results on {dataset_id} dataset', exact=True).click()
+                    self.page.wait_for_function('document.querySelector("#leaderboard-panel").getAttribute("aria-busy")==="false"')
+                    selector = f'[data-sort-key="{dataset_id}"]'
+                    self.page.wait_for_function('''selector => {
+                        const button = document.querySelector(selector);
+                        if (!button) return false;
+                        const column = button.parentElement.getBoundingClientRect();
+                        const viewport = button.closest('.table-scroll').getBoundingClientRect();
+                        const sticky = button.closest('tr').cells[0].getBoundingClientRect();
+                        return column.left >= Math.max(viewport.left, sticky.right) - 1
+                            && column.right <= viewport.right + 1;
+                    }''', arg=selector)
+                    self.assertEqual(self.page.locator(selector).locator('..').get_attribute('aria-sort'), 'descending')
+                    self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("task")'), 'node_regression')
+                    self.assertEqual(self.page.evaluate('new URL(location.href).searchParams.get("sort")'), dataset_id)
+                    self.assertEqual(self.page.evaluate('location.hash'), '#leaderboard')
 
     def test_reselecting_the_current_tabs_preserves_rank_and_history(self):
         query = '?task=node_regression&sort=web-traffic&order=desc#leaderboard'

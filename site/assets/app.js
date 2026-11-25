@@ -466,7 +466,7 @@
     row.append(dateHeader, hpoHeader);
     datasets.forEach((dataset) => {
       const task = state.tasksById.get(dataset.task);
-      row.append(sortHeader(dataset.id.toLowerCase(), task ? task.metric_label : dataset.metric, dataset.id));
+      row.append(sortHeader(dataset.id, task ? task.metric_label : dataset.metric, dataset.id));
     });
     elements.tableHead.append(row);
     if (focusedSort) {
@@ -556,7 +556,7 @@
 
   function renderResultCell(row, submission, dataset, bestResult) {
     const cell = document.createElement("td");
-    const datasetLabel = dataset.id.toLowerCase();
+    const datasetLabel = dataset.id;
 
     // Availability takes precedence over the presence or absence of a submitted result.
     if (!isSettingAvailable(dataset, state.setting)) {
